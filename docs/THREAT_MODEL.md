@@ -211,13 +211,15 @@ The threat model treats these as conscious trade-offs, not regressions. Where a 
 
 ### 4.11 Cleartext traffic
 
-**Finding.** `android:usesCleartextTraffic="true"` in `AndroidManifest.xml`, mitigated by `networkSecurityConfig="@xml/network_security_config"`. The actual cleartext allowlist depends on the contents of `res/xml/network_security_config.xml`.
+**Finding (resolved).** Previously `app/src/main/res/xml/network_security_config.xml` set `cleartextTrafficPermitted="true"` on `base-config` (global) and trusted `<certificates src="user" />` in the base config (every user-installed CA could MITM the app). Combined with `android:usesCleartextTraffic="true"` in the manifest, the app had effectively no TLS enforcement and no defense against device-level CA injection (corporate MDM, malicious sideload, etc.). Audited and tightened in commit `5e0fcb1f`'s follow-up.
 
-**Rule.** Cleartext is permitted only for explicit dev/intranet origins (loopback, RFC1918, and named test hosts). The default is HTTPS. The config file's cleartext set is reviewed in this PR and at each release.
+**Rule.** Default-deny on cleartext: `base-config cleartextTrafficPermitted="false"` with system CAs only. Cleartext allowed exclusively at named loopback origins (`127.0.0.1`, `localhost`) for on-device dev and the planned Android↔proot bridge. User CAs trusted only under `<debug-overrides>` (debug builds, for proxy debuggers like Charles / mitmproxy); release variant rejects user CAs.
 
-**Status.** open — verify config file contents.
+**Status.** closed — see `app/src/main/res/xml/network_security_config.xml`.
 
-**Location.** `app/src/main/res/xml/network_security_config.xml`.
+**Known trade-off.** Features that depended on cleartext HTTP to a LAN host (e.g., LMStudio on `http://192.168.x.x:1234`, MCP servers on intranet hosts) stop working in release builds until either the host serves HTTPS or the user adds a named allowlist entry. Per `AGENTS.md` no-fallback rule, the broad cleartext default is not restored; specific allowlist entries land per-deployment when concrete hosts are known.
+
+**Location.** `app/src/main/res/xml/network_security_config.xml`. The manifest's `android:usesCleartextTraffic="true"` attribute in `AndroidManifest.xml` is now overridden by the NSC and is slated for removal in a manifest-cleanup follow-up commit.
 
 ### 4.12 Telemetry, analytics, crash reports
 
@@ -262,7 +264,7 @@ For traceability:
 
 | `SECURITY.md` default | Where enforced |
 |---|---|
-| Default-deny | §§ 4.2, 4.3, 4.4, 4.7 |
+| Default-deny | §§ 4.2, 4.3, 4.4, 4.7, 4.11 (closed) |
 | Per-call approval for high-blast actions | §§ 4.2, 4.3, 4.7 |
 | Least authority | §§ 4.4, 4.8 |
 | Isolate by default | §§ 4.2, 4.5 |
@@ -276,7 +278,7 @@ For traceability:
 | Subscription OAuth state stays in proot environment | § 4.5 |
 | APK has no secrets | § 4.8 (closed) |
 | No fallback in security paths | All sections |
-| No loopback exemption | § 5 ClawJacked |
+| No loopback exemption | § 5 ClawJacked, § 4.11 (closed) |
 | Token-mint scope does not widen | § 5 CVE-2026-32922 |
 | Config endpoints authenticated/signed | § 5 CVE-2026-25593 |
 | No auto-pair | § 5 ClawJacked |
