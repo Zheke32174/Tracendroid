@@ -29,14 +29,12 @@ class ShellExecutorFactory {
             }
 
             // 创建新的执行器实例
-            // ROOT 和 DEBUGGER 通道已废弃 — 退化为 STANDARD (参见 docs/SECURITY.md § 8)
+            // ROOT 与 DEBUGGER 通道已随 § 4.4 移除 (参见 docs/SECURITY.md § 8)
             val executor =
                     when (permissionLevel) {
                         AndroidPermissionLevel.ADMIN -> AdminShellExecutor(context)
                         AndroidPermissionLevel.ACCESSIBILITY -> AccessibilityShellExecutor(context)
-                        AndroidPermissionLevel.STANDARD,
-                        AndroidPermissionLevel.DEBUGGER,
-                        AndroidPermissionLevel.ROOT -> StandardShellExecutor(context)
+                        AndroidPermissionLevel.STANDARD -> StandardShellExecutor(context)
                     }
 
             // 初始化执行器

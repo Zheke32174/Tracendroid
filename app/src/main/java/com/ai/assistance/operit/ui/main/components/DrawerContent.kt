@@ -76,9 +76,7 @@ private suspend fun resolveSidebarPermissionStatus(
 ): SidebarPermissionStatus {
         return when (preferredPermissionLevel) {
                 null,
-                AndroidPermissionLevel.STANDARD,
-                AndroidPermissionLevel.DEBUGGER,
-                AndroidPermissionLevel.ROOT ->
+                AndroidPermissionLevel.STANDARD ->
                         SidebarPermissionStatus(
                                 badgeTextResId = R.string.sidebar_status_normal
                         )

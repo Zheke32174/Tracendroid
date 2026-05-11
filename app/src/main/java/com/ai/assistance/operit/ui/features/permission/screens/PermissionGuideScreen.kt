@@ -865,23 +865,7 @@ private fun PermissionLevelPage(
                     onClick = { onLevelSelected(AndroidPermissionLevel.ACCESSIBILITY) }
             )
 
-            // 调试权限
-            PermissionLevelItem(
-                    level = AndroidPermissionLevel.DEBUGGER,
-                    title = stringResource(R.string.permission_guide_debugger_title),
-                    description = stringResource(R.string.permission_guide_debugger_desc),
-                    isSelected = selectedLevel == AndroidPermissionLevel.DEBUGGER,
-                    onClick = { onLevelSelected(AndroidPermissionLevel.DEBUGGER) }
-            )
-
-            // Root权限
-            PermissionLevelItem(
-                    level = AndroidPermissionLevel.ROOT,
-                    title = stringResource(R.string.permission_guide_root_title),
-                    description = stringResource(R.string.permission_guide_root_desc),
-                    isSelected = selectedLevel == AndroidPermissionLevel.ROOT,
-                    onClick = { onLevelSelected(AndroidPermissionLevel.ROOT) }
-            )
+            // ROOT 与 DEBUGGER 通道已随 § 4.4 移除（见 docs/THREAT_MODEL.md）。
         }
 
         Spacer(modifier = Modifier.height(32.dp))
