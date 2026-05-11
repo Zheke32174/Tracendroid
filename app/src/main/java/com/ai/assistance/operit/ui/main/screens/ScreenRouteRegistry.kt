@@ -150,6 +150,14 @@ object ScreenRouteRegistry {
                 order = 5
             ),
             hostEntryDefinition(
+                entryId = "main.shell_bootstrap",
+                screen = Screen.ShellBootstrap,
+                surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,
+                launchNavItem = NavItem.ShellBootstrap,
+                icon = NavItem.ShellBootstrap.icon,
+                order = 6
+            ),
+            hostEntryDefinition(
                 entryId = "main.settings",
                 screen = Screen.Settings,
                 surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,

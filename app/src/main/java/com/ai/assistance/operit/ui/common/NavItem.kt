@@ -30,6 +30,12 @@ sealed class NavItem(val route: String, val titleResId: Int, val icon: ImageVect
                         R.string.nav_accessibility_onboarding,
                         Icons.Default.Accessibility
                 )
+        object ShellBootstrap :
+                NavItem(
+                        "shell_bootstrap",
+                        R.string.nav_shell_bootstrap,
+                        Icons.Default.Terminal
+                )
         object AssistantConfig :
                 NavItem("assistant_config", R.string.nav_assistant_config, Icons.Default.Tune)
         object Settings : NavItem("settings", R.string.nav_settings, Icons.Default.Settings)

@@ -11,6 +11,7 @@
     <!-- Navigation -->
     <string name="nav_ai_chat">AI Chat</string>
     <string name="nav_accessibility_onboarding">Accessibility setup</string>
+    <string name="nav_shell_bootstrap">Shell environment setup</string>
     <string name="nav_adb_commands">Permissions</string>
     <string name="nav_settings">Settings</string>
     <string name="nav_tool_permissions">Tool Permissions</string>
