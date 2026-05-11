@@ -71,9 +71,9 @@ The status column is one of: **closed** (rule enforced), **open** (rule not yet 
 | Receiver | Action | Risk | Status |
 |---|---|---|---|
 | `ScriptExecutionReceiver` | `com.ai.assistance.operit.EXECUTE_JS` | Any installed app submits JS for in-process QuickJS execution | open |
-| `ToolPkgDebugInstallReceiver` | `DEBUG_INSTALL_TOOLPKG` | External app installs tool packages | open — also a debug-only surface in release builds |
-| `PackageDebugRefreshReceiver` | `DEBUG_REFRESH_PACKAGES` | Forces plugin refresh from external trigger | open — debug-only |
-| `ToolPkgComposeDslDebugDumpReceiver` | `DUMP_COMPOSE_DSL_UI` | Dumps UI tree on external trigger | open — debug-only |
+| `ToolPkgDebugInstallReceiver` | `DEBUG_INSTALL_TOOLPKG` | External app installs tool packages | closed (excluded from release variant via `app/src/release/AndroidManifest.xml`) |
+| `PackageDebugRefreshReceiver` | `DEBUG_REFRESH_PACKAGES` | Forces plugin refresh from external trigger | closed (excluded from release variant) |
+| `ToolPkgComposeDslDebugDumpReceiver` | `DUMP_COMPOSE_DSL_UI` | Dumps UI tree on external trigger | closed (excluded from release variant) |
 | `ExternalChatReceiver` | `EXTERNAL_CHAT` | External app initiates a chat session | open — needs sender allowlist |
 | `WorkflowTaskerReceiver` | `TRIGGER_WORKFLOW`, `FIRE_SETTING` | External app fires workflow automation | open — needs sender allowlist or signature perm |
 | `WorkflowBootReceiver` | `BOOT_COMPLETED` | System trigger only (acceptable) | closed (system-only) |
@@ -82,7 +82,7 @@ The status column is one of: **closed** (rule enforced), **open** (rule not yet 
 
 **Rule.** Every entry above whose status is "open" gets a signature permission tied to either our own release key (debug/internal channels) or the publisher of the legitimate caller (Tasker for the workflow receiver), plus removal of debug receivers from the release variant via build-type-specific manifests. Entries with "scheduled for removal" are deleted in the implementation PRs cited.
 
-**Location.** `app/src/main/AndroidManifest.xml`. Per-build-type manifests will live in `app/src/release/AndroidManifest.xml` and `app/src/debug/AndroidManifest.xml`.
+**Location.** `app/src/main/AndroidManifest.xml` (main variant) and `app/src/release/AndroidManifest.xml` (release-only overlay that strips debug receivers). Debug builds keep all receivers for internal tooling. The `nightly` build type inherits the release overlay via `matchingFallbacks=[release]` already declared in `app/build.gradle.kts`.
 
 ### 4.2 In-process JS sandbox (QuickJS)
 
