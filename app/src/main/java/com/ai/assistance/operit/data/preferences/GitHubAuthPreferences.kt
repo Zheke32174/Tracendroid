@@ -43,7 +43,8 @@ class GitHubAuthPreferences(private val context: Context) {
     companion object {
         // GitHub OAuth相关配置
         val GITHUB_CLIENT_ID = BuildConfig.GITHUB_CLIENT_ID
-        val GITHUB_CLIENT_SECRET = BuildConfig.GITHUB_CLIENT_SECRET
+        // Client secret intentionally absent. Mobile uses PKCE (RFC 7636);
+        // see docs/OAUTH_PKCE_MIGRATION.md and SECURITY.md § 4.8.
         const val GITHUB_SCOPE = "notifications,public_repo,user:email,read:user"
         private const val REQUIRED_AUTH_VERSION = 2
         private const val GITHUB_REDIRECT_SCHEME = "operit"
@@ -61,6 +62,8 @@ class GitHubAuthPreferences(private val context: Context) {
         private val AUTH_VERSION = longPreferencesKey("auth_version")
         private val GRANTED_SCOPE = stringPreferencesKey("granted_scope")
         private val PENDING_OAUTH_STATE = stringPreferencesKey("pending_oauth_state")
+        private val PENDING_OAUTH_CODE_VERIFIER =
+            stringPreferencesKey("pending_oauth_code_verifier")
         
         @Volatile
         private var INSTANCE: GitHubAuthPreferences? = null
@@ -274,15 +277,52 @@ class GitHubAuthPreferences(private val context: Context) {
     }
 
     /**
-     * 生成GitHub OAuth授权URL
+     * Persist the PKCE code_verifier between the authorize-URL build and the
+     * callback. Mirrors the state pattern. Lives in plain DataStore for v1
+     * alongside PENDING_OAUTH_STATE; both migrate to EncryptedSharedPreferences
+     * as part of THREAT_MODEL.md § 4.9 (credential storage).
      */
-    fun getAuthorizationUrl(state: String = createOAuthState()): String {
+    suspend fun setPendingCodeVerifier(verifier: String) {
+        context.githubAuthDataStore.edit { preferences ->
+            preferences[PENDING_OAUTH_CODE_VERIFIER] = verifier
+        }
+    }
+
+    /**
+     * Read-and-clear the pending PKCE verifier. The callback consumes it once;
+     * a second read returns null.
+     */
+    suspend fun consumePendingCodeVerifier(): String? {
+        val preferences = context.githubAuthDataStore.data.first()
+        val verifier = preferences[PENDING_OAUTH_CODE_VERIFIER]
+        context.githubAuthDataStore.edit { mutablePreferences ->
+            mutablePreferences.remove(PENDING_OAUTH_CODE_VERIFIER)
+        }
+        return verifier
+    }
+
+    /**
+     * 生成GitHub OAuth授权URL。
+     *
+     * The caller is responsible for generating the code_verifier (via
+     * PkceCodeGenerator.generateCodeVerifier()) and persisting it via
+     * setPendingCodeVerifier() or in-Compose rememberSaveable, depending on
+     * the flow. Keeping this function non-suspend lets Compose callers invoke
+     * it directly inside remember { } blocks.
+     */
+    fun getAuthorizationUrl(
+        state: String = createOAuthState(),
+        codeVerifier: String
+    ): String {
+        val codeChallenge = PkceCodeGenerator.computeCodeChallenge(codeVerifier)
         return Uri.parse("https://github.com/login/oauth/authorize")
             .buildUpon()
             .appendQueryParameter("client_id", GITHUB_CLIENT_ID)
             .appendQueryParameter("redirect_uri", GITHUB_REDIRECT_URI)
             .appendQueryParameter("scope", GITHUB_SCOPE)
             .appendQueryParameter("state", state)
+            .appendQueryParameter("code_challenge", codeChallenge)
+            .appendQueryParameter("code_challenge_method", "S256")
             .build()
             .toString()
     }
