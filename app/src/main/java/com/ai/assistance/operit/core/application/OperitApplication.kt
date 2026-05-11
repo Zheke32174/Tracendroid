@@ -41,6 +41,7 @@ import com.ai.assistance.operit.data.preferences.CharacterCardManager
 import com.ai.assistance.operit.data.preferences.ExternalHttpApiPreferences
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.data.preferences.WakeWordPreferences
+import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
 import com.ai.assistance.operit.data.preferences.initAndroidPermissionPreferences
 import com.ai.assistance.operit.data.preferences.initUserPreferencesManager
 import com.ai.assistance.operit.data.preferences.preferencesManager
@@ -192,6 +193,11 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
         // 初始化Android权限偏好管理器
         initAndroidPermissionPreferences(applicationContext)
         AppLogger.d(TAG, "【启动计时】Android权限偏好管理器初始化完成 - ${System.currentTimeMillis() - startTime}ms")
+        // § 4.4 ROOT 通道随移除带走了相关 DataStore 键 —— 这里清理任何遗留值。
+        applicationScope.launch {
+            runCatching { androidPermissionPreferences.purgeLegacyRootKeys() }
+                .onFailure { e -> AppLogger.w(TAG, "purgeLegacyRootKeys failed: ${e.message}") }
+        }
 
         // 初始化功能提示词管理器
         applicationScope.launch {

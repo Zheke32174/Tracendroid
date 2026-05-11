@@ -16,18 +16,6 @@ import kotlinx.coroutines.runBlocking
 private val Context.androidPermissionDataStore: DataStore<Preferences> by
         preferencesDataStore(name = "android_permission_preferences")
 
-enum class RootCommandExecutionMode {
-    AUTO,
-    FORCE_LIBSU,
-    FORCE_EXEC;
-
-    companion object {
-        fun fromString(value: String?): RootCommandExecutionMode {
-            return values().firstOrNull { it.name == value } ?: AUTO
-        }
-    }
-}
-
 /** 全局单例实例 */
 lateinit var androidPermissionPreferences: AndroidPermissionPreferences
     private set
@@ -41,17 +29,13 @@ fun initAndroidPermissionPreferences(context: Context) {
 class AndroidPermissionPreferences(private val context: Context) {
     companion object {
         private const val TAG = "AndroidPermissionPrefs"
-        const val DEFAULT_SU_COMMAND = "su"
 
-        // 权限相关键
         private val PREFERRED_PERMISSION_LEVEL = stringPreferencesKey("preferred_permission_level")
-        private val ROOT_EXECUTION_MODE = stringPreferencesKey("root_execution_mode")
-        private val CUSTOM_SU_COMMAND = stringPreferencesKey("custom_su_command")
-    }
 
-    private fun normalizeSuCommand(command: String?): String {
-        val normalized = command?.trim().orEmpty()
-        return normalized.ifEmpty { DEFAULT_SU_COMMAND }
+        // ROOT 通道随 § 4.4 移除；保留这两个键名常量，仅用于在迁移阶段清理用户的旧值。
+        // 不要在新代码中读写它们 —— 没有任何 root_command_execution_mode 行为。
+        private val LEGACY_ROOT_EXECUTION_MODE = stringPreferencesKey("root_execution_mode")
+        private val LEGACY_CUSTOM_SU_COMMAND = stringPreferencesKey("custom_su_command")
     }
 
     /** 首选权限级别Flow 返回用户配置的首选Android权限级别，如果未设置则返回null */
@@ -59,16 +43,6 @@ class AndroidPermissionPreferences(private val context: Context) {
             context.androidPermissionDataStore.data.map { preferences ->
                 val levelString = preferences[PREFERRED_PERMISSION_LEVEL]
                 if (levelString != null) AndroidPermissionLevel.fromString(levelString) else null
-            }
-
-    val rootExecutionModeFlow: Flow<RootCommandExecutionMode> =
-            context.androidPermissionDataStore.data.map { preferences ->
-                RootCommandExecutionMode.fromString(preferences[ROOT_EXECUTION_MODE])
-            }
-
-    val customSuCommandFlow: Flow<String> =
-            context.androidPermissionDataStore.data.map { preferences ->
-                normalizeSuCommand(preferences[CUSTOM_SU_COMMAND])
             }
 
     /**
@@ -79,21 +53,6 @@ class AndroidPermissionPreferences(private val context: Context) {
         AppLogger.d(TAG, "Saving preferred permission level: $permissionLevel")
         context.androidPermissionDataStore.edit { preferences ->
             preferences[PREFERRED_PERMISSION_LEVEL] = permissionLevel.name
-        }
-    }
-
-    suspend fun saveRootExecutionMode(mode: RootCommandExecutionMode) {
-        AppLogger.d(TAG, "Saving root execution mode: $mode")
-        context.androidPermissionDataStore.edit { preferences ->
-            preferences[ROOT_EXECUTION_MODE] = mode.name
-        }
-    }
-
-    suspend fun saveCustomSuCommand(command: String) {
-        val normalized = normalizeSuCommand(command)
-        AppLogger.d(TAG, "Saving custom su command: $normalized")
-        context.androidPermissionDataStore.edit { preferences ->
-            preferences[CUSTOM_SU_COMMAND] = normalized
         }
     }
 
@@ -108,28 +67,6 @@ class AndroidPermissionPreferences(private val context: Context) {
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Error getting preferred permission level", e)
                 null
-            }
-        }
-    }
-
-    fun getRootExecutionMode(): RootCommandExecutionMode {
-        return runBlocking {
-            try {
-                rootExecutionModeFlow.first()
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "Error getting root execution mode", e)
-                RootCommandExecutionMode.AUTO
-            }
-        }
-    }
-
-    fun getCustomSuCommand(): String {
-        return runBlocking {
-            try {
-                customSuCommandFlow.first()
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "Error getting custom su command", e)
-                DEFAULT_SU_COMMAND
             }
         }
     }
@@ -157,11 +94,15 @@ class AndroidPermissionPreferences(private val context: Context) {
         }
     }
 
-    suspend fun resetRootExecutionSettings() {
-        AppLogger.d(TAG, "Resetting root execution settings")
+    /**
+     * 清除 ROOT 通道时代留存的过期键。在首次启动或重置时调用以删除用户旧 DataStore 中
+     * 残留的 root_execution_mode / custom_su_command 键值。一次性清理；不创建新的 ROOT
+     * 行为。
+     */
+    suspend fun purgeLegacyRootKeys() {
         context.androidPermissionDataStore.edit { preferences ->
-            preferences.remove(ROOT_EXECUTION_MODE)
-            preferences.remove(CUSTOM_SU_COMMAND)
+            preferences.remove(LEGACY_ROOT_EXECUTION_MODE)
+            preferences.remove(LEGACY_CUSTOM_SU_COMMAND)
         }
     }
 }
