@@ -15,10 +15,10 @@ Trust level descends down the table. Same row = roughly the same level; rows are
 | 3 | App core (this repo, our build) | Our release signing key |
 | 4 | Bundled plugins shipped in the APK | Our release signing key + manifest |
 | 5 | Other Android apps interacting via intents | Caller package signature (when checked) |
-| 5 | Official subscription CLIs in chroot (codex, gemini-cli, claude-code) | Distribution publisher + Linux uid in chroot |
+| 5 | Official subscription CLIs in proot (codex, gemini-cli, claude-code) | Distribution publisher + Linux uid in proot |
 | 6 | User-installed plugins (.toolpkg / MCP / Skill) | Plugin publisher signature (TBD — `AUDIT_PLAN.md`) |
 | 6 | Remote AI providers | TLS / provider auth |
-| 7 (lowest) | Arbitrary user-installed chroot binaries | Linux uid in chroot |
+| 7 (lowest) | Arbitrary user-installed proot binaries | Linux uid in proot |
 
 Higher trust does not grant lower-trust capability automatically. The user (level 1) is the only actor that can elevate another actor, and elevation is per-action, not per-session.
 
@@ -30,7 +30,7 @@ AI agents — local, remote, subscription, self-hosted — participate in action
 |---|---|
 | Local on-device AI (llama.cpp / MNN runtimes) | Input channel = the device + the prompt construction we control. Output validation: tool calls gated, rendering sandboxed |
 | Remote API providers (OpenAI / Anthropic / Google / etc.) | Input channel includes the provider's infrastructure. Output validation: same gates + TLS pinning where supported |
-| Subscription CLIs in chroot (codex / gemini-cli / claude-code) | Input channel includes the CLI's own configured providers. Output validation: same gates + chroot isolation |
+| Subscription CLIs in proot (codex / gemini-cli / claude-code) | Input channel includes the CLI's own configured providers. Output validation: same gates + proot environment isolation |
 
 ## 2. Assets
 
@@ -38,7 +38,7 @@ AI agents — local, remote, subscription, self-hosted — participate in action
 |---|---|---|
 | User messages, attachments, chat history | ObjectBox + Room (`app/src/main/java/com/ai/assistance/operit/data/`) | High |
 | Personal data agents pick up (contacts, location, photos) | Device + transient memory | High |
-| Subscription OAuth tokens (codex / gemini-cli / claude-code) | Chroot filesystem | Very high — long-lived, monetary |
+| Subscription OAuth tokens (codex / gemini-cli / claude-code) | proot environment filesystem | Very high — long-lived, monetary |
 | Provider API keys (OpenAI / Anthropic / etc.) | DataStore prefs (today) → EncryptedSharedPreferences (target) | Very high |
 | SSH keys (workspace bindings) | DataStore (today) → encrypted at rest (target) | High |
 | Identity at connected services | Tokens above | High |
@@ -56,15 +56,15 @@ Each row names a boundary where one actor's data or control crosses to another. 
 | App core ↔ Bundled plugins | Fully trusted | Same trust as app core; auditable at build time |
 | App ↔ User-installed plugins | Fully trusted on install (problem) | Install ≠ authorize; per-tool prompt; quarantine if unsigned |
 | App ↔ External Android apps | Multiple exported receivers without permission (problem) | Signature permission or sender allowlist |
-| App ↔ Privileged binder (Shizuku / Shower / libsu) | Three channels, duplicated call sites | Single abstraction; per-session approval; halt control |
-| App ↔ Chroot processes | Currently broken (missing rootfs); no isolation policy defined | Chroot is the persistence boundary; reads from Android side are read-only, scoped, audited |
+| App ↔ AccessibilityService | The only privileged automation channel after the Shizuku/Shower removal; user-granted via system Settings | Per-session capability grants; halt control; audit-logged |
+| App ↔ proot processes | Currently broken (missing rootfs); no isolation policy defined | proot environment is the persistence boundary; reads from Android side are read-only, scoped, audited |
 | App ↔ Remote AI provider | TLS only; output rendered without explicit sandbox | No script execution in rendering; tool calls always gated |
-| Chroot CLI ↔ Subscription provider | New surface | Each CLI handles its own OAuth; tokens stay in chroot |
+| proot CLI ↔ Subscription provider | New surface | Each CLI handles its own OAuth; tokens stay in proot environment |
 | Documents Provider ↔ Other apps | `WorkspaceDocumentsProvider`, `MemoryDocumentsProvider` exported with `MANAGE_DOCUMENTS` (Android-required, but audit pending) | Provider implementations reviewed for cross-app file access correctness |
 
 ## 4. Per-surface findings, rules, and code locations
 
-The status column is one of: **closed** (rule enforced), **open** (rule not yet enforced), **design** (rule being defined), **broken** (subsystem doesn't work at all today).
+The status column is one of: **closed** (rule enforced), **open** (rule not yet enforced), **design** (rule being defined), **broken** (subsystem doesn't work at all today), **scheduled for removal** (the surface itself is going away).
 
 ### 4.1 Exported Android receivers
 
@@ -77,10 +77,10 @@ The status column is one of: **closed** (rule enforced), **open** (rule not yet 
 | `ExternalChatReceiver` | `EXTERNAL_CHAT` | External app initiates a chat session | open — needs sender allowlist |
 | `WorkflowTaskerReceiver` | `TRIGGER_WORKFLOW`, `FIRE_SETTING` | External app fires workflow automation | open — needs sender allowlist or signature perm |
 | `WorkflowBootReceiver` | `BOOT_COMPLETED` | System trigger only (acceptable) | closed (system-only) |
-| `ShowerBinderReceiver` | `SHOWER_BINDER_READY` | Privileged binder handoff | open — needs signature perm matching the Shower server APK |
+| `ShowerBinderReceiver` | `SHOWER_BINDER_READY` | Privileged binder handoff (Shower in-house server) | scheduled for removal (see § 4.4) |
 | `VoiceAssistantWidgetReceiver`, `ToolPkgDesktopWidgetReceiver` | `APPWIDGET_UPDATE` | System trigger only (acceptable) | closed (system-only) |
 
-**Rule.** Every entry above whose status is "open" gets a signature permission tied to either our own release key (debug/internal channels) or the publisher of the legitimate caller (Tasker for the workflow receiver; the Shower server APK for the binder receiver), plus removal of debug receivers from the release variant via build-type-specific manifests.
+**Rule.** Every entry above whose status is "open" gets a signature permission tied to either our own release key (debug/internal channels) or the publisher of the legitimate caller (Tasker for the workflow receiver), plus removal of debug receivers from the release variant via build-type-specific manifests. Entries with "scheduled for removal" are deleted in the implementation PRs cited.
 
 **Location.** `app/src/main/AndroidManifest.xml`. Per-build-type manifests will live in `app/src/release/AndroidManifest.xml` and `app/src/debug/AndroidManifest.xml`.
 
@@ -112,37 +112,47 @@ The status column is one of: **closed** (rule enforced), **open** (rule not yet 
 
 **Location.** `app/src/main/java/com/ai/assistance/operit/core/tools/mcp/`, `core/tools/packTool/`, `core/tools/skill/`. The `packages_whitelist.txt` file at the repo root is in-scope for the build-time bundling decision but does not address runtime trust.
 
-### 4.4 Privileged binder (libsu / Shizuku / Shower)
+### 4.4 Privileged automation channel: AccessibilityService only
 
-**Finding.** Three privileged-execution channels coexist:
-- `libsu 6.0.0` (topjohnwu) — root via `su`.
-- Shizuku — ADB-shell-level execution over a binder service (`rikka.shizuku` dependencies; `ShizukuProvider` in manifest).
-- Shower — an in-house Shizuku-style server with its own client (`:showerclient` Gradle module) and binder handoff (`ShowerBinderReceiver`).
+**Finding.** Operit's existing manifest declares dependencies on three privileged-execution channels: `libsu` (root via `su`), Shizuku (ADB-shell-level execution over binder), and Shower (in-house Shizuku-style server). The project's stance is that **none of these ship in v1**:
 
-Each is invoked from many call sites. The triple-channel branching multiplies the audit surface and creates inconsistent per-session approval UX.
+- `libsu` is unreachable: the project doesn't have root and isn't taking root.
+- Shizuku is removed: it expands the attack surface (a privileged binder reachable from the device, with its own auth model layered onto ADB-shell privilege) in ways that aren't necessary given Accessibility coverage of the realistic use cases.
+- Shower is removed: same architectural pattern as Shizuku, same attack-surface argument, even though the server is signed by us. Pattern-symmetry trumps publisher-trust here.
+
+**Remaining privileged channel: AccessibilityService.** Granted by the user through Android's system Settings page (`Settings → Accessibility → Operit`), kernel-enforced by Android, surface-limited to UI-tree reads and gesture dispatch. This is a fundamentally different trust model from binder-based privileged execution: the user grants it via an OS-mediated flow with explicit prompts, the grant is revocable in the same place, and the API is well-defined by the Android SDK rather than by a third-party server.
+
+**Trade-offs accepted.** Some capabilities that `libsu`/Shizuku/Shower could have provided are not reachable from AccessibilityService alone:
+- `pm install -r` style installs without a system prompt — we keep the system prompt.
+- Virtual display creation (`adb root`-class feature) — not supported in v1.
+- `am force-stop` of arbitrary packages — not supported.
+- Background input injection without an active foreground service — not supported.
+
+The threat model treats these as conscious trade-offs, not regressions. Where a capability is genuinely necessary later, it's added via the OS-mediated path or not at all — not through a privileged escape hatch.
 
 **Rule.**
-- A single Kotlin abstraction (`PrivilegedShell` or similar — name TBD) hides which channel is in use. Call sites use only the abstraction.
-- The abstraction enforces default-deny: a session has no privileged execution capability until the user grants it. Grants are per-session, expire on session end, and are revocable mid-session via the halt control (see § Phone-as-actuator).
-- The Shower binder handoff receiver is gated by a signature permission matching the Shower server APK.
+- The `libsu`, Shizuku, and Shower dependencies are removed from `app/build.gradle.kts` and `AndroidManifest.xml`. The `:showerclient` Gradle module is deleted. The `ShowerBinderReceiver` is deleted. The `ShizukuProvider` manifest declaration is removed; `moe.shizuku.manager.permission.API_V23` is removed.
+- All call sites currently dispatching through `libsu`/Shizuku/Shower migrate to AccessibilityService-routed equivalents in `app/src/main/java/com/ai/assistance/operit/core/tools/system/`. Where no equivalent exists, the capability is removed from the project (see Trade-offs above).
+- AccessibilityService grants are per-app-install (granted once in system Settings, revocable in system Settings), but per-session capability tracking is layered on top: a session has no actuator capability by default; the user grants per-session at the moment of first use (`§ 4.7`).
+- The Shower-receiver row in `§ 4.1` is marked "scheduled for removal" in the present PR; the deletion lands in a follow-up implementation PR that touches the manifest, build script, and Gradle module.
 
-**Status.** design + open (the abstraction is new; the receiver gate is a manifest change).
+**Status.** open — manifest cleanup, Gradle-dep removal, and call-site migration land across implementation PRs.
 
-**Location.** `app/src/main/java/com/ai/assistance/operit/core/tools/agent/ShowerBinderReceiver*.kt`, libsu/Shizuku call sites across `core/tools/system/`, `:showerclient` module.
+**Location.** `app/build.gradle.kts`, `app/src/main/AndroidManifest.xml`, `app/src/main/java/com/ai/assistance/operit/core/tools/agent/ShowerBinderReceiver*.kt`, `:showerclient` Gradle module, libsu/Shizuku call sites across `core/tools/system/`.
 
-### 4.5 Subscription OAuth in chroot
+### 4.5 Subscription OAuth in proot environment
 
-**Finding.** New surface introduced by the bridge-to-CLI strategy. The chroot will host first-party CLIs (codex, gemini-cli, claude-code) each holding long-lived subscription tokens in their own session directories.
+**Finding.** New surface introduced by the bridge-to-CLI strategy. The proot environment hosts first-party CLIs (codex, gemini-cli, claude-code) each holding long-lived subscription tokens in their own session directories.
 
-**Rule.** Per `SECURITY.md`: chroot is the persistence boundary. Android-side access is read-only, scoped to a specific operation, audit-logged. Token rotation operations (when initiated from outside the CLI itself) do not widen scope (per CVE-2026-32922 lesson).
+**Rule.** Per `SECURITY.md`: the proot environment is the persistence boundary. Android-side access is read-only, scoped to a specific operation, audit-logged. Token rotation operations (when initiated from outside the CLI itself) do not widen scope (per CVE-2026-32922 lesson).
 
 **Status.** design — depends on the shell rebuild.
 
-**Location.** New. Lives in the shell rebuild scope (forthcoming `docs/SHELL_REBUILD.md`).
+**Location.** See `SHELL_REBUILD.md`.
 
 ### 4.6 AI output as a validated channel
 
-**Finding.** The chat rendering pipeline (`ui/features/chat/`, with markdown / HTML / LaTeX / Mermaid renderers, `app/build.gradle.kts` references for `jlatexmath`, `renderx`, `androidsvg`) handles AI output. Per `SECURITY.md` § Trust posture, AI output is validated as a channel — not because the collaborator is mistrusted, but because the input side of their reasoning (prompt injection, compromised context) is reachable by adversaries. HTML block preview (mentioned in release notes for v1.8.1) is a particular concern.
+**Finding.** The chat rendering pipeline (`ui/features/chat/`, with markdown / HTML / LaTeX / Mermaid renderers, `app/build.gradle.kts` references for `jlatexmath`, `renderx`, `androidsvg`) handles AI output. Per `SECURITY.md § Trust posture`, AI output is validated as a channel — not because the collaborator is mistrusted, but because the input side of their reasoning (prompt injection, compromised context) is reachable by adversaries. HTML block preview (mentioned in release notes for v1.8.1) is a particular concern.
 
 **Risk.** An adversary who has compromised the input channel (poisoned context, injected prompt, malicious tool result fed back into the conversation) can shape AI output to embed attacker-controlled HTML, links, or tool-call sequences. The collaborator's reasoning isn't the problem; the channel is.
 
@@ -157,12 +167,12 @@ Each is invoked from many call sites. The triple-channel branching multiplies th
 
 ### 4.7 Phone-as-actuator
 
-**Finding.** The app holds permissions to act on the phone in destructive or visible ways: `SEND_SMS`, `READ_SMS`, `CALL_PHONE`, `REQUEST_INSTALL_PACKAGES`, `WRITE_SETTINGS`, `MANAGE_EXTERNAL_STORAGE`, `BIND_VOICE_INTERACTION`, `BIND_NOTIFICATION_LISTENER_SERVICE`, AccessibilityService, MediaProjection foreground service.
+**Finding.** The app holds permissions to act on the phone in destructive or visible ways: `SEND_SMS`, `READ_SMS`, `CALL_PHONE`, `REQUEST_INSTALL_PACKAGES`, `WRITE_SETTINGS`, `MANAGE_EXTERNAL_STORAGE`, `BIND_VOICE_INTERACTION`, `BIND_NOTIFICATION_LISTENER_SERVICE`, AccessibilityService, MediaProjection foreground service. After the § 4.4 cleanup, AccessibilityService is the only privileged automation channel.
 
 **Rule.**
 - Actuator capability is not the default for any AI session. A session starts with zero phone-side capability; the user grants it per-session via a visible prompt.
 - An always-on indicator (status bar / floating dot) shows when actuator capability is active in the current session. Hiding the indicator is not a user-configurable option.
-- The halt control (per `SECURITY.md` principle #7) halts every in-flight action — invocations the AI is performing, chroot processes the AI launched, foreground services tied to the session — and revokes the session's actuator capability. The halt control is reachable from one tap in the always-on indicator.
+- The halt control (per `SECURITY.md` principle 7) halts every in-flight action — invocations the AI is performing, proot processes the AI launched, foreground services tied to the session — and revokes the session's actuator capability. The halt control is reachable from one tap in the always-on indicator.
 - The halt action is audit-logged. The log preserves the AI's reasoning state at the moment of halt, not only the actions taken.
 
 **Status.** open — halt control UI is new; per-session grant flow needs design.
@@ -228,7 +238,7 @@ Each is invoked from many call sites. The triple-channel branching multiplies th
 - The user is offered options after a decline: rephrase the request, abandon the action, or — only via explicit re-prompt — attempt a fresh turn. There is no automatic retry path.
 - Declines are recorded in the audit log alongside the AI reasoning state preserved at the moment of decline.
 
-**Status.** design — depends on the `AgentOutcome` data model defined in `AUDIT_PLAN.md § 1.7`.
+**Status.** design — depends on the `AgentOutcome` data model defined in `AUDIT_PLAN.md § 1.7` and surfaced in `AGENT_CORE.md § Decline channel`.
 
 **Location.** Forthcoming. Likely lives in `app/src/main/java/com/ai/assistance/operit/api/chat/` and `app/src/main/java/com/ai/assistance/operit/services/core/` (chat coordination layer).
 
@@ -238,13 +248,13 @@ Each row maps a documented 2026 OpenClaw incident to where the corresponding def
 
 | Incident | Failure pattern | Our defense | Surface in this repo |
 |---|---|---|---|
-| **ClawJacked** (Oasis Security) | Loopback exempted from rate-limit + auth, plus auto-pair on "trusted" origin | `SECURITY.md` red lines: no loopback exemptions, no auto-pair | Future local IPC endpoints (HTTP / WebSocket / Unix socket) on the device, including the planned Android↔chroot bridge |
+| **ClawJacked** (Oasis Security) | Loopback exempted from rate-limit + auth, plus auto-pair on "trusted" origin | `SECURITY.md` red lines: no loopback exemptions, no auto-pair | Future local IPC endpoints (HTTP / WebSocket / Unix socket) on the device, including the Android↔proot bridge |
 | **CVE-2026-32922** | Token rotate widens scope | `SECURITY.md` red line: token-mint operations do not widen scope | Subscription OAuth flows (§ 4.5), credential storage (§ 4.9) |
 | **CVE-2026-25593** | `config.apply` over open WebSocket → unauthenticated local RCE | `SECURITY.md` red line: config endpoints require authenticated, scoped, signed calls | Any future config-write IPC; manifest-declared receivers (§ 4.1) |
 | **ClawHub skills → Atomic stealer** | Plugin marketplace without trust anchor | `SECURITY.md` red line: unsigned plugins quarantined | Plugin marketplaces (§ 4.3) |
 | **Moltbook backend leak** | Third-party Supabase backend held tokens cleartext | `SECURITY.md` red line: third-party backends do not hold agent state in cleartext | Any future cloud sync; currently not implemented |
 | **Skill auto-execution** | Skills run on install | `SECURITY.md` red line: install ≠ authorize | Plugin marketplaces (§ 4.3) |
-| **138+ CVE volume** | Integration sprawl without per-integration security | `SECURITY.md` § Decision rules: every new actor / boundary justified in the PR | Process rule — applies to every PR |
+| **138+ CVE volume** | Integration sprawl without per-integration security | `SECURITY.md § Decision rules`: every new actor / boundary justified in the PR | Process rule — applies to every PR |
 
 ## 6. Mapping from `SECURITY.md` defaults to this document
 
@@ -262,7 +272,8 @@ For traceability:
 | AI as collaborators (decline as first-class) | § 4.13, § 4.6 |
 | Exported receiver with permission/allowlist | § 4.1 |
 | Plugin tools do not run unprompted | § 4.3 |
-| Subscription OAuth state stays in chroot | § 4.5 |
+| No third-party privileged-binder dependency | § 4.4 |
+| Subscription OAuth state stays in proot environment | § 4.5 |
 | APK has no secrets | § 4.8 |
 | No fallback in security paths | All sections |
 | No loopback exemption | § 5 ClawJacked |

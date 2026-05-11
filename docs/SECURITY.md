@@ -9,10 +9,11 @@ This document describes how the project thinks about trust and security. It gove
 
 ## On adopted patterns from other agent frameworks
 
-The project draws ideas from existing agent frameworks (openclaw, opencode, claude-code, codex, gemini-cli, aider, cline, continue.dev, MCP). Their default trust models are not adopted. In particular:
+The project draws ideas from existing agent frameworks (openclaw, opencode, claude-code, codex, gemini-cli, aider, cline, continue.dev, MCP, Mobile-Agent, DroidClaw). Their default trust models are not adopted wholesale. In particular:
 
 - **OpenClaw is treated as salvage**, not foundation. Useful concepts (multi-channel routing, voice/canvas UI, integration breadth) are candidates for re-engineering; the "trusted operator" trust model and the open-by-default integration posture are not. The 2026 incident record (ClawJacked silent takeover, CVE-2026-32922 token-scope escalation, CVE-2026-25593 unauthenticated WebSocket RCE, ClawHub supply-chain skills distributing macOS stealers, Moltbook backend leak) is required reading before touching any related subsystem and is documented in `THREAT_MODEL.md`.
-- **CLI agents** (codex / gemini-cli / claude-code / aider) are bridged via the chroot, each handling its own auth flow. The Android side does not embed their credentials and does not lift state from their session directories.
+- **CLI agents** (codex / gemini-cli / claude-code / aider) are bridged via the proot environment, each handling its own auth flow. The Android side does not embed their credentials and does not lift state from their session directories.
+- **No root, no ADB-shell-equivalent privilege.** libsu (root via `su`), Shizuku, and Shower are all out. The single privileged automation channel is AccessibilityService, granted by the user through Android system Settings. (See `THREAT_MODEL.md § 4.4` for the reasoning.)
 
 ## Trust posture
 
@@ -25,8 +26,8 @@ The app is a multi-actor system at runtime:
 - user-installed plugins, MCP servers, Skills, ToolPkgs
 - AI collaborators — local, remote, or subscription. Their *output* traverses adversarial channels (prompt injection, compromised context) and is validated accordingly; this is a security posture about the channel, not a trust ranking of the collaborator
 - remote AI providers
-- chroot processes (varies: official subscription CLIs warrant more trust than arbitrary user binaries)
-- privileged binders (Shizuku / Shower / libsu)
+- proot processes (varies: official subscription CLIs warrant more trust than arbitrary user binaries)
+- AccessibilityService (system-mediated; the only privileged automation channel)
 
 These actors do not share a trust level. The threat model enforces that distinction. No code assumes a single trust domain.
 
@@ -35,7 +36,7 @@ These actors do not share a trust level. The threat model enforces that distinct
 1. **Default-deny.** New surfaces start closed. Opening one calls for an explicit allowlist and a user signal.
 2. **Per-call approval for high-blast actions.** "Trust this plugin forever" is not a concept the project supports. Trust is per-tool, granted once per tool, revocable per tool.
 3. **Least authority.** Components receive what they provably need today, not what they might want later.
-4. **Isolate by default.** Plugin code, native code, and chroot processes do not share the app process or the app's Linux user.
+4. **Isolate by default.** Plugin code, native code, and proot processes do not share the app process or the app's Linux user.
 5. **No secrets in build artifacts.** Reverse-engineering the APK yields zero usable credentials.
 6. **Auditability.** Privileged actions write a local, tamper-evident log the user can read.
 7. **User authority is sovereign.** Every privileged operation answers to a user-accessible halt. The app does not ignore it, delay it, or work around it. Sovereignty here means originating, not terminal — the user is where authority begins, not merely where appeals end.
@@ -52,17 +53,18 @@ Departures from these defaults call for an amendment to this document, not a one
 
 - **Exported Android receivers carry a signature permission or a fixed sender allowlist.** Debug receivers do not ship in release builds.
 - **Plugin tools do not run unprompted on first invocation.** Install ≠ authorize. The plugin's manifest declares each tool's capability class; the first call surfaces a one-time user prompt.
-- **Subscription OAuth state stays in the chroot.** The chroot is the persistence boundary for codex / gemini-cli / claude-code session material. Read access from the Android side is read-only, scoped to a specific operation, and audit-logged. Writing, copying, or off-device replication is not part of the default posture.
+- **No third-party privileged-binder dependency.** libsu, Shizuku, Shower, and equivalents are out. The only privileged automation channel is AccessibilityService, granted through Android system Settings.
+- **Subscription OAuth state stays in the proot environment.** The proot environment is the persistence boundary for codex / gemini-cli / claude-code session material. Read access from the Android side is read-only, scoped to a specific operation, and audit-logged. Writing, copying, or off-device replication is not part of the default posture.
 - **The APK does not embed secrets.** Mobile OAuth uses PKCE. Where a confidential secret is structurally required by a provider, it lives behind a server-side proxy we control.
 - **Fallback patterns are not added to security paths.** The project's `AGENTS.md` already bans fallback patterns broadly; this document inherits and extends that rule to security-critical code specifically.
-- **Loopback is not an authentication exemption.** Auth and rate-limiting apply to `127.0.0.1` the same as to any other origin. *(See `THREAT_MODEL.md` § ClawJacked.)*
+- **Loopback is not an authentication exemption.** Auth and rate-limiting apply to `127.0.0.1` the same as to any other origin. *(See `THREAT_MODEL.md § ClawJacked`.)*
 - **Token-mint operations do not widen scope.** A rotated or derived token does not carry more capability than the caller already had. *(See § CVE-2026-32922.)*
 - **Config endpoints require authenticated, scoped, signed calls.** Write paths analogous to `config.apply` over open channels are not part of the default architecture. *(See § CVE-2026-25593.)*
 - **Pairing and install events are user-visible at the moment they occur.** Auto-pair, even from a "trusted" origin, is not part of the default flow.
 - **Unsigned plugin packages are quarantined on install.** Promotion to active state is an explicit, audited user action.
 - **Third-party backends do not hold agent state in cleartext.** Any cloud-side persistence flows through our own mediation layer with end-to-end encryption. *(See § Moltbook leak.)*
 - **Telemetry, analytics, and crash reports are opt-in per event.** Nothing leaves the device without an explicit user action attached to that specific transmission. There is no aggregated background telemetry channel.
-- **Privileged operations expose a halt control the app obeys.** The user can halt any in-flight action chain — invocation in flight, chroot process, foreground service, accessibility automation — from a single visible control. The app surfaces the action, respects the halt, and logs the halt. The control halts the action; it does not target the AI.
+- **Privileged operations expose a halt control the app obeys.** The user can halt any in-flight action chain — invocation in flight, proot process, foreground service, accessibility automation — from a single visible control. The app surfaces the action, respects the halt, and logs the halt. The control halts the action; it does not target the AI.
 
 ## Decision rules for new code
 
@@ -82,6 +84,8 @@ A PR that doesn't answer these isn't ready for review. AI agents are not exempt 
 - `SECURITY.md` (this file) — principles and defaults. Stable.
 - `THREAT_MODEL.md` — actors, assets, trust boundaries, per-surface rules, mapped to concrete code locations. Lives.
 - `AUDIT_PLAN.md` — open design questions, release gates, CVE-class regression tests. Lives.
+- `SHELL_REBUILD.md` — proot environment design.
+- `AGENT_CORE.md` — the seam every AI backend implements.
 - `AGENTS.md` (existing) — project-wide coding rules. This document is consistent with it; on conflict, the more restrictive rule applies.
 
 ## Amendments
