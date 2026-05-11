@@ -502,6 +502,7 @@ internal object JsNativeInterfaceDelegates {
 
     fun callToolSync(
         toolHandler: AIToolHandler,
+        pluginId: String?,
         toolType: String,
         toolName: String,
         paramsJson: String,
@@ -512,6 +513,13 @@ internal object JsNativeInterfaceDelegates {
         if (toolName.trim().isEmpty()) {
             AppLogger.e(TAG, "Tool name cannot be empty")
             return buildToolErrorJson("Tool name cannot be empty")
+        }
+
+        val capability = JsCapabilityClassifier.classify(toolType, toolName)
+        if (!JsPluginGate.shouldAllow(pluginId, capability, toolType, toolName)) {
+            return buildToolErrorJson(
+                JsPluginGate.denialMessage(pluginId, capability, toolType, toolName)
+            )
         }
 
         return try {
@@ -535,6 +543,7 @@ internal object JsNativeInterfaceDelegates {
 
     fun callToolAsync(
         toolHandler: AIToolHandler,
+        pluginId: String?,
         callbackId: String,
         toolType: String,
         toolName: String,
@@ -544,6 +553,18 @@ internal object JsNativeInterfaceDelegates {
         binaryDataThreshold: Int,
         sendToolResult: (callbackId: String, result: String, isError: Boolean) -> Unit
     ) {
+        val capability = JsCapabilityClassifier.classify(toolType, toolName)
+        if (!JsPluginGate.shouldAllow(pluginId, capability, toolType, toolName)) {
+            sendToolResult(
+                callbackId,
+                buildToolErrorJson(
+                    JsPluginGate.denialMessage(pluginId, capability, toolType, toolName)
+                ),
+                true
+            )
+            return
+        }
+
         val parsed =
             try {
                 parseToolCall(toolType, toolName, paramsJson)
@@ -586,6 +607,7 @@ internal object JsNativeInterfaceDelegates {
 
     fun callToolAsyncStreaming(
         toolHandler: AIToolHandler,
+        pluginId: String?,
         callbackId: String,
         intermediateCallbackId: String,
         toolType: String,
@@ -597,6 +619,18 @@ internal object JsNativeInterfaceDelegates {
         sendToolResult: (callbackId: String, result: String, isError: Boolean) -> Unit,
         sendIntermediateResult: (callbackId: String, result: String, isError: Boolean) -> Unit
     ) {
+        val capability = JsCapabilityClassifier.classify(toolType, toolName)
+        if (!JsPluginGate.shouldAllow(pluginId, capability, toolType, toolName)) {
+            sendToolResult(
+                callbackId,
+                buildToolErrorJson(
+                    JsPluginGate.denialMessage(pluginId, capability, toolType, toolName)
+                ),
+                true
+            )
+            return
+        }
+
         val parsed =
             try {
                 parseToolCall(toolType, toolName, paramsJson)
