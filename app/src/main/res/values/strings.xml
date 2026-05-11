@@ -519,7 +519,6 @@
     <string name="voice_keyword_attachments_type_label">类型</string>
 
     <!-- 用于NavItem类的标识符 -->
-    <string name="shizuku_commands">权限授予</string>
     <string name="tool_permissions">工具权限设置</string>
     <string name="about">关于</string>
     <string name="terminal">终端</string>
@@ -571,7 +570,6 @@
     <string name="install_termux_title">安装 Termux</string>
     <string name="install_termux_from_store">从应用商店安装 Termux</string>
     <string name="install_bundled_termux">安装内置版本</string>
-    <string name="installing_bundled_termux">正在安装内置的Termux，请授予安装权限</string>
     <string name="install_termux_failed">安装 Termux 失败</string>
     <string name="open_termux">打开 Termux</string>
     <string name="termux_setup_guide">Termux 设置向导</string>
@@ -903,11 +901,9 @@
     <string name="settings_total">总计</string>
     
     <!-- Shizuku Command Screen -->
-    <string name="shizuku_command_executor">Shizuku ADB 命令执行器</string>
     <string name="device_info">设备信息</string>
     <string name="android_version">Android版本: %1$s (API %2$d)</string>
     <string name="device_model">设备型号: %1$s %2$s</string>
-    <string name="shizuku_status">Shizuku 状态</string>
     <string name="refresh">刷新</string>
     <string name="installed">已安装</string>
     <string name="service_running">服务运行: %1$s</string>
@@ -916,8 +912,6 @@
     <string name="no">否</string>
     <string name="authorized">已授权</string>
     <string name="unauthorized">未授权</string>
-    <string name="install_shizuku">安装 Shizuku</string>
-    <string name="open_shizuku">打开 Shizuku 应用</string>
     <string name="show_help">显示帮助</string>
     <string name="hide_help">隐藏帮助</string>
     <string name="request_permission">请求Shizuku权限</string>
@@ -932,17 +926,12 @@
     <string name="executing">执行中...</string>
     <string name="command_success">命令执行成功:\n%1$s</string>
     <string name="command_failure">命令执行失败 (退出码: %1$d):\n%2$s</string>
-    <string name="start_shizuku_first">请先启动Shizuku服务</string>
     <string name="grant_permission_first">请授予Shizuku权限</string>
     <string name="feature_unavailable">无法使用ADB命令功能</string>
     <string name="thinking_process">思考过程</string>
     
     <!-- 内置Shizuku -->
-    <string name="install_from_store">从应用商店安装 Shizuku</string>
     <string name="install_bundled">安装内置版本 (v%1$s)</string>
-    <string name="installing_bundled">正在安装内置的Shizuku，请授予安装权限</string>
-    <string name="install_failed">安装内置Shizuku失败，请尝试从应用商店安装</string>
-    
     <!-- 用户偏好 -->
     <string name="user_preferences_guide">个性化设置</string>
     <string name="user_preferences">用户偏好设置</string>
@@ -1154,10 +1143,6 @@
     <string name="permission_guide_standard_desc">基本的应用运行权限，无需特殊权限</string>
     <string name="permission_guide_accessibility_title">无障碍权限</string>
     <string name="permission_guide_accessibility_desc">通过无障碍服务实现屏幕内容分析和模拟操作</string>
-    <string name="permission_guide_debugger_title">调试权限</string>
-    <string name="permission_guide_debugger_desc">通过Shizuku提供ADB级别的系统访问</string>
-    <string name="permission_guide_root_title">Root权限</string>
-    <string name="permission_guide_root_desc">超级用户权限，可执行任意系统操作</string>
     <string name="permission_guide_confirm">确认选择</string>
     <string name="permission_guide_change_anytime">您随时可以在设置中更改权限级别</string>
     
@@ -1194,31 +1179,6 @@
     <string name="root_wizard_risk_details">1. ROOT操作具有一定风险，可能导致设备保修失效\n2. 部分应用可能会拒绝在ROOT设备上运行\n3. 不当的ROOT操作可能导致系统不稳定</string>
     
     <!-- ShizukuWizardCard -->
-    <string name="shizuku_wizard_title">Shizuku 设置向导</string>
-    <string name="shizuku_wizard_update_title">Shizuku 更新向导</string>
-    <string name="shizuku_wizard_step1">步骤1：安装 Shizuku 应用</string>
-    <string name="shizuku_wizard_step2">步骤2：启动 Shizuku 服务</string>
-    <string name="shizuku_wizard_step3">步骤3：授予 Shizuku 权限</string>
-    <string name="shizuku_wizard_completed">Shizuku 已完全设置</string>
-    <string name="shizuku_wizard_install_message">Shizuku是一个授予应用高级权限的工具，不需要root。我们需要先安装这个应用。</string>
-    <string name="shizuku_wizard_install_bundled">安装内置版本</string>
-    <string name="shizuku_wizard_start_message">Shizuku已安装，现在需要启动Shizuku服务。请按照以下方法之一操作：</string>
-    <string name="shizuku_wizard_method1_title">方法1：使用应用内启动（推荐）</string>
-    <string name="shizuku_wizard_method1_steps">1. 点击下方\"打开Shizuku\"按钮\n2. 在Shizuku应用中选择\"通过无线调试启动\"\n3. 根据提示开启\"开发者选项\"和\"无线调试\"\n4. 允许Shizuku获取无线调试权限</string>
-    <string name="shizuku_wizard_method2_title">方法2：使用USB启动</string>
-    <string name="shizuku_wizard_method2_steps">1. 在电脑上安装ADB工具\n2. 通过USB连接手机和电脑\n3. 在电脑命令行执行：\n   adb shell sh /sdcard/Android/data/moe.shizuku.privileged.api/files/start.sh</string>
-    <string name="shizuku_wizard_open_shizuku">打开Shizuku</string>
-    <string name="shizuku_wizard_permission_message">Shizuku服务已启动，现在需要授予权限给本应用。点击下方按钮，在弹出的对话框中选择\"允许\"。</string>
-    <string name="shizuku_wizard_permission_notice">注意：如果没有看到授权弹窗，请检查：</string>
-    <string name="shizuku_wizard_permission_notice_details">1. Shizuku服务是否正在运行\n2. 重启Shizuku服务后再尝试\n3. 确认允许显示悬浮窗权限</string>
-    <string name="shizuku_wizard_grant_permission">授予Shizuku权限</string>
-    <string name="shizuku_wizard_success_message">恭喜！Shizuku已完全设置，您现在可以使用调试权限功能。</string>
-    <string name="shizuku_wizard_update_available">发现新版本</string>
-    <string name="shizuku_wizard_update_message">应用内置了更新版本的Shizuku，建议更新以获得更好的兼容性和功能。</string>
-    <string name="shizuku_wizard_current_version">当前版本：%1$s</string>
-    <string name="shizuku_wizard_latest_version">最新版本：%1$s</string>
-    <string name="shizuku_wizard_update">更新Shizuku</string>
-    
     <!-- TermuxWizardCard -->
     <string name="termux_wizard_title">Termux 设置向导</string>
     <string name="termux_wizard_step1">步骤1：安装Termux</string>
@@ -1264,28 +1224,6 @@
     <string name="termux_wizard_open">打开Termux</string>
     
     <!-- ShizukuDemoScreen -->
-    <string name="shizuku_demo_loading">正在加载应用状态...</string>
-    <string name="shizuku_demo_permission_failed">无法打开权限设置</string>
-    <string name="shizuku_demo_overlay_failed">无法打开悬浮窗设置</string>
-    <string name="shizuku_demo_battery_failed">无法打开电池优化设置</string>
-    <string name="shizuku_demo_accessibility_failed">无法打开无障碍服务设置</string>
-    <string name="shizuku_demo_title">设置向导</string>
-    <string name="shizuku_demo_download_failed">无法打开下载链接</string>
-    <string name="shizuku_demo_extract_failed">提取APK失败，请稍后再试</string>
-    <string name="shizuku_demo_install_notify">已启动Shizuku安装，请按照系统提示完成安装</string>
-    <string name="shizuku_demo_update_notify">已启动Shizuku更新，请按照系统提示完成安装</string>
-    <string name="shizuku_demo_install_failed">安装失败: %1$s</string>
-    <string name="shizuku_demo_update_failed">更新失败: %1$s</string>
-    <string name="shizuku_demo_shizuku_not_found">无法找到Shizuku应用</string>
-    <string name="shizuku_demo_shizuku_launch_failed">无法启动Shizuku应用</string>
-    <string name="shizuku_demo_root_tutorial_failed">无法打开Root教程链接</string>
-    <string name="shizuku_demo_shizuku_permission_granted">Shizuku权限已授予</string>
-    <string name="shizuku_demo_shizuku_permission_denied">Shizuku权限请求被拒绝</string>
-    <string name="shizuku_demo_termux_install_success">已启动Termux安装，请按照系统提示完成安装</string>
-    <string name="shizuku_demo_termux_install_failed_store">内置APK安装失败，正在打开下载页面</string>
-    <string name="shizuku_demo_termux_download_failed">无法打开下载链接，请手动下载安装Termux</string>
-    <string name="shizuku_demo_termux_tuna_skipped">已跳过清华源配置，您可以稍后在Termux中自行配置源</string>
-
     <!-- 权限级别卡片 -->
     <string name="permission_level">权限级别</string>
     <string name="permission_level_icon">权限级别图标</string>
@@ -1301,7 +1239,6 @@
     <string name="accessibility_service">无障碍服务</string>
     <string name="admin_permission">管理员权限</string>
     <string name="debug_permission">调试权限</string>
-    <string name="shizuku_service">Shizuku服务</string>
     <string name="root_permission">Root权限</string>
     <string name="root_access_permission">Root访问权限</string>
     <string name="status_not_installed">未安装</string>
@@ -1322,12 +1259,10 @@
     <string name="permission_level_standard_desc">基本应用运行权限，无需系统特殊授权</string>
     <string name="permission_level_accessibility_desc">增加了无障碍服务支持，可模拟屏幕操作</string>
     <string name="permission_level_admin_desc">添加设备管理员权限，可访问更多系统功能</string>
-    <string name="permission_level_debugger_desc">通过Shizuku提供ADB级别的系统访问</string>
     <string name="permission_level_root_desc">超级用户权限，可执行任意系统操作</string>
     <string name="permission_level_standard_full_desc">标准权限：基本的应用运行权限，无需特殊权限</string>
     <string name="permission_level_accessibility_full_desc">无障碍权限：允许应用模拟用户操作，需要开启无障碍服务</string>
     <string name="permission_level_admin_full_desc">管理员权限：允许应用访问更多系统功能，如位置服务等</string>
-    <string name="permission_level_debugger_full_desc">调试权限：允许通过ADB调试功能进行高级操作，需要Shizuku服务</string>
     <string name="permission_level_root_full_desc">Root权限：允许应用以超级用户身份运行，需要设备已Root</string>
     
     <!-- Root 状态信息 -->
@@ -1632,9 +1567,6 @@
     <string name="permission_guide_intro_page_indicator">功能介绍 %1$d/%2$d</string>
 
     <!-- 调试模式 -->
-    <string name="debugger_accessibility_fallback_title">无障碍加速方案 (高风险)</string>
-    <string name="debugger_accessibility_fallback_description">调试模式默认通过Shell执行UI操作。启用无障碍服务可大幅加速UI自动化，但会显著增加被部分应用检测并导致封号的风险。除非您追求极致的操作速度，否则不建议开启。</string>
-
     <string name="accessibility_risk_warning_title">无障碍服务风险提示</string>
     <string name="accessibility_risk_warning_message">启用无障碍服务虽然可以加速UI操作，但某些应用可能会检测到此服务并采取限制措施，包括封号。请仅在了解并接受相关风险后开启。</string>
     
@@ -1662,7 +1594,6 @@
 
     <!-- Toast Messages -->
     <string name="pip_package_install_success">PIP 包安装成功</string>
-    <string name="pip_package_install_failed">PIP 包安装失败</string>
     <string name="please_press_back_to_return">请按返回键返回上一页</string>
     <string name="please_input_command">请输入命令</string>
     <string name="background_image_migrated">背景图片已迁移到内部存储</string>
@@ -1721,13 +1652,10 @@
     <string name="tuna_source_setup_failed">清华源设置失败</string>
     <string name="tuna_source_setup_error">配置清华源出错</string>
     <string name="python_install_success">Python安装成功</string>
-    <string name="python_install_failed">Python安装失败</string>
     <string name="python_install_error">安装Python环境出错</string>
     <string name="uv_install_success">UV安装成功</string>
-    <string name="uv_install_failed">UV安装失败</string>
     <string name="uv_install_error">安装UV包管理器出错</string>
     <string name="nodejs_install_success">Node.js安装成功</string>
-    <string name="nodejs_install_failed">Node.js安装失败</string>
     <string name="nodejs_install_error">安装Node.js环境出错</string>
     <string name="battery_optimization_reminder">请在系统设置中允许Termux的电池优化豁免</string>
     <string name="cannot_open_termux_battery_settings">无法打开Termux电池优化设置</string>
@@ -1738,8 +1666,6 @@
     <string name="cannot_open_accessibility_settings">无法打开无障碍服务设置</string>
     <string name="accessibility_provider_installed">服务提供者已安装</string>
     <string name="cannot_open_root_tutorial">无法打开Root教程链接</string>
-    <string name="cannot_find_shizuku_app">无法找到Shizuku应用</string>
-    <string name="cannot_launch_shizuku_app">无法启动Shizuku应用</string>
     <string name="cannot_open_docs_link">无法打开文档链接</string>
     <string name="plugin_loading_skipped">已跳过插件加载</string>
     <string name="press_back_again_to_exit">再按一次退出应用</string>
@@ -2031,11 +1957,6 @@
     <string name="tool_terminal_auto_config_desc">自动安装配置Python、PIP等开发工具</string>
     <string name="tool_terminal_auto_config_under_construction">终端自动配置功能正在重构中...</string>
     <string name="tool_ui_debugger">UI调试工具</string>
-    <string name="tool_ui_debugger_desc">调试和分析界面元素，支持元素查找和交互</string>
-    <string name="ui_debugger_title">UI调试工具</string>
-    <string name="ui_debugger_description">点击右下角的按钮启动悬浮窗进行UI调试</string>
-    <string name="ui_debugger_launch_floating">启动悬浮窗</string>
-    <string name="ui_debugger_start_float">启动悬浮窗</string>
     <string name="tool_ffmpeg_toolbox">FFmpeg工具箱</string>
     <string name="tool_ffmpeg_toolbox_desc">强大的音视频处理工具，支持转换、裁剪、合并等功能</string>
     <string name="tool_stream_markdown_demo">流式Markdown演示</string>
@@ -2095,20 +2016,7 @@
     <string name="tool_html_packager">HTML打包器</string>
     <string name="tool_html_packager_desc">将HTML文件及其依赖打包成单个HTML文件，方便分享和部署</string>
 
-    <string name="tool_autoglm_one_click">AutoGLM 一键配置</string>
-    <string name="tool_autoglm_one_click_desc">一键为 UI 控制器配置 autoglm-phone 模型并切换 AutoGLM 工具包</string>
-    <string name="tool_autoglm_tool">AutoGLM 执行</string>
-    <string name="tool_autoglm_tool_desc">使用 autoglm-phone 代理按步骤执行手机自动化任务</string>
-    
     <!-- AutoGLM One-Click Configuration -->
-    <string name="autoglm_config_name">AutoGLM 配置</string>
-    <string name="autoglm_one_click_title">AutoGLM 一键配置</string>
-    <string name="autoglm_one_click_subtitle">为 UI 控制器自动创建智谱 autoglm-phone 模型配置，并切换 AutoGLM 工具包。</string>
-    <string name="autoglm_open_apikey_center">前往智谱 API Key 页面</string>
-    <string name="autoglm_open_apikey_tip">登录后，在智谱平台创建并复制 API Key</string>
-    <string name="autoglm_api_key_placeholder">在此粘贴您的智谱 API Key</string>
-    <string name="autoglm_one_click_button">一键配置 AutoGLM</string>
-
     <!-- Process Limit Remover Screen -->
     <string name="process_limit_title">解除幻象进程限制</string>
     <string name="process_limit_subtitle">管理Android 12+的幻象进程数量限制</string>
@@ -2142,16 +2050,6 @@
     <string name="process_limit_exit_code">退出码：%d</string>
     <string name="process_limit_command">命令</string>
     <string name="toolbox_description">便捷实用的工具集合，提升您的工作效率</string>
-    <string name="autoglm_status_running">正在执行一键配置，请稍候...</string>
-    <string name="autoglm_status_success">已完成 AutoGLM 一键配置：
-- 已创建或更新 AutoGLM UI 控制器模型配置（autoglm-phone, 智谱）
-- 已将“UI 控制器”功能切换为该配置
-- 已关闭 Automatic_ui_base，打开 Automatic_ui_subagent
-
-现在可以在对话界面使用 AutoGLM 模式了。</string>
-    <string name="autoglm_status_error">一键配置失败：%1$s</string>
-    <string name="autoglm_error_empty_api_key">请先填写智谱 API Key。</string>
-
     <!-- MCP Config Screen -->
     <string name="import_or_connect_mcp_service">导入或连接MCP服务</string>
     <string name="select_mcp_plugin_zip">请选择MCP插件压缩包</string>
@@ -2234,8 +2132,6 @@
     <string name="battery_settings_failed">无法打开电池优化设置</string>
     <string name="accessibility_settings_failed">无法打开无障碍服务设置</string>
     <string name="provider_installed">服务提供者已安装</string>
-    <string name="shizuku_not_found">无法找到Shizuku应用</string>
-    <string name="shizuku_start_failed">无法启动Shizuku应用</string>
     <string name="doc_link_failed">无法打开文档链接</string>
     <string name="root_tutorial_failed">无法打开Root教程链接</string>
     <string name="file_open_failed">无法打开文件: %1$s</string>
@@ -2967,7 +2863,6 @@
     <string name="loading_app_state">正在加载应用状态...</string>
     <string name="setup_wizard">设置向导</string>
     <string name="setup_wizard_icon_desc">设置向导图标</string>
-    <string name="cannot_start_shizuku_app">无法启动Shizuku应用</string>
     <string name="cannot_open_doc_link">无法打开文档链接</string>
     <string name="welcome_termux_config">欢迎使用Termux配置工具\n点击对应按钮开始配置</string>
     <string name="executing_task">正在执行: %1$s...</string>
@@ -3895,8 +3790,6 @@
     <string name="screen_title_text_to_speech">文本转语音</string>
     <string name="screen_title_speech_to_text">语音识别</string>
     <string name="screen_title_process_limit_remover">解除幻象进程限制</string>
-    <string name="screen_title_autoglm_one_click">AutoGLM 一键配置</string>
-    <string name="screen_title_autoglm_tool">autoglm执行</string>
     <string name="screen_title_default_assistant_guide">默认助手设置</string>
     <string name="screen_title_mcp_market">MCP 市场</string>
     <string name="screen_title_skill_market">Skill 市场</string>
@@ -4428,7 +4321,6 @@
     <string name="mcp_market_config_import_failed_with_error">配置导入失败: %1$s</string>
     <string name="mcp_market_config_import_success_with_count">成功导入 %1$s 配置，合并了 %2$d 个服务器</string>
     <string name="mcp_market_install_success">成功安装 %1$s</string>
-    <string name="mcp_market_install_failed_with_error">安装失败: %1$s</string>
     <string name="mcp_market_parse_install_info_failed">无法解析安装信息，请查看Issue详情手动安装</string>
     <string name="mcp_market_github_logout_success">已退出登录</string>
     <string name="mcp_market_github_logout_failed_with_error">退出登录失败: %1$s</string>
@@ -5121,8 +5013,6 @@
     <string name="reset_all_display_settings">重置所有显示设置</string>
     <string name="ui_accessibility_mode">无障碍适配模式</string>
     <string name="ui_accessibility_mode_description">为 TalkBack 等无障碍用户优化 UI 自动化行为，优先给出可朗读的操作步骤，谨慎执行自动点击。</string>
-    <string name="experimental_virtual_display">实验性虚拟屏幕</string>
-    <string name="experimental_virtual_display_description">使用基于虚拟屏幕的 ADB+Shizuku 自动化，功能仍在实验阶段，可能不稳定。</string>
     <string name="hide_runtime_task_view">运行时任务视图隐藏</string>
     <string name="hide_runtime_task_view_description">AI 处理消息或执行工具时，从系统最近任务中隐藏应用任务卡片，避免在最近任务里被误滑关闭。</string>
     
@@ -5365,67 +5255,6 @@
     <string name="ffmpeg_processing_time">处理时间: %1$sms</string>
 
     <!-- UI Debugger -->
-    <string name="uidebugger_current_interface">当前分析界面</string>
-    <string name="uidebugger_package_name">包名: %1$s</string>
-    <string name="uidebugger_close_ui_analysis">关闭UI分析</string>
-    <string name="uidebugger_ui_analysis">UI分析</string>
-    <string name="uidebugger_collapse_panel">折叠面板</string>
-    <string name="uidebugger_activity_monitor">Activity监听</string>
-
-    <string name="uidebugger_activity_monitor_listening">正在监听Activity事件</string>
-    <string name="uidebugger_activity_monitor_stopped">监听已停止</string>
-    <string name="uidebugger_activity_monitor_current_activity">当前活动</string>
-    <string name="uidebugger_activity_monitor_waiting">监听中，等待Activity事件...</string>
-    <string name="uidebugger_activity_monitor_click_to_start">点击开始监听按钮开始监听Activity事件</string>
-    <string name="uidebugger_activity_monitor_event_log">事件记录 (%1$d)</string>
-    <string name="uidebugger_activity_monitor_item_activity">活动: %1$s</string>
-    <string name="uidebugger_activity_monitor_item_text">文本: %1$s</string>
-    <string name="uidebugger_activity_monitor_item_package">包: %1$s</string>
-    <string name="uidebugger_activity_monitor_item_click">点击</string>
-    <string name="uidebugger_activity_monitor_item_long_click">长按</string>
-    <string name="uidebugger_activity_monitor_item_swipe">滑动</string>
-    <string name="uidebugger_activity_monitor_item_text_input">输入</string>
-    <string name="uidebugger_activity_monitor_item_key_press">按键</string>
-    <string name="uidebugger_activity_monitor_item_scroll">滚动</string>
-    <string name="uidebugger_activity_monitor_item_gesture">手势</string>
-    <string name="uidebugger_activity_monitor_item_app_switch">应用切换</string>
-    <string name="uidebugger_activity_monitor_item_screen_change">页面变化</string>
-    <string name="uidebugger_activity_monitor_item_system_event">系统事件</string>
-
-    <string name="uidebugger_action_click_success">点击成功</string>
-    <string name="uidebugger_action_click_failed">点击失败</string>
-    <string name="uidebugger_action_highlighted">已高亮元素</string>
-    <string name="uidebugger_action_selected">已选择元素</string>
-    <string name="uidebugger_action_failed">操作失败</string>
-    <string name="uidebugger_error_wrong_result_type">返回数据类型错误</string>
-    <string name="uidebugger_error_fetch_ui_failed">获取UI信息失败</string>
-    <string name="uidebugger_error_refresh_failed">刷新失败</string>
-    <string name="uidebugger_activity_monitor_already_running">监听已在运行中</string>
-    <string name="uidebugger_activity_monitor_permission_insufficient">权限不足: %1$s</string>
-    <string name="uidebugger_activity_monitor_started">Activity监听已启动</string>
-    <string name="uidebugger_activity_monitor_start_failed_with_reason">启动监听失败: %1$s</string>
-    <string name="uidebugger_activity_monitor_stop_failed">停止监听失败</string>
-    <string name="uidebugger_activity_monitor_stop_failed_with_reason">停止监听失败: %1$s</string>
-
-    <string name="uidebugger_element_type_button">按钮</string>
-    <string name="uidebugger_element_type_text">文本</string>
-    <string name="uidebugger_element_type_input">输入框</string>
-    <string name="uidebugger_element_type_image">图片</string>
-    <string name="uidebugger_element_type_view">视图</string>
-    <string name="uidebugger_element_type_generic">UI元素</string>
-    <string name="uidebugger_element_detail_class_name">类名: %1$s</string>
-    <string name="uidebugger_element_detail_package_name">包名: %1$s</string>
-    <string name="uidebugger_element_detail_activity_name">Activity: %1$s</string>
-    <string name="uidebugger_element_detail_resource_id">资源ID: %1$s</string>
-    <string name="uidebugger_element_detail_content_desc">内容描述: %1$s</string>
-    <string name="uidebugger_element_detail_text">文本: %1$s</string>
-    <string name="uidebugger_element_detail_bounds">边界: [%1$d, %2$d, %3$d, %4$d]</string>
-    <string name="uidebugger_element_detail_clickable">可点击: %1$s</string>
-    <string name="uidebugger_element_info_title">控件信息</string>
-    <string name="uidebugger_element_info_current_activity">当前Activity</string>
-    <string name="uidebugger_element_info_package_name">包名: %1$s</string>
-    <string name="uidebugger_element_info_size_px">尺寸: %1$d×%2$dpx</string>
-
     <!-- Logcat -->
     <string name="logcat_no_logs_to_save">没有日志可保存</string>
     <string name="logcat_header">=== Operit 日志 ===</string>
@@ -5509,7 +5338,6 @@
     <string name="toolreg_env_info"> (环境: %1$s)</string>
     <string name="toolreg_env_arrow_info"> (%1$s → %2$s)</string>
     <string name="toolreg_execute_shell_desc">执行ADB Shell: %1$s</string>
-    <string name="toolreg_close_all_virtual_displays_desc">关闭所有虚拟屏幕</string>
     <string name="toolreg_unnamed">未命名</string>
     <string name="toolreg_create_terminal_session_desc">创建或获取终端会话: %1$s</string>
     <string name="toolreg_execute_in_terminal_session_desc">在终端会话「%1$s」中执行: %2$s</string>
@@ -5811,7 +5639,6 @@
     <string name="apk_editor_change_icon_failed">更换应用图标失败</string>
 
     <!-- Common Module -->
-    <string name="common_phone_agent">Phone Agent</string>
     <string name="common_resume_agent">恢复代理</string>
     <string name="common_take_over">接管</string>
     <string name="common_cancel">取消</string>
@@ -5953,13 +5780,7 @@
     <string name="memory_search_hint2">搜索记忆</string>
 
     <!-- UI Debugger -->
-    <string name="uidebugger_stop_monitoring">停止监听</string>
-    <string name="uidebugger_start_monitoring">开始监听</string>
-    <string name="uidebugger_clear">清除</string>
-
     <!-- Auto GLM Tool Screen -->
-    <string name="autoglm_virtual_screen">本次使用虚拟屏幕</string>
-
     <!-- HTML Packager Screen -->
     <string name="htmlpackager_step1_title">第一步：选择项目文件夹</string>
     <string name="htmlpackager_select_folder">选择文件夹</string>
@@ -5976,28 +5797,7 @@
     <string name="document_block_label">区块 %1$d</string>
 
     <!-- Auto GLM One Click Tool Screen -->
-    <string name="autoglm_go_to_model_config">前往模型配置</string>
-    <string name="autoglm_custom_endpoint">自定义 Endpoint（OpenAI 兼容）</string>
-    <string name="autoglm_model_name">模型名称</string>
-    <string name="autoglm_restore_original">恢复原本的自动化逻辑</string>
-    <string name="autoglm_step1_title">step1 配置基本对话模型</string>
-    <string name="autoglm_step1_warning">不要把autoglm模型作为对话主模型</string>
-    <string name="autoglm_step1_note">注意：如果已经配置过就不需要管了，这里切勿改成 autoglm 等小模型。</string>
-    <string name="autoglm_step2_title">step2 访问智谱官网，获取 API Key</string>
-    <string name="autoglm_step3_title">step3 填入 API Key，点击一键配置</string>
-    <string name="autoglm_hide_advanced">隐藏高级设置</string>
-    <string name="autoglm_show_advanced">显示高级设置（自定义 Endpoint / 模型名称）</string>
-    <string name="autoglm_step4_title">step4 恢复非 AutoGLM 自动化（可选）</string>
-    <string name="autoglm_step4_description">如果你觉得在使用 AutoGLM 一键配置后自动化操作变得困难，可以点击下方按钮恢复为软件原本的自动化逻辑（启用 base 包，关闭 subagent 包，其余设置保持不变）。如果你想再次启用 AutoGLM，只需要按照 step3 输入密钥并再次点击一键配置。</string>
-    <string name="autoglm_restore_success">已恢复为软件原本的自动化逻辑</string>
-
     <!-- UI Debugger Components -->
-    <string name="uidebugger_create_new_package">创建新配置包</string>
-    <string name="uidebugger_app_name">应用名称</string>
-    <string name="uidebugger_description_optional">描述（可选）</string>
-    <string name="uidebugger_create">创建</string>
-    <string name="uidebugger_cancel2">取消</string>
-
     <!-- Stream Markdown Demo -->
     <string name="stream_markdown_pause">暂停</string>
     <string name="stream_markdown_resume">继续</string>
@@ -6093,9 +5893,6 @@
     <string name="foldernav_refresh_folders">刷新文件夹列表</string>
     <string name="foldernav_new_folder">新建文件夹</string>
     <string name="foldernav_folder">文件夹</string>
-    <string name="uidebugger_copy_activity_name">复制Activity名称</string>
-    <string name="uidebugger_close_panel">关闭面板</string>
-    <string name="uidebugger_minimize">最小化</string>
     <string name="activity_monitor_close">关闭</string>
     <string name="theme_background_preview">背景图片预览</string>
     <string name="theme_recrop">重新裁剪</string>
@@ -6170,12 +5967,8 @@
     <string name="emoticon_shyness">羞</string>
     <string name="emoticon_blush">脸红</string>
     <string name="emoticon_embarrassed">不好意思</string>
-    <string name="autoglm_task_complete">✅ 任务完成: %1$s</string>
-    <string name="autoglm_thinking_process">💭 思考过程:</string>
-    <string name="autoglm_execute_action">🎯 执行动作:</string>
     <string name="version_update">版本更新</string>
     <string name="mcp_no_zip_selected">未选择ZIP文件</string>
-    <string name="mcp_uninstall_failed">卸载失败</string>
     <string name="chatgpt_parse_error">解析 ChatGPT 格式失败: %1$s</string>
     <string name="chatgpt_import_from">从 ChatGPT 导入</string>
     <string name="uiautomation_execute">执行</string>
@@ -6190,7 +5983,6 @@
     <string name="stream_data_required">数据流必须设置</string>
     <string name="deepseek_request_body">最终DeepSeek推理模式请求体: </string>
     <string name="admin_shell_permission">需要设备管理员权限以执行系统操作</string>
-    <string name="virtual_display_not_ready">Shower 虚拟屏尚未就绪</string>
     <string name="xml_content">XML内容</string>
     <string name="browser_preview">浏览器预览</string>
     <string name="edittext_empty">EditText不能为空</string>
@@ -6432,7 +6224,6 @@
     <string name="skillmarket_load_comments_failed">加载评论失败: %1$s</string>
     <string name="skillmarket_post_comment_failed">发表评论失败: %1$s</string>
     <string name="skillmarket_invalid_repo_url">无效的仓库地址</string>
-    <string name="skillmarket_install_failed">安装失败: %1$s</string>
     <string name="skillmarket_like_failed">点赞失败: %1$s</string>
     <string name="skillmarket_like_error">点赞时发生错误: %1$s</string>
 
@@ -6593,17 +6384,6 @@
     <string name="openai_connection_test_failed">连接测试失败: %1$s</string>
 
     <!-- Phone Agent -->
-    <string name="phone_agent_need_debug_permission">需要调试/管理员/Root 权限并启用实验虚拟屏幕，才能使用虚拟屏幕自动化。</string>
-    <string name="phone_agent_shizuku_unavailable">Shizuku 不可用，无法启动虚拟屏幕。</string>
-    <string name="phone_agent_virtual_screen_service_start_failed">虚拟屏幕服务启动失败。</string>
-    <string name="phone_agent_virtual_screen_create_failed">虚拟屏幕创建失败。</string>
-    <string name="phone_agent_virtual_screen_prewarm_failed">虚拟屏幕预启动失败：%1$s</string>
-    <string name="phone_agent_virtual_screen_not_started">虚拟屏幕未能启动，已中止以避免在主屏幕执行操作。</string>
-    <string name="phone_agent_thinking">思考中...</string>
-    <string name="phone_agent_completed">已完成</string>
-    <string name="phone_agent_executing_action">执行 %1$s 中...</string>
-    <string name="phone_agent_executing">执行操作中...</string>
-
     <!-- Workflow Executor -->
     <string name="workflow_skip">跳过</string>
     <string name="workflow_condition_type_mismatch">条件比较类型不一致：left=\'%1$s\', right=\'%2$s\'</string>
@@ -6688,13 +6468,6 @@
 
     <!-- Global Display Settings -->
     <string name="global_display_automation_behavior">自动化显示与行为</string>
-    <string name="root_execution_mode_title">Root 执行模式</string>
-    <string name="root_execution_mode_description">自动模式会按环境选择；手动模式可覆盖自动结果。</string>
-    <string name="root_execution_mode_auto">自动选择</string>
-    <string name="root_execution_mode_force_libsu">手动 Magisk SU</string>
-    <string name="root_execution_mode_force_exec">手动 KernelSU</string>
-    <string name="root_custom_su_command">自定义 su 命令（KernelSU 模式）</string>
-    <string name="root_custom_su_command_description">仅在 KernelSU 模式生效，可填写 su 或 su --mount-master 等命令。</string>
     <string name="global_display_virtual_screen_bitrate">虚拟屏幕码率</string>
     <string name="global_display_status_indicator_style">自动化状态指示样式</string>
     <string name="global_display_screenshot_settings">自动化截图设置</string>
@@ -7253,17 +7026,7 @@
     <string name="pathfinder_cannot_find_path">无法找到从 \'%1$s\' 到 \'%2$s\' 的有效状态路径</string>
 
     <!-- ShizukuAuthorizer -->
-    <string name="shizuku_start_service_intro">要启动Shizuku服务：\n</string>
-    <string name="shizuku_step1_ensure_installed">1. 确保已安装Shizuku应用\n</string>
-    <string name="shizuku_step2_adb_command">2. 使用ADB命令启动Shizuku:\n</string>
-    <string name="shizuku_or">或者\n\n</string>
-    <string name="shizuku_step2_follow_instructions">2. 打开Shizuku应用并按照屏幕上的说明操作</string>
-
     <!-- ShizukuInstaller -->
-    <string name="shizuku_install_update">更新</string>
-    <string name="shizuku_install_install">安装</string>
-    <string name="shizuku_install_unknown">未知</string>
-
     <!-- RootActionListener -->
     <string name="root_no_root_permission">设备上没有Root权限</string>
     <string name="root_check_permission_error">检查Root权限出错: %1$s</string>
@@ -7345,8 +7108,6 @@
     <string name="ocr_cannot_open_uri_stream">无法打开URI的输入流</string>
 
     <!-- DebuggerActionListener -->
-    <string name="debugger_ui_listener_started">调试器UI操作监听已启动</string>
-
     <!-- ModelConfigManager -->
     <string name="model_config_default_name">默认配置</string>
     <string name="model_config_config_id">配置 %1$s</string>
@@ -7561,7 +7322,6 @@
     <string name="web_session_userscript_status_success">已运行</string>
     <string name="web_session_userscript_status_error">异常</string>
     <string name="web_session_userscript_invalid_url">脚本地址无效</string>
-    <string name="web_session_userscript_install_failed">脚本安装失败</string>
     <string name="web_session_userscript_installed">已安装脚本：%1$s</string>
     <string name="web_session_userscript_deleted">脚本已删除</string>
     <string name="web_session_userscript_no_update">没有可更新的新版本</string>
