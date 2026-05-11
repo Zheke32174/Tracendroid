@@ -25,7 +25,6 @@ zipalign = "1.2.1"
 commons-compress = "1.25.0"
 commons-io = "2.13.0"
 glide = "4.16.0"
-libsu = "6.0.0"
 androidsvg = "1.4"
 android-gif = "1.2.28"
 image-cropper = "4.5.0"
@@ -50,7 +49,6 @@ room = "2.8.4"
 commons-compress-v2 = "1.24.0"
 junrar = "7.5.5"
 navigation-compose = "2.7.7"
-shizuku = "13.1.5"
 okhttp = "4.12.0"
 jsoup = "1.16.2"
 datastore = "1.0.0"
@@ -138,9 +136,6 @@ androidsvg = { group = "com.caverock", name = "androidsvg-aar", version.ref = "a
 android-gif = { group = "pl.droidsonroids.gif", name = "android-gif-drawable", version.ref = "android-gif" }
 image-cropper = { group = "com.vanniktech", name = "android-image-cropper", version.ref = "image-cropper" }
 
-# Root access
-libsu = { group = "com.github.topjohnwu.libsu", name = "core", version.ref = "libsu" }
-
 # Media
 exoplayer = { group = "com.google.android.exoplayer", name = "exoplayer", version.ref = "exoplayer" }
 exoplayer-core = { group = "com.google.android.exoplayer", name = "exoplayer-core", version.ref = "exoplayer" }
@@ -192,10 +187,6 @@ junrar = { group = "com.github.junrar", name = "junrar", version.ref = "junrar" 
 
 # Navigation
 navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation-compose" }
-
-# Shizuku
-shizuku-api = { group = "dev.rikka.shizuku", name = "api", version.ref = "shizuku" }
-shizuku-provider = { group = "dev.rikka.shizuku", name = "provider", version.ref = "shizuku" }
 
 # Network
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
