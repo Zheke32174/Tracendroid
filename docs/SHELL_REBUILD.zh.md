@@ -40,7 +40,7 @@ rootfs 体积目标：压缩后 ~80–100 MB，解压后 ~250–300 MB。订阅 
 
 ### 启动器：仅 proot
 
-启动器是 proot。`chroot()` 需要 `CAP_SYS_CHROOT`，而该 capability 是 root 独占的——本项目没有 root，也不打算获取 root。Shizuku 与 Shower 授予的是 ADB shell 权限，那*不是* root，也不开启 `chroot()`。chroot 路径从 v1 范围中移除。
+启动器是 proot。`chroot()` 需要 `CAP_SYS_CHROOT`，而该 capability 是 root 独占的。项目没有 root、不打算获取 root，且按 `THREAT_MODEL.md § 4.4` 也不使用 Shizuku 或 Shower。chroot 路径从 v1 范围中移除。
 
 接受的权衡：
 
@@ -138,14 +138,13 @@ rootfs 内部：
 
 - `debian/build.sh`（或 `Dockerfile.rootfs`）的具体内容。
 - 基础包集合的具体清单（可能为：`bash`、`coreutils`、`procps`、`ca-certificates`、`curl`、`git`、`openssh-client`、`python3`、`nodejs`、`npm`——最终清单位于构建脚本的 PR 中）。
-- Android 侧特权操作的 `PrivilegedShell` Kotlin 抽象（位于特权 binder 统一的 PR，按 `THREAT_MODEL.md § 4.4`；与 proot 启动器正交）。
 - 可重复构建加固（v2）。
 - rootfs 增量更新而非完整重下（v2——初期用户在首次运行与版本更新时支付许多约 80 MB）。
 - x86_64 ABI 支持，若/当模拟器驱动的开发成为优先项。
 
 ## 交叉引用
 
-- 解决 `AUDIT_PLAN.md § 1.5`（chroot ↔ Android IPC 协议——实际重命名为 proot ↔ Android）。
+- 解决 `AUDIT_PLAN.md § 1.5`（proot ↔ Android IPC 协议）。
 - 解决 `AUDIT_PLAN.md § 1.9`（发行版选择）。
-- 面向 `THREAT_MODEL.md § 4.5`（chroot 内订阅 OAuth——亦实际重命名）以便在实现落地后从 `design` 转入 `closed`。
-- 遵守 `SECURITY.md` 红线：无环回豁免、无自动配对、无回退模式、中止控制接入所有 proot 进程。
+- 面向 `THREAT_MODEL.md § 4.5`（proot 环境内订阅 OAuth）以便在实现落地后从 `design` 转入 `closed`。
+- 遵守 `SECURITY.md` 红线：无环回豁免、无自动配对、无回退模式、中止控制接入所有 proot 进程、不依赖第三方特权 binder。
