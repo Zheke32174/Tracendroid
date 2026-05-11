@@ -201,6 +201,16 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
             AppLogger.w(TAG, "JsPluginGate persister install failed: ${e.message}")
         }
 
+        // Shell rebuild PR 4/N: copy the bundled rootfs verification public key
+        // out of assets into app-private storage. The bootstrap signature
+        // verifier reads it from there.
+        runCatching {
+            com.ai.assistance.operit.shell.ShellRootfsKeyProvisioner(applicationContext)
+                .provision()
+        }.onFailure { e ->
+            AppLogger.w(TAG, "ShellRootfsKeyProvisioner failed: ${e.message}")
+        }
+
         // 初始化Android权限偏好管理器
         initAndroidPermissionPreferences(applicationContext)
         AppLogger.d(TAG, "【启动计时】Android权限偏好管理器初始化完成 - ${System.currentTimeMillis() - startTime}ms")
