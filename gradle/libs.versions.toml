@@ -24,6 +24,7 @@ axml = "2.0.0"
 zipalign = "1.2.1"
 commons-compress = "1.25.0"
 commons-io = "2.13.0"
+zstd-jni = "1.5.6-3"
 glide = "4.16.0"
 androidsvg = "1.4"
 android-gif = "1.2.28"
@@ -129,6 +130,7 @@ zipalign-java = { group = "com.github.iyxan23", name = "zipalign-java", version.
 # File handling
 commons-compress = { group = "org.apache.commons", name = "commons-compress", version.ref = "commons-compress" }
 commons-io = { group = "commons-io", name = "commons-io", version.ref = "commons-io" }
+zstd-jni = { group = "com.github.luben", name = "zstd-jni", version.ref = "zstd-jni" }
 
 # Image handling
 glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }

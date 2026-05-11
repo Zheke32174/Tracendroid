@@ -228,6 +228,7 @@ dependencies {
     // ZIP处理库 - 用于APK解压和重打包
     implementation(libs.commons.compress)
     implementation(libs.commons.io) // 添加Apache Commons IO
+    implementation(libs.zstd.jni) // zstd codec backing commons-compress for the shell rootfs (.tar.zst)
     
     // 图片处理库
     implementation(libs.glide) // 用于处理图像
