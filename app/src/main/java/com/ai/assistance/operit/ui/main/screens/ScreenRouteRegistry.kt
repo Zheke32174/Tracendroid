@@ -134,14 +134,6 @@ object ScreenRouteRegistry {
                 order = 10
             ),
             hostEntryDefinition(
-                entryId = "main.shizuku_commands",
-                screen = Screen.ShizukuCommands,
-                surface = NavigationSurface.MAIN_SIDEBAR_TOOLS,
-                launchNavItem = NavItem.ShizukuCommands,
-                icon = NavItem.ShizukuCommands.icon,
-                order = 20
-            ),
-            hostEntryDefinition(
                 entryId = "main.workflow",
                 screen = Screen.Workflow,
                 surface = NavigationSurface.MAIN_SIDEBAR_TOOLS,

@@ -296,7 +296,6 @@ fun OperitApp(
         NavItem.Packages,
         NavItem.MemoryBase,
         NavItem.Toolbox,
-        NavItem.ShizukuCommands,
         NavItem.Workflow,
         NavItem.Settings,
         NavItem.Help,

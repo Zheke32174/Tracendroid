@@ -527,7 +527,7 @@ class MainActivity : ComponentActivity() {
         // 确保隐藏加载界面
         pluginLoadingState.hide()
 
-        // 主界面销毁时，确保关闭虚拟屏幕 Overlay 并断开 Shower WebSocket 连接
+        // 主界面销毁时，确保关闭虚拟屏幕 Overlay
         try {
             VirtualDisplayOverlay.hideAll()
         } catch (e: Exception) {

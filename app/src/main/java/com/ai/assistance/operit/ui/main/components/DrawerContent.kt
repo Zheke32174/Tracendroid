@@ -52,7 +52,6 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.core.tools.system.AndroidPermissionLevel
-import com.ai.assistance.operit.core.tools.system.ShizukuAuthorizer
 import com.ai.assistance.operit.core.tools.system.action.ActionListenerFactory
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
@@ -77,32 +76,14 @@ private suspend fun resolveSidebarPermissionStatus(
 ): SidebarPermissionStatus {
         return when (preferredPermissionLevel) {
                 null,
-                AndroidPermissionLevel.STANDARD ->
+                AndroidPermissionLevel.STANDARD,
+                AndroidPermissionLevel.DEBUGGER,
+                AndroidPermissionLevel.ROOT ->
                         SidebarPermissionStatus(
                                 badgeTextResId = R.string.sidebar_status_normal
                         )
-                AndroidPermissionLevel.DEBUGGER ->
-                        when {
-                                !ShizukuAuthorizer.isShizukuInstalled(context) ->
-                                        SidebarPermissionStatus(
-                                                badgeTextResId = R.string.status_not_installed
-                                        )
-                                !ShizukuAuthorizer.isShizukuServiceRunning() ->
-                                        SidebarPermissionStatus(
-                                                badgeTextResId = R.string.status_not_running
-                                        )
-                                ShizukuAuthorizer.hasShizukuPermission() ->
-                                        SidebarPermissionStatus(
-                                                badgeTextResId = R.string.sidebar_status_normal
-                                        )
-                                else ->
-                                        SidebarPermissionStatus(
-                                                badgeTextResId = R.string.unauthorized
-                                        )
-                        }
                 AndroidPermissionLevel.ACCESSIBILITY,
-                AndroidPermissionLevel.ADMIN,
-                AndroidPermissionLevel.ROOT -> {
+                AndroidPermissionLevel.ADMIN -> {
                         val permissionStatus =
                                 ActionListenerFactory.getListener(context, preferredPermissionLevel)
                                         .hasPermission()
@@ -198,8 +179,7 @@ fun DrawerContent(
                 remember(navItems) {
                         navItems.filterNot {
                                 it in fixedBottomItems ||
-                                        it in quickActionItems ||
-                                        it == NavItem.ShizukuCommands
+                                        it in quickActionItems
                         }
                 }
         val handleScreenSelection: (Screen) -> Unit = { screen ->
@@ -488,12 +468,12 @@ private fun NewSidebarTopContent(
                 )
                 SidebarQuickActionCard(
                         modifier = Modifier.weight(1f),
-                        icon = NavItem.ShizukuCommands.icon,
+                        icon = NavItem.ToolPermissions.icon,
                         label = stringResource(id = R.string.sidebar_permission_short),
                         badgeText = stringResource(id = permissionStatus.badgeTextResId),
-                        selected = selectedItem == NavItem.ShizukuCommands,
+                        selected = selectedItem == NavItem.ToolPermissions,
                         appearance = appearance,
-                        onClick = { onNavItemClick(NavItem.ShizukuCommands) }
+                        onClick = { onNavItemClick(NavItem.ToolPermissions) }
                 )
                 SidebarQuickActionCard(
                         modifier = Modifier.weight(1f),

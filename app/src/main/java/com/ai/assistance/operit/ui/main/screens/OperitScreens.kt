@@ -27,7 +27,6 @@ import com.ai.assistance.operit.ui.common.NavItem
 import com.ai.assistance.operit.ui.features.about.screens.AboutScreen
 import com.ai.assistance.operit.ui.features.assistant.screens.AssistantConfigScreen
 import com.ai.assistance.operit.ui.features.chat.screens.AIChatScreen
-import com.ai.assistance.operit.ui.features.demo.screens.ShizukuDemoScreen
 import com.ai.assistance.operit.ui.features.help.screens.HelpScreen
 import com.ai.assistance.operit.ui.features.memory.screens.MemoryScreen
 import com.ai.assistance.operit.ui.features.packages.screens.MarketHomeTab
@@ -514,21 +513,6 @@ sealed class Screen(
     }
 
 
-    data object ShizukuCommands : Screen(navItem = NavItem.ShizukuCommands) {
-        @Composable
-        override fun Content(
-                navController: NavController,
-                navigateTo: ScreenNavigationHandler,
-                onGoBack: () -> Unit,
-                hasBackgroundImage: Boolean,
-                onLoading: (Boolean) -> Unit,
-                onError: (String) -> Unit,
-                onGestureConsumed: (Boolean) -> Unit
-        ) {
-            ShizukuDemoScreen(navigateTo = navigateTo)
-        }
-    }
-
     data object Settings : Screen(navItem = NavItem.Settings) {
         @Composable
         override fun Content(
@@ -752,7 +736,7 @@ sealed class Screen(
                     profileName = profileName,
                     profileId = profileId,
                     onComplete = onGoBack,
-                    navigateToPermissions = { navigateTo(ShizukuCommands) }
+                    navigateToPermissions = { navigateTo(AppPermissions) }
             )
         }
     }
