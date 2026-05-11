@@ -1,0 +1,4 @@
+# Build workspace and outputs. These are reproducible from build.sh
+# and should never be committed.
+build/
+out/
