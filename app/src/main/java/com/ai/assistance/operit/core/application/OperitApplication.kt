@@ -58,7 +58,6 @@ import com.ai.assistance.operit.util.SkillRepoZipPoolManager
 import com.ai.assistance.operit.util.SerializationSetup
 import com.ai.assistance.operit.util.TextSegmenter
 import com.ai.assistance.operit.util.WaifuMessageProcessor
-import com.ai.assistance.operit.ui.common.displays.VirtualDisplayOverlay
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import java.io.File
 import java.util.Locale
@@ -581,12 +580,7 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
             AppLogger.e(TAG, "关闭本地Web服务器失败: ${e.message}", e)
         }
 
-        // 在应用终止时，关闭虚拟屏幕 Overlay
-        try {
-            VirtualDisplayOverlay.hideAll()
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "终止时隐藏 VirtualDisplayOverlay 失败: ${e.message}", e)
-        }
+        // VirtualDisplayOverlay 已随 § 4.4 Shower 移除一并删除 — 无 onTerminate 清理动作。
     }
 
     override fun onLowMemory() {

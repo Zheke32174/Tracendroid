@@ -5,7 +5,6 @@ import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.ADBResultData
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
-import com.ai.assistance.operit.core.tools.system.ShizukuAuthorizer
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.data.model.ToolValidationResult
@@ -13,7 +12,7 @@ import kotlinx.coroutines.runBlocking
 
 /**
  * Tool for executing ADB commands directly. This provides direct access to ADB shell commands for
- * system operations. Note: This requires Shizuku service to be running with proper permissions.
+ * system operations. Requires the AccessibilityService-backed shell runner.
  */
 open class StandardShellToolExecutor(private val context: Context) {
 

@@ -556,7 +556,7 @@ $toolList
     }
 
     /**
-     * System prompt for a multi-step UI automation subagent (autoglm-style PhoneAgent).
+     * System prompt for a multi-step UI automation subagent.
      * The agent plans and executes a sequence of actions using do()/finish() commands
      * and returns structured <think> / <answer> XML blocks.
      */

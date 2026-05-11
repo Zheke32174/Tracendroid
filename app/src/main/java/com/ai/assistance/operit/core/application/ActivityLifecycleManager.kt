@@ -11,7 +11,6 @@ import com.ai.assistance.operit.plugins.lifecycle.AppLifecycleEvent
 import com.ai.assistance.operit.plugins.lifecycle.AppLifecycleHookParams
 import com.ai.assistance.operit.plugins.lifecycle.AppLifecycleHookPluginRegistry
 import com.ai.assistance.operit.integrations.http.ExternalChatHttpAutoStarter
-import com.ai.assistance.operit.ui.common.displays.VirtualDisplayOverlay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -248,15 +247,6 @@ object ActivityLifecycleManager : Application.ActivityLifecycleCallbacks {
                 )
         )
         
-        // 当最后一个 Activity 被销毁时（包括从最近任务列表滑动关闭），清理虚拟屏幕
-        if (activityCount <= 0) {
-            AppLogger.d(TAG, "最后一个 Activity 被销毁，清理虚拟屏幕资源")
-            try {
-                VirtualDisplayOverlay.hideAll()
-                AppLogger.d(TAG, "已关闭 VirtualDisplayOverlay")
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "清理 VirtualDisplayOverlay 失败", e)
-            }
-        }
+        // 虚拟屏幕 Overlay 已随 § 4.4 Shower 移除一并删除 — 无 Activity 清理动作。
     }
 } 

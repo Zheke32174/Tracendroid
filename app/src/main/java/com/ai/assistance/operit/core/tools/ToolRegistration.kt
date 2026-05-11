@@ -13,7 +13,6 @@ import com.ai.assistance.operit.data.preferences.CharacterCardToolAccessResolver
 import com.ai.assistance.operit.data.preferences.ResolvedCharacterCardToolAccess
 import com.ai.assistance.operit.integrations.tasker.triggerAIAgentAction
 import com.ai.assistance.operit.services.FloatingChatService
-import com.ai.assistance.operit.ui.common.displays.VirtualDisplayOverlay
 import com.ai.assistance.operit.util.LocaleUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -278,27 +277,8 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             }
     )
 
-    handler.registerTool(
-            name = "close_all_virtual_displays",
-            descriptionGenerator = { _ -> s(R.string.toolreg_close_all_virtual_displays_desc) },
-            executor = { tool ->
-                try {
-                    VirtualDisplayOverlay.hideAll()
-                    ToolResult(
-                            toolName = tool.name,
-                            success = true,
-                            result = StringResultData("OK")
-                    )
-                } catch (e: Exception) {
-                    ToolResult(
-                            toolName = tool.name,
-                            success = false,
-                            result = StringResultData(""),
-                            error = e.message
-                    )
-                }
-            }
-    )
+    // close_all_virtual_displays tool removed with the Shower transport
+    // (see docs/THREAT_MODEL.md § 4.4). No virtual-display overlay to close.
 
     // 终端命令执行工具 - 一次性收集输出
     handler.registerTool(

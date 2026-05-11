@@ -83,8 +83,6 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.htmlpackager.HtmlPac
 import com.ai.assistance.operit.ui.features.toolbox.screens.speechtotext.SpeechToTextToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.texttospeech.TextToSpeechToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.tooltester.ToolTesterScreen
-import com.ai.assistance.operit.ui.features.toolbox.screens.autoglm.AutoGlmOneClickToolScreen
-import com.ai.assistance.operit.ui.features.toolbox.screens.autoglm.AutoGlmToolScreen
 import com.ai.assistance.operit.ui.features.update.screens.UpdateScreen
 import com.ai.assistance.operit.ui.features.workflow.screens.WorkflowListScreen
 import com.ai.assistance.operit.ui.features.workflow.screens.WorkflowDetailScreen
@@ -1420,38 +1418,6 @@ sealed class Screen(
         }
     }
 
-    data object AutoGlmOneClick : Screen(navItem = NavItem.Toolbox, titleRes = R.string.screen_title_autoglm_one_click) {
-        @Composable
-        override fun Content(
-                navController: NavController,
-                navigateTo: ScreenNavigationHandler,
-                onGoBack: () -> Unit,
-                hasBackgroundImage: Boolean,
-                onLoading: (Boolean) -> Unit,
-                onError: (String) -> Unit,
-                onGestureConsumed: (Boolean) -> Unit
-        ) {
-            AutoGlmOneClickToolScreen(
-                navController = navController,
-                onNavigateToModelConfig = { navigateTo(ModelConfig) }
-            )
-        }
-    }
-    
-    data object AutoGlmTool : Screen(navItem = NavItem.Toolbox, titleRes = R.string.screen_title_autoglm_tool) {
-        @Composable
-        override fun Content(
-                navController: NavController,
-                navigateTo: ScreenNavigationHandler,
-                onGoBack: () -> Unit,
-                hasBackgroundImage: Boolean,
-                onLoading: (Boolean) -> Unit,
-                onError: (String) -> Unit,
-                onGestureConsumed: (Boolean) -> Unit
-        ) {
-            AutoGlmToolScreen()
-        }
-    }
 
     // MCP 插件详情页面
     data class MCPPluginDetail(val issue: com.ai.assistance.operit.data.api.GitHubIssue) :
