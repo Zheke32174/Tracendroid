@@ -89,11 +89,17 @@ The status column is one of: **closed** (rule enforced), **open** (rule not yet 
 
 **Risk.** A plugin that's been promoted from quarantine inherits the same execution privilege as the AI. There's no per-call gate distinguishing AI-originated calls from JS-originated calls inside the same session.
 
-**Rule.** Tool calls originating from plugin JS pass through the same per-call permission gate as AI-originated calls, with the originating plugin identity tagged on the call. Quarantined plugins cannot register handlers; promotion is a user action, audit-logged.
+**Rule.**
+- Each JS-originated tool call is attributed to the plugin whose script is currently executing on the QuickJS thread. The bridge tags the call with that plugin id; an in-process gate (`JsPluginGate`) consults the (pluginId × capability class) grant table before dispatching to `AIToolHandler`. Default-deny: a plugin holds no grants on first install, every call returns a structured error explaining which (plugin, capability) needs user approval.
+- Capability classes are explicit, not pattern-matched: METADATA / FILE_READ / FILE_WRITE / SHELL / NETWORK / SYSTEM_READ / SYSTEM_WRITE / UI_AUTOMATION / CHAT_READ / CHAT_WRITE / UNCLASSIFIED. Unclassified tool names fall through to UNCLASSIFIED, which the gate treats as the most-restrictive class (deny). Each tool's classification is a security decision — when a new tool lands the classifier must be updated explicitly.
+- Audit: every gated call writes an `AuditEvent(pluginId, capability, toolType, toolName, decision, timestamp)` to a bounded ring, surfaced through `JsPluginGate.recentAudit()` for the (forthcoming) settings UI.
+- AI-originated tool calls go through `AIToolHandler` directly and do not cross the JS bridge; they are not gated by `JsPluginGate` in this iteration. Adding a parallel AI-side gate is partial-§ 4.2 follow-up and is tracked alongside the settings UI.
+- MCP-server tool calls flow through `MCPBridgeClient` and are out of scope for this gate; they belong to § 4.3.
+- The grant store is in-memory in v1. DataStore-backed persistence + the settings UI (browse audit, grant/deny per (plugin, capability)) land together in a follow-up implementation PR.
 
-**Status.** open.
+**Status.** partial — JS-originated calls are gated and audited; AI-originated calls and the settings UI are tracked as follow-ups.
 
-**Location.** `app/src/main/java/com/ai/assistance/operit/core/tools/javascript/`, `core/tools/AIToolHandler.kt`, `core/tools/ToolRegistration.kt`.
+**Location.** `app/src/main/java/com/ai/assistance/operit/core/tools/javascript/JsPluginGate.kt`, `JsCapabilityClassifier.kt`, `JsNativeInterfaceDelegates.kt`, `JsEngine.kt`. `core/tools/AIToolHandler.kt` is the AI-side surface that the follow-up will gate.
 
 ### 4.3 Plugin marketplaces (MCP / Skill / ToolPkg)
 
@@ -264,8 +270,8 @@ For traceability:
 
 | `SECURITY.md` default | Where enforced |
 |---|---|
-| Default-deny | §§ 4.2, 4.3, 4.4 (closed), 4.7, 4.11 (closed) |
-| Per-call approval for high-blast actions | §§ 4.2, 4.3, 4.7 |
+| Default-deny | §§ 4.2 (partial), 4.3, 4.4 (closed), 4.7, 4.11 (closed) |
+| Per-call approval for high-blast actions | §§ 4.2 (partial), 4.3, 4.7 |
 | Least authority | §§ 4.4 (closed), 4.8 (closed) |
 | Isolate by default | §§ 4.2, 4.5 |
 | No secrets in build artifacts | § 4.8 (closed) |
