@@ -190,6 +190,17 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
             .also { it.start() }
         AppLogger.d(TAG, "【启动计时】长期记忆自动保存轮询器启动完成 - ${System.currentTimeMillis() - startTime}ms")
 
+        // § 4.2 JS 插件门控持久化器 —— 在 JsEngine 首次被调用前安装。
+        runCatching {
+            com.ai.assistance.operit.core.tools.javascript.JsPluginGate.installPersister(
+                com.ai.assistance.operit.core.tools.javascript.JsPluginGatePersistence(
+                    applicationContext
+                )
+            )
+        }.onFailure { e ->
+            AppLogger.w(TAG, "JsPluginGate persister install failed: ${e.message}")
+        }
+
         // 初始化Android权限偏好管理器
         initAndroidPermissionPreferences(applicationContext)
         AppLogger.d(TAG, "【启动计时】Android权限偏好管理器初始化完成 - ${System.currentTimeMillis() - startTime}ms")

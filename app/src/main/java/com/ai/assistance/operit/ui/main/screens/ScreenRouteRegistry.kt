@@ -158,6 +158,14 @@ object ScreenRouteRegistry {
                 order = 6
             ),
             hostEntryDefinition(
+                entryId = "main.plugin_gate",
+                screen = Screen.PluginGate,
+                surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,
+                launchNavItem = NavItem.PluginGate,
+                icon = NavItem.PluginGate.icon,
+                order = 7
+            ),
+            hostEntryDefinition(
                 entryId = "main.settings",
                 screen = Screen.Settings,
                 surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,

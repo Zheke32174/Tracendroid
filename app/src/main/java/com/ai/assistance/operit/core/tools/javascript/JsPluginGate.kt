@@ -3,17 +3,21 @@ package com.ai.assistance.operit.core.tools.javascript
 import com.ai.assistance.operit.util.AppLogger
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Per-call permission gate for JS-plugin-originated tool calls (§ 4.2).
  *
  * The gate keys on (pluginId × capability class). A grant for one (plugin, capability) pair
  * does not propagate to other capabilities or other plugins. By default no plugin holds any
- * grant, and any tool call from a plugin is denied. Grants are user-managed through a
- * settings surface (UI lands separately); this object exposes the read/write API the
- * settings surface and the JS bridge consume.
+ * grant, and any tool call from a plugin is denied. Grants are user-managed through the
+ * settings UI (see [com.ai.assistance.operit.ui.features.plugingate]); this object exposes
+ * the read/write API the UI and the JS bridge consume.
  *
- * Storage is in-memory for v1. DataStore-backed persistence lands with the settings UI.
+ * Persistence is supplied by an external [Persister] (see [JsPluginGatePersistence]) wired
+ * in at app init so this object stays Android-independent.
  */
 object JsPluginGate {
 
@@ -22,7 +26,7 @@ object JsPluginGate {
     /** A capability class can be granted, explicitly denied, or unset. */
     enum class GateState { GRANTED, DENIED, UNSET }
 
-    /** One audit event per gated call. Consumed by the (future) settings UI. */
+    /** One audit event per gated call. Consumed by the settings UI. */
     data class AuditEvent(
         val pluginId: String?,
         val capability: JsCapabilityClass,
@@ -32,14 +36,39 @@ object JsPluginGate {
         val timestamp: Long
     )
 
+    /** A grant entry keyed by (pluginId, capability). */
+    data class GrantEntry(
+        val pluginId: String,
+        val capability: JsCapabilityClass,
+        val state: GateState,
+    )
+
+    /**
+     * Storage backend. Implementations decide where grants live (DataStore, in-memory,
+     * file, etc.). The gate calls [save] on every grant/deny/forget. [loadInto] is
+     * invoked once at startup to populate the in-memory cache.
+     */
+    interface Persister {
+        fun loadInto(sink: (GrantEntry) -> Unit)
+        fun save(entry: GrantEntry)
+        fun remove(pluginId: String, capability: JsCapabilityClass)
+    }
+
     private data class GateKey(val pluginId: String, val capability: JsCapabilityClass)
 
     private val grants = ConcurrentHashMap<GateKey, GateState>()
 
-    // A bounded ring of recent audit events. Sized for one chat session's worth of calls;
-    // the settings UI can drain or filter as needed.
+    private val _grantsFlow = MutableStateFlow<Map<Pair<String, JsCapabilityClass>, GateState>>(emptyMap())
+    val grantsFlow: StateFlow<Map<Pair<String, JsCapabilityClass>, GateState>> = _grantsFlow.asStateFlow()
+
+    private val _auditFlow = MutableStateFlow<List<AuditEvent>>(emptyList())
+    val auditFlow: StateFlow<List<AuditEvent>> = _auditFlow.asStateFlow()
+
     private const val AUDIT_BUFFER_SIZE = 256
     private val auditBuffer = CopyOnWriteArrayList<AuditEvent>()
+
+    @Volatile
+    private var persister: Persister? = null
 
     /**
      * Master switch. When false the gate logs but does not block — used during the rollout
@@ -53,6 +82,25 @@ object JsPluginGate {
     var enforceGate: Boolean = true
 
     /**
+     * Install a persistence backend and load any persisted grants. Idempotent: a second
+     * call replaces the backend but does not reload (the caller is responsible for
+     * sequencing).
+     */
+    fun installPersister(p: Persister) {
+        persister = p
+        val loaded = mutableMapOf<GateKey, GateState>()
+        p.loadInto { entry ->
+            if (entry.state != GateState.UNSET) {
+                loaded[GateKey(entry.pluginId, entry.capability)] = entry.state
+            }
+        }
+        grants.clear()
+        grants.putAll(loaded)
+        refreshFlow()
+        AppLogger.d(TAG, "persister installed; ${grants.size} grants loaded")
+    }
+
+    /**
      * Returns the recorded state for (plugin, capability), or UNSET if neither granted
      * nor explicitly denied.
      */
@@ -60,44 +108,35 @@ object JsPluginGate {
         return grants[GateKey(pluginId, capability)] ?: GateState.UNSET
     }
 
-    /** Record an explicit user grant. */
     fun grant(pluginId: String, capability: JsCapabilityClass) {
         grants[GateKey(pluginId, capability)] = GateState.GRANTED
+        persister?.save(GrantEntry(pluginId, capability, GateState.GRANTED))
+        refreshFlow()
         AppLogger.d(TAG, "grant: plugin=$pluginId capability=$capability")
     }
 
-    /** Record an explicit user deny. */
     fun deny(pluginId: String, capability: JsCapabilityClass) {
         grants[GateKey(pluginId, capability)] = GateState.DENIED
+        persister?.save(GrantEntry(pluginId, capability, GateState.DENIED))
+        refreshFlow()
         AppLogger.d(TAG, "deny: plugin=$pluginId capability=$capability")
     }
 
-    /** Forget any explicit decision, returning the pair to UNSET. */
     fun forget(pluginId: String, capability: JsCapabilityClass) {
         grants.remove(GateKey(pluginId, capability))
+        persister?.remove(pluginId, capability)
+        refreshFlow()
     }
 
-    /** Snapshot for the settings UI. */
-    fun allGrants(): Map<Pair<String, JsCapabilityClass>, GateState> {
-        return grants.mapKeys { (k, _) -> k.pluginId to k.capability }.toMap()
-    }
+    /** Snapshot for callers that want a pull rather than an observe. */
+    fun allGrants(): Map<Pair<String, JsCapabilityClass>, GateState> = _grantsFlow.value
 
-    /** Snapshot for the settings UI / debug surface. */
-    fun recentAudit(): List<AuditEvent> = auditBuffer.toList()
+    /** Snapshot of the audit ring. */
+    fun recentAudit(): List<AuditEvent> = _auditFlow.value
 
     /**
      * Evaluate whether a JS-originated tool call should be allowed. Returns true to allow
      * dispatch, false to deny.
-     *
-     * Decision rule:
-     *  - if [pluginId] is null, the caller is anonymous — default-deny.
-     *  - GRANTED → allow.
-     *  - DENIED → deny.
-     *  - UNSET → deny (default-deny).
-     *
-     * When [enforceGate] is false the decision is still computed and audited but the
-     * function returns true (the call dispatches). This is intentional: the audit trail
-     * stays accurate even when enforcement is disabled.
      */
     fun shouldAllow(
         pluginId: String?,
@@ -137,11 +176,15 @@ object JsPluginGate {
             "User-grant required. See § 4.2 in docs/THREAT_MODEL.md."
     }
 
+    private fun refreshFlow() {
+        _grantsFlow.value = grants.mapKeys { (k, _) -> k.pluginId to k.capability }.toMap()
+    }
+
     private fun recordAudit(event: AuditEvent) {
         auditBuffer.add(event)
-        // Trim from the front when oversized. CopyOnWriteArrayList is fine for occasional trims.
         while (auditBuffer.size > AUDIT_BUFFER_SIZE) {
             auditBuffer.removeAt(0)
         }
+        _auditFlow.value = auditBuffer.toList()
     }
 }

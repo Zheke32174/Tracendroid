@@ -36,6 +36,12 @@ sealed class NavItem(val route: String, val titleResId: Int, val icon: ImageVect
                         R.string.nav_shell_bootstrap,
                         Icons.Default.Terminal
                 )
+        object PluginGate :
+                NavItem(
+                        "plugin_gate",
+                        R.string.nav_plugin_gate,
+                        Icons.Default.Security
+                )
         object AssistantConfig :
                 NavItem("assistant_config", R.string.nav_assistant_config, Icons.Default.Tune)
         object Settings : NavItem("settings", R.string.nav_settings, Icons.Default.Settings)

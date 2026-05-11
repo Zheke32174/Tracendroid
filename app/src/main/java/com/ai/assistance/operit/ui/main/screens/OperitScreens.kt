@@ -26,6 +26,7 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.common.NavItem
 import com.ai.assistance.operit.ui.features.about.screens.AboutScreen
 import com.ai.assistance.operit.ui.features.accessibilityonboarding.AccessibilityOnboardingScreen
+import com.ai.assistance.operit.ui.features.plugingate.PluginGateScreen
 import com.ai.assistance.operit.ui.features.shellbootstrap.ShellBootstrapScreen
 import com.ai.assistance.operit.ui.features.assistant.screens.AssistantConfigScreen
 import com.ai.assistance.operit.ui.features.chat.screens.AIChatScreen
@@ -540,6 +541,21 @@ sealed class Screen(
                 onGestureConsumed: (Boolean) -> Unit
         ) {
             ShellBootstrapScreen(onClose = onGoBack)
+        }
+    }
+
+    data object PluginGate : Screen(navItem = NavItem.PluginGate) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            PluginGateScreen()
         }
     }
 
