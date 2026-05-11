@@ -142,6 +142,14 @@ object ScreenRouteRegistry {
                 order = 30
             ),
             hostEntryDefinition(
+                entryId = "main.accessibility_onboarding",
+                screen = Screen.AccessibilityOnboarding,
+                surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,
+                launchNavItem = NavItem.AccessibilityOnboarding,
+                icon = NavItem.AccessibilityOnboarding.icon,
+                order = 5
+            ),
+            hostEntryDefinition(
                 entryId = "main.settings",
                 screen = Screen.Settings,
                 surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,

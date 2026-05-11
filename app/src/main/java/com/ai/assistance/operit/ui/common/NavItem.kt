@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.ui.common
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Build
@@ -23,6 +24,12 @@ import com.ai.assistance.operit.R
 // 应用导航项
 sealed class NavItem(val route: String, val titleResId: Int, val icon: ImageVector) {
         object AiChat : NavItem("ai_chat", R.string.nav_ai_chat, Icons.Default.Email)
+        object AccessibilityOnboarding :
+                NavItem(
+                        "accessibility_onboarding",
+                        R.string.nav_accessibility_onboarding,
+                        Icons.Default.Accessibility
+                )
         object AssistantConfig :
                 NavItem("assistant_config", R.string.nav_assistant_config, Icons.Default.Tune)
         object Settings : NavItem("settings", R.string.nav_settings, Icons.Default.Settings)
