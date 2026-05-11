@@ -1,0 +1,54 @@
+name: rootfs-build
+
+on:
+  workflow_dispatch:
+    inputs:
+      rootfs_version:
+        description: "Rootfs version tag (e.g. 2026.05.0)"
+        required: true
+        type: string
+  push:
+    branches:
+      - "claude/operit-fork-optimization-WWapH"
+    paths:
+      - "debian/**"
+      - ".github/workflows/rootfs.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Debian 12 arm64 rootfs
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debootstrap zstd
+
+      - name: Build rootfs
+        env:
+          ROOTFS_VERSION: ${{ inputs.rootfs_version || '2026.05.0-dev' }}
+          TARGET_ARCH: arm64
+          DEBIAN_SUITE: bookworm
+        run: |
+          sudo -E bash debian/build.sh
+
+      - name: Show artifact metadata
+        run: |
+          ls -la debian/out/
+          cat debian/out/*.sha256
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracendroid-rootfs-${{ inputs.rootfs_version || '2026.05.0-dev' }}-arm64
+          path: |
+            debian/out/*.tar.zst
+            debian/out/*.sha256
+          retention-days: 90
+          if-no-files-found: error

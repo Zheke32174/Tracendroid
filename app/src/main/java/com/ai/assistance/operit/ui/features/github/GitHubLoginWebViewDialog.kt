@@ -54,6 +54,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
+import com.ai.assistance.operit.data.preferences.PkceCodeGenerator
 import com.ai.assistance.operit.ui.components.CustomScaffold
 import com.ai.assistance.operit.ui.features.token.webview.WebViewConfig
 import com.ai.assistance.operit.util.AppLogger
@@ -178,7 +179,17 @@ private fun GitHubEmbeddedLoginWebViewDialog(
     val coordinator = remember { GitHubOAuthCoordinator(context) }
     val githubAuth = remember { GitHubAuthPreferences.getInstance(context) }
     val expectedState = rememberSaveable { GitHubAuthPreferences.createOAuthState() }
-    val authorizationUrl = remember(expectedState) { githubAuth.getAuthorizationUrl(state = expectedState) }
+    // PKCE: the embedded path keeps the verifier in rememberSaveable alongside
+    // the state, so the same in-Compose pattern survives configuration changes
+    // and process death without touching DataStore. The external path uses the
+    // coordinator's createExternalAuthorizationUrl() which persists via prefs.
+    val expectedCodeVerifier = rememberSaveable { PkceCodeGenerator.generateCodeVerifier() }
+    val authorizationUrl = remember(expectedState, expectedCodeVerifier) {
+        githubAuth.getAuthorizationUrl(
+            state = expectedState,
+            codeVerifier = expectedCodeVerifier
+        )
+    }
     val webView = remember {
         WebViewConfig.createWebView(context).apply {
             settings.setSupportMultipleWindows(false)
@@ -209,6 +220,7 @@ private fun GitHubEmbeddedLoginWebViewDialog(
                     if (request?.isForMainFrame != false && handleOAuthRedirect(
                             uri = request?.url,
                             expectedState = expectedState,
+                            expectedCodeVerifier = expectedCodeVerifier,
                             coordinator = coordinator,
                             onDismissRequest = onDismissRequest,
                             onLoginSuccess = onLoginSuccess,
@@ -237,6 +249,7 @@ private fun GitHubEmbeddedLoginWebViewDialog(
                     if (handleOAuthRedirect(
                             uri = url?.let(Uri::parse),
                             expectedState = expectedState,
+                            expectedCodeVerifier = expectedCodeVerifier,
                             coordinator = coordinator,
                             onDismissRequest = onDismissRequest,
                             onLoginSuccess = onLoginSuccess,
@@ -336,6 +349,7 @@ private fun GitHubEmbeddedLoginWebViewDialog(
 private fun handleOAuthRedirect(
     uri: Uri?,
     expectedState: String,
+    expectedCodeVerifier: String,
     coordinator: GitHubOAuthCoordinator,
     onDismissRequest: () -> Unit,
     onLoginSuccess: (() -> Unit)?,
@@ -361,7 +375,11 @@ private fun handleOAuthRedirect(
     onStartHandling()
 
     scope.launch {
-        val result = coordinator.completeLoginFromRedirect(uri, expectedState)
+        val result = coordinator.completeLoginFromRedirect(
+            uri,
+            expectedState,
+            expectedCodeVerifier
+        )
         result.fold(
             onSuccess = { user ->
                 Toast.makeText(

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Release-variant manifest overlay.
+  Strips debug-only exported receivers per THREAT_MODEL.md § 4.1.
+  These receivers exist for internal tooling (live-reload of plugins,
+  Compose-DSL UI tree dumps, etc.) and have no place in shipped builds.
+  Manifest merger applies tools:node="remove" at the receiver name match.
+  The nightly variant inherits this via matchingFallbacks=[release] in
+  app/build.gradle.kts.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <receiver
+            android:name=".core.tools.packTool.ToolPkgDebugInstallReceiver"
+            tools:node="remove" />
+
+        <receiver
+            android:name=".core.tools.packTool.PackageDebugRefreshReceiver"
+            tools:node="remove" />
+
+        <receiver
+            android:name=".core.tools.packTool.ToolPkgComposeDslDebugDumpReceiver"
+            tools:node="remove" />
+    </application>
+
+</manifest>

@@ -76,8 +76,10 @@ android {
             }
         }
 
+        // GITHUB_CLIENT_SECRET intentionally absent. The mobile OAuth flow uses
+        // PKCE (RFC 7636) so the client is public and needs no secret. See
+        // docs/OAUTH_PKCE_MIGRATION.md and THREAT_MODEL.md § 4.8.
         buildConfigField("String", "GITHUB_CLIENT_ID", "\"${localProperties.getProperty("GITHUB_CLIENT_ID")}\"")
-        buildConfigField("String", "GITHUB_CLIENT_SECRET", "\"${localProperties.getProperty("GITHUB_CLIENT_SECRET")}\"")
     }
 
     buildTypes {

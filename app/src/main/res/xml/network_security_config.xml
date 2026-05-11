@@ -1,12 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Default-deny network policy per THREAT_MODEL.md § 4.11 and SECURITY.md
+  red line "loopback is not an authentication exemption."
+
+  Prior state (pre-tightening) was global cleartextTrafficPermitted=true
+  plus user-CA trust. That allowed any plaintext HTTP and let any
+  user-installed root certificate MITM the app's traffic (including
+  OAuth flows and AI provider API calls). Both removed.
+
+  Cleartext is allowed only at named loopback origins, not by default.
+  User CAs are trusted only in debug builds, never in release.
+-->
 <network-security-config>
-    <!-- 允许所有明文HTTP流量 -->
-    <base-config cleartextTrafficPermitted="true">
+    <!-- Release default: HTTPS only, system CAs only. -->
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
-            <!-- 信任系统证书 -->
             <certificates src="system" />
-            <!-- 信任用户证书 -->
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
-</network-security-config> 
+
+    <!--
+      Loopback allowance for on-device dev / the planned Android↔proot
+      bridge ad-hoc development. The production bridge uses a Unix
+      domain socket (SHELL_REBUILD.md § IPC), not loopback HTTP, so
+      this is for dev iteration, not a runtime dependency.
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+
+    <!--
+      Debug builds (android:debuggable="true") trust user-installed CAs
+      so engineers can run a proxy debugger (Charles, mitmproxy, etc.).
+      Release builds never apply this block.
+    -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user" />
+            <certificates src="system" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>
