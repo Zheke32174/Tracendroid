@@ -181,19 +181,19 @@ The threat model treats these as conscious trade-offs, not regressions. Where a 
 
 ### 4.8 Build-time secrets
 
-**Finding.** `app/build.gradle.kts` lines 74–75 declare `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` as BuildConfig fields populated from `local.properties`. The `_SECRET` value, if populated, ends up in the APK and is recoverable by any decompiler.
+**Finding (resolved).** Previously `app/build.gradle.kts` lines 74–75 declared `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` as BuildConfig fields populated from `local.properties`. The `_SECRET` value, if populated, ended up in the APK and was recoverable by any decompiler.
 
-**Rule.** Mobile OAuth uses PKCE. The GitHub OAuth flow used by this app (per `docs/BUILDING.md`) targets a `operit://github-oauth-callback` deep link, which is compatible with PKCE-only flow. The `_SECRET` field is removed.
+**Rule.** Mobile OAuth uses PKCE (RFC 7636). The GitHub OAuth flow used by this app (per `docs/BUILDING.md`) targets a `operit://github-oauth-callback` deep link, served by PKCE only.
 
-**Status.** open — small manifest + gradle + Kotlin change.
+**Status.** closed — PKCE migration landed in `9762a263` + `407241b2`. The `_SECRET` BuildConfig field is removed; `GitHubAuthPreferences.GITHUB_CLIENT_SECRET` constant is removed; `GitHubApiService.getAccessToken` now sends `code_verifier` instead of `client_secret`. See [`docs/OAUTH_PKCE_MIGRATION.md`](./OAUTH_PKCE_MIGRATION.md).
 
-**Location.** `app/build.gradle.kts:74-75`, the OAuth client code that consumes `BuildConfig.GITHUB_CLIENT_SECRET` (path TBD on audit).
+**Location.** `app/build.gradle.kts` (BuildConfig section); `data/preferences/GitHubAuthPreferences.kt` (companion + `getAuthorizationUrl`); `data/preferences/PkceCodeGenerator.kt` (new RFC 7636 helper); `data/api/GitHubApiService.kt::getAccessToken`; `ui/features/github/GitHubOAuthCoordinator.kt`; `ui/features/github/GitHubLoginWebViewDialog.kt`.
 
 ### 4.9 Credential storage
 
-**Finding.** DataStore preferences are used for many credentials today (provider API keys, SSH keys for workspace bindings). DataStore on disk is plaintext unless wrapped by an encryption layer. The app already depends on `androidx.security:security-crypto` (Tink-based `EncryptedSharedPreferences`).
+**Finding.** DataStore preferences are used for many credentials today (provider API keys, SSH keys for workspace bindings, the pending PKCE code_verifier introduced in § 4.8). DataStore on disk is plaintext unless wrapped by an encryption layer. The app already depends on `androidx.security:security-crypto` (Tink-based `EncryptedSharedPreferences`).
 
-**Rule.** Every credential — provider API keys, SSH keys, workspace bindings, anything resembling a token — migrates to encrypted storage. Migration is one-time, idempotent, and produces an audit log entry per migrated record.
+**Rule.** Every credential — provider API keys, SSH keys, workspace bindings, the pending PKCE code_verifier, anything resembling a token — migrates to encrypted storage. Migration is one-time, idempotent, and produces an audit log entry per migrated record.
 
 **Status.** open — migration plan needed.
 
@@ -266,7 +266,7 @@ For traceability:
 | Per-call approval for high-blast actions | §§ 4.2, 4.3, 4.7 |
 | Least authority | §§ 4.4, 4.8 |
 | Isolate by default | §§ 4.2, 4.5 |
-| No secrets in build artifacts | § 4.8 |
+| No secrets in build artifacts | § 4.8 (closed) |
 | Auditability | All sections — every privileged action |
 | User authority is sovereign (halt control) | § 4.7 |
 | AI as collaborators (decline as first-class) | § 4.13, § 4.6 |
@@ -274,7 +274,7 @@ For traceability:
 | Plugin tools do not run unprompted | § 4.3 |
 | No third-party privileged-binder dependency | § 4.4 |
 | Subscription OAuth state stays in proot environment | § 4.5 |
-| APK has no secrets | § 4.8 |
+| APK has no secrets | § 4.8 (closed) |
 | No fallback in security paths | All sections |
 | No loopback exemption | § 5 ClawJacked |
 | Token-mint scope does not widen | § 5 CVE-2026-32922 |
