@@ -268,13 +268,15 @@ class GitHubApiService(private val context: Context) {
     /**
      * 通过授权码获取访问令牌
      */
-    suspend fun getAccessToken(code: String): Result<GitHubAccessTokenResponse> = withContext(Dispatchers.IO) {
+    suspend fun getAccessToken(code: String, codeVerifier: String): Result<GitHubAccessTokenResponse> = withContext(Dispatchers.IO) {
         try {
-            // GitHub OAuth API 要求使用 application/x-www-form-urlencoded 格式
+            // GitHub OAuth API 要求使用 application/x-www-form-urlencoded 格式。
+            // PKCE: client_secret is replaced by code_verifier (RFC 7636).
+            // See docs/OAUTH_PKCE_MIGRATION.md.
             val formBody = FormBody.Builder()
                 .add("client_id", GitHubAuthPreferences.GITHUB_CLIENT_ID)
-                .add("client_secret", GitHubAuthPreferences.GITHUB_CLIENT_SECRET)
                 .add("code", code)
+                .add("code_verifier", codeVerifier)
                 .build()
             
             val request = Request.Builder()
