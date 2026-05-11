@@ -323,6 +323,21 @@ class AIToolHandler private constructor(private val context: Context) {
     /** Executes a tool directly */
     fun executeTool(tool: AITool): ToolResult {
         notifyToolCallRequested(tool)
+
+        // § 4.2 AI-side gate. Records audit + (when enforce=true) blocks the call.
+        val gateDecision = AiToolGate.evaluate(toolName = tool.name)
+        if (gateDecision is AiToolGate.Decision.Deny) {
+            val denied = ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = gateDecision.reason
+            )
+            notifyToolExecutionResult(tool, denied)
+            notifyToolExecutionFinished(tool)
+            return denied
+        }
+
         val executor = getToolExecutorOrActivate(tool.name)
 
         if (executor == null) {
@@ -369,6 +384,21 @@ class AIToolHandler private constructor(private val context: Context) {
     /** Executes a tool and preserves intermediate streaming results when supported by the executor. */
     fun executeToolAndStream(tool: AITool): Flow<ToolResult> = flow {
         notifyToolCallRequested(tool)
+
+        val gateDecision = AiToolGate.evaluate(toolName = tool.name)
+        if (gateDecision is AiToolGate.Decision.Deny) {
+            val denied = ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = gateDecision.reason
+            )
+            notifyToolExecutionResult(tool, denied)
+            notifyToolExecutionFinished(tool)
+            emit(denied)
+            return@flow
+        }
+
         val executor = getToolExecutorOrActivate(tool.name)
 
         if (executor == null) {

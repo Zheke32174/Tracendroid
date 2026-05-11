@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ai.assistance.operit.core.tools.AiToolGate
 import com.ai.assistance.operit.core.tools.javascript.JsCapabilityClass
 import com.ai.assistance.operit.core.tools.javascript.JsPluginGate
 import java.text.SimpleDateFormat
@@ -62,10 +63,12 @@ fun PluginGateScreen() {
         item {
             Spacer(modifier = Modifier.height(16.dp))
             Header(
-                title = "JS plugin gate (§ 4.2)",
-                subtitle = "Default-deny per (plugin × capability). Grants apply only to JS-originated tool calls.",
+                title = "Plugin & AI gate (§ 4.2)",
+                subtitle = "Default-deny per (caller × capability). Grants apply to JS plugins; AI uses the synthetic 'ai:default' id.",
             )
         }
+
+        item { AiGateEnforceCard() }
 
         item {
             SectionTitle("Active grants")
@@ -95,6 +98,33 @@ fun PluginGateScreen() {
         }
 
         item { Spacer(modifier = Modifier.height(24.dp)) }
+    }
+}
+
+@Composable
+private fun AiGateEnforceCard() {
+    var enforce by remember { mutableStateOf(AiToolGate.enforce) }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("AI-side gate enforcement", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (enforce) "AI tool calls are blocked unless 'ai:default' has the matching capability grant."
+                        else "AI tool calls dispatch as before; audit still records every call.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = enforce,
+                    onCheckedChange = { newValue ->
+                        AiToolGate.enforce = newValue
+                        enforce = newValue
+                    },
+                )
+            }
+        }
     }
 }
 
