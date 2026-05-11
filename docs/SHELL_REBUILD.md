@@ -40,7 +40,7 @@ Rootfs size target: ~80–100 MB compressed, ~250–300 MB extracted. Subscripti
 
 ### Launcher: proot only
 
-The launcher is proot. `chroot()` requires `CAP_SYS_CHROOT`, which is root-only — and the project doesn't have root and isn't taking it. Shizuku and Shower grant ADB-shell privilege; that's *not* root, and it doesn't enable `chroot()`. The chroot path is removed from v1 scope.
+The launcher is proot. `chroot()` requires `CAP_SYS_CHROOT`, which is root-only. The project doesn't have root, isn't taking root, and per `THREAT_MODEL.md § 4.4` isn't taking Shizuku or Shower either. The chroot path is removed from v1 scope.
 
 Trade-offs accepted:
 
@@ -138,14 +138,13 @@ Per `AGENTS.md`, this is iterative addition followed by deletion — no fallback
 
 - The exact `debian/build.sh` (or `Dockerfile.rootfs`) content.
 - The exact base package set (likely: `bash`, `coreutils`, `procps`, `ca-certificates`, `curl`, `git`, `openssh-client`, `python3`, `nodejs`, `npm` — final list lives in the build-script PR).
-- The `PrivilegedShell` Kotlin abstraction for Android-side privileged operations (lives in the privileged-binder unification PR per `THREAT_MODEL.md § 4.4`; orthogonal to the proot launcher).
 - Reproducible-build hardening (v2).
 - Rootfs delta updates rather than full re-downloads (v2 — initial users pay the ~80 MB on first run and on version bumps).
 - x86_64 ABI support, if/when emulator-driven development becomes a priority.
 
 ## Cross-references
 
-- Resolves `AUDIT_PLAN.md § 1.5` (Chroot ↔ Android IPC protocol — retitled effectively to proot ↔ Android).
+- Resolves `AUDIT_PLAN.md § 1.5` (proot ↔ Android IPC protocol).
 - Resolves `AUDIT_PLAN.md § 1.9` (Distro choice).
-- Targets `THREAT_MODEL.md § 4.5` (Subscription OAuth in chroot — also retitled effectively) for `design` → `closed` once implementation lands.
-- Honors `SECURITY.md` red lines: no loopback exemption, no auto-pair, no fallback patterns, halt control hooks into all proot processes.
+- Targets `THREAT_MODEL.md § 4.5` (Subscription OAuth in proot environment) for `design` → `closed` once implementation lands.
+- Honors `SECURITY.md` red lines: no loopback exemption, no auto-pair, no fallback patterns, halt control hooks into all proot processes, no third-party privileged-binder dependency.
