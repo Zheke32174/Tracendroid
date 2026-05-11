@@ -77,7 +77,6 @@ The status column is one of: **closed** (rule enforced), **open** (rule not yet 
 | `ExternalChatReceiver` | `EXTERNAL_CHAT` | External app initiates a chat session | open — needs sender allowlist |
 | `WorkflowTaskerReceiver` | `TRIGGER_WORKFLOW`, `FIRE_SETTING` | External app fires workflow automation | open — needs sender allowlist or signature perm |
 | `WorkflowBootReceiver` | `BOOT_COMPLETED` | System trigger only (acceptable) | closed (system-only) |
-| `ShowerBinderReceiver` | `SHOWER_BINDER_READY` | Privileged binder handoff (Shower in-house server) | scheduled for removal (see § 4.4) |
 | `VoiceAssistantWidgetReceiver`, `ToolPkgDesktopWidgetReceiver` | `APPWIDGET_UPDATE` | System trigger only (acceptable) | closed (system-only) |
 
 **Rule.** Every entry above whose status is "open" gets a signature permission tied to either our own release key (debug/internal channels) or the publisher of the legitimate caller (Tasker for the workflow receiver), plus removal of debug receivers from the release variant via build-type-specific manifests. Entries with "scheduled for removal" are deleted in the implementation PRs cited.
@@ -131,14 +130,15 @@ The status column is one of: **closed** (rule enforced), **open** (rule not yet 
 The threat model treats these as conscious trade-offs, not regressions. Where a capability is genuinely necessary later, it's added via the OS-mediated path or not at all — not through a privileged escape hatch.
 
 **Rule.**
-- The `libsu`, Shizuku, and Shower dependencies are removed from `app/build.gradle.kts` and `AndroidManifest.xml`. The `:showerclient` Gradle module is deleted. The `ShowerBinderReceiver` is deleted. The `ShizukuProvider` manifest declaration is removed; `moe.shizuku.manager.permission.API_V23` is removed.
-- All call sites currently dispatching through `libsu`/Shizuku/Shower migrate to AccessibilityService-routed equivalents in `app/src/main/java/com/ai/assistance/operit/core/tools/system/`. Where no equivalent exists, the capability is removed from the project (see Trade-offs above).
+- The `libsu`, Shizuku, and Shower dependencies are removed from `app/build.gradle.kts`, `settings.gradle.kts` (Bintray repo), and `gradle/libs.versions.toml`. The `:showerclient` Gradle module is deleted. The `tools/shower/` companion-app project is deleted. The `ShowerBinderReceiver` Kotlin class is deleted along with its manifest entry; the `ShizukuProvider` manifest declaration is removed; `moe.shizuku.manager.permission.API_V23` is removed.
+- `ShizukuAuthorizer`, `ShizukuInstaller`, `RootAuthorizer`, `RootShellExecutor`, `DebuggerShellExecutor`, `RootActionListener`, `DebuggerActionListener`, `PhoneAgent`, `ShowerController`, `ShowerServerManager`, `ShowerBinderRegistry`, `ShowerVideoRenderer`, `ShowerSurfaceView`, `OperitShowerShellRunner`, `VirtualDisplayOverlay`, `UIAutomationProgressOverlay`, `VirtualDisplayManager`, `PhoneAgentJobRegistry`, the `ShizukuDemoScreen`/`ShizukuDemoViewModel`/`ShizukuWizardCard`/`RootWizardCard`/`DemoStateManager` demo surfaces, and the `autoglm/` feature subtree are all deleted.
+- `ShellExecutorFactory` and `ActionListenerFactory` collapse `ROOT` and `DEBUGGER` levels onto `STANDARD` (no privileged channel reachable); the `STANDARD` path is what runs whatever the user's `androidPermissionPreferences` setting was. The `AndroidPermissionLevel` enum retains `ROOT` and `DEBUGGER` values for now (referenced from 4 sites outside the factories); they are functionally equivalent to `STANDARD` and will be removed in a follow-up sweep.
 - AccessibilityService grants are per-app-install (granted once in system Settings, revocable in system Settings), but per-session capability tracking is layered on top: a session has no actuator capability by default; the user grants per-session at the moment of first use (`§ 4.7`).
-- The Shower-receiver row in `§ 4.1` is marked "scheduled for removal" in the present PR; the deletion lands in a follow-up implementation PR that touches the manifest, build script, and Gradle module.
+- `StandardUITools.runUiSubAgent()` (formerly the PhoneAgent driver) returns a structured error pointing at this row and at `docs/AGENT_CORE.md`. A new Accessibility-only UI-automation subagent lands in the agent-core PR series.
 
-**Status.** open — manifest cleanup, Gradle-dep removal, and call-site migration land across implementation PRs.
+**Status.** closed — Gradle dependencies, version-catalog entries, Bintray repo, manifest entries, `:showerclient` module, `tools/shower/` companion app, all dedicated Kotlin sources, and all call sites have been removed. AccessibilityService is the sole privileged automation channel.
 
-**Location.** `app/build.gradle.kts`, `app/src/main/AndroidManifest.xml`, `app/src/main/java/com/ai/assistance/operit/core/tools/agent/ShowerBinderReceiver*.kt`, `:showerclient` Gradle module, libsu/Shizuku call sites across `core/tools/system/`.
+**Location.** Closure commits: `a01efa5` (Gradle), `a54ee39` (modules), `1aae68a` (manifest), `fd1a515` (Shizuku/root Kotlin), `ccd1d5c` (Shower Kotlin), `f54fca9` (nav scrub), `7932e4c` (lifecycle scrub), `8245e71` (demo subsystem), and the present commit (tool runners + display + factories).
 
 ### 4.5 Subscription OAuth in proot environment
 
@@ -264,9 +264,9 @@ For traceability:
 
 | `SECURITY.md` default | Where enforced |
 |---|---|
-| Default-deny | §§ 4.2, 4.3, 4.4, 4.7, 4.11 (closed) |
+| Default-deny | §§ 4.2, 4.3, 4.4 (closed), 4.7, 4.11 (closed) |
 | Per-call approval for high-blast actions | §§ 4.2, 4.3, 4.7 |
-| Least authority | §§ 4.4, 4.8 |
+| Least authority | §§ 4.4 (closed), 4.8 (closed) |
 | Isolate by default | §§ 4.2, 4.5 |
 | No secrets in build artifacts | § 4.8 (closed) |
 | Auditability | All sections — every privileged action |
@@ -274,7 +274,7 @@ For traceability:
 | AI as collaborators (decline as first-class) | § 4.13, § 4.6 |
 | Exported receiver with permission/allowlist | § 4.1 |
 | Plugin tools do not run unprompted | § 4.3 |
-| No third-party privileged-binder dependency | § 4.4 |
+| No third-party privileged-binder dependency | § 4.4 (closed) |
 | Subscription OAuth state stays in proot environment | § 4.5 |
 | APK has no secrets | § 4.8 (closed) |
 | No fallback in security paths | All sections |
