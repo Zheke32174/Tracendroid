@@ -1,6 +1,6 @@
 # SHELL_REBUILD.md
 
-> Scope and decisions for the chroot/proot rebuild. The current `:terminal` submodule (`AAswordman/OperitTerminalCore`) and its missing-blob dependency are slated for removal; this document defines what replaces them. 中文镜像见 [`SHELL_REBUILD.zh.md`](./SHELL_REBUILD.zh.md)。
+> Scope and decisions for the proot environment rebuild. The current `:terminal` submodule (`AAswordman/OperitTerminalCore`) and its missing-blob dependency are slated for removal; this document defines what replaces them. 中文镜像见 [`SHELL_REBUILD.zh.md`](./SHELL_REBUILD.zh.md)。
 
 ## Why
 
@@ -22,7 +22,7 @@ Both are blockers for the long-haul reconstruction. The patch path ("Gradle task
 
 - The user-facing chat experience (it never directly references the submodule).
 - The terminal toolbox UI screens in `app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/`.
-- The `shellexecutor` screen for one-shot ADB-style commands (distinct from the chroot environment).
+- The `shellexecutor` screen for one-shot ADB-style commands (distinct from the proot environment).
 
 ## Decisions
 
@@ -36,16 +36,20 @@ Resolves `AUDIT_PLAN.md § 1.9`.
 | **Debian 12 (bookworm)** | **Adopted.** Leaner stable, same apt ecosystem, longest support track record, no telemetry. |
 | Alpine | Rejected. musl-libc breaks Python wheels and many Node packages — incompatible with the codex / gemini-cli / claude-code targets. |
 
-Rootfs size target: ~80–100 MB compressed, ~250–300 MB extracted. Subscription CLIs and Python / Node tooling install on demand inside the chroot, not in the base image.
+Rootfs size target: ~80–100 MB compressed, ~250–300 MB extracted. Subscription CLIs and Python / Node tooling install on demand inside the environment, not in the base image.
 
-### Launcher: proot default, chroot opt-in
+### Launcher: proot only
 
-Both are supported; they share the same rootfs, the same filesystem layout, and the same IPC contract. Only the entry path differs.
+The launcher is proot. `chroot()` requires `CAP_SYS_CHROOT`, which is root-only — and the project doesn't have root and isn't taking it. Shizuku and Shower grant ADB-shell privilege; that's *not* root, and it doesn't enable `chroot()`. The chroot path is removed from v1 scope.
 
-- **proot (default).** Works on unrooted Android. Slower (syscall translation) but universal. This is what users see on first run.
-- **chroot (opt-in).** Available when Shizuku or Shower is granted. Faster, better isolation. Requires explicit user toggle.
+Trade-offs accepted:
 
-The launcher selection is one switch in app settings; no code path forks beyond that point. Per `THREAT_MODEL.md § 4.4`, both paths use the same `PrivilegedShell` abstraction once it lands.
+- **Syscall translation overhead.** Measurable in microbenchmarks, not a blocker for the CLIs and dev tools we host. The subscription CLIs are network-bound; the local model runtimes are compute-bound and don't traverse the proot boundary heavily.
+- **No kernel-enforced isolation.** The threat model already accounts for this: the proot environment is a *soft* boundary, not a sandbox. Confidentiality of subscription tokens is enforced by Android-side encryption (the environment lives in app-private storage) and by Linux file ACLs inside the rootfs, not by kernel isolation.
+- **More Android-side tooling than a chroot-with-init would need:**
+  - Foreground service architecture to keep the proot process alive while the app is backgrounded (see `AGENT_CORE.md § Background operation`).
+  - The IPC bridge bears the soft-boundary weight (see § IPC protocol below).
+  - Explicit lifecycle handling — proot doesn't auto-recover from OOM kills the way a chroot-with-init would. Session resumption is handled by the agent-core layer.
 
 ### Rootfs build pipeline
 
@@ -64,12 +68,12 @@ Output: one artifact per supported ABI. v1 ships `arm64-v8a` only, matching the 
 
 First run flow:
 
-1. User opens the terminal feature (or any feature that needs the chroot).
+1. User opens the terminal feature (or any feature that needs the environment).
 2. App checks for an installed rootfs at the expected version. If present and signature-valid, proceed. Otherwise:
 3. User sees a clear panel: what's about to happen, download size, where the file comes from, what runs inside.
 4. User confirms. Download proceeds. Progress visible.
 5. Signature + SHA-256 verified. Failure aborts with the actual error (no "something went wrong").
-6. Extraction proceeds to `Android/data/<package>/files/chroot/` (app-private storage; survives uninstall only if the user opts to back it up).
+6. Extraction proceeds to `Android/data/<package>/files/rootfs/` (app-private storage; survives uninstall only if the user opts to back it up).
 7. First-launch initialization runs — generates host config, sets up the Unix-socket endpoint, opens a shell.
 8. Subsequent launches skip steps 2–6.
 
@@ -79,16 +83,16 @@ No step in this flow has a "skip if missing" path. Per `AGENTS.md` and `SECURITY
 
 Resolves `AUDIT_PLAN.md § 1.5`.
 
-**Unix domain socket** in a shared bind-mount. The Android side and the chroot side both see the socket file; Linux file ACLs scope access. No network surface, no loopback exposure — the `THREAT_MODEL.md § 5 ClawJacked` failure mode is not reachable on this surface.
+**Unix domain socket** in a shared bind-mount. The Android side and the proot side both see the socket file; Linux file ACLs scope access. No network surface, no loopback exposure — the `THREAT_MODEL.md § 5 ClawJacked` failure mode is not reachable on this surface.
 
 Wire format: length-prefixed JSON messages, one logical request / response per envelope. Each envelope carries:
 
 - A monotonic request id (for matching responses).
-- An origin tag (`user` / `ai-agent` / `plugin:<id>`) so the chroot side knows who's calling.
+- An origin tag (`user` / `ai-agent` / `plugin:<id>`) so the proot side knows who's calling.
 - A capability claim (which `AUDIT_PLAN § 1.3` class is being invoked).
 - The actual command.
 
-The chroot side enforces capability classes (the same set declared in `AUDIT_PLAN § 1.3`) before executing. The Android side enforces them again before sending. Defense in depth.
+The proot side enforces capability classes (the same set declared in `AUDIT_PLAN § 1.3`) before executing. The Android side enforces them again before sending. Defense in depth.
 
 Auth on every call: each connection is authenticated via a per-session secret minted at bootstrap, stored on the Android side in `EncryptedSharedPreferences`, presented as the first frame of every connection. The secret rotates on app upgrade and on user-initiated rotation. No exemption for any caller class.
 
@@ -96,16 +100,16 @@ Auth on every call: each connection is authenticated via a per-session secret mi
 
 The rebuild **does not bundle** codex, gemini-cli, claude-code, aider, cline, or continue.dev in the rootfs. Each:
 
-- Installs on demand via its own published installer or via the chroot's package manager.
-- Handles its own OAuth flow inside the chroot.
-- Persists session state inside the chroot, per `THREAT_MODEL.md § 4.5`.
+- Installs on demand via its own published installer or via the environment's package manager.
+- Handles its own OAuth flow inside the environment.
+- Persists session state inside the environment, per `THREAT_MODEL.md § 4.5`.
 - Updates on its own cadence (its update channel, not ours).
 
 This keeps their security updates with them and keeps our build pipeline out of the business of vendoring third-party CLIs.
 
 ### Filesystem layout
 
-Inside the chroot:
+Inside the rootfs:
 
 ```
 /                       Debian root (read-only after bootstrap; replaced by rootfs upgrade)
@@ -116,7 +120,7 @@ Inside the chroot:
 /workspace              Bind-mount from Android/data/<package>/files/workspace/ — the only path that persists across sessions
 ```
 
-That layout is the contract between the Android side and any code that runs inside the chroot. Plugins, CLIs, and ad-hoc shell sessions all see the same paths in the same places.
+That layout is the contract between the Android side and any code that runs inside the environment. Plugins, CLIs, and ad-hoc shell sessions all see the same paths in the same places.
 
 ### Migration from `:terminal` submodule
 
@@ -134,14 +138,14 @@ Per `AGENTS.md`, this is iterative addition followed by deletion — no fallback
 
 - The exact `debian/build.sh` (or `Dockerfile.rootfs`) content.
 - The exact base package set (likely: `bash`, `coreutils`, `procps`, `ca-certificates`, `curl`, `git`, `openssh-client`, `python3`, `nodejs`, `npm` — final list lives in the build-script PR).
-- The `PrivilegedShell` Kotlin abstraction (lives in the privileged-binder unification PR per `THREAT_MODEL.md § 4.4`).
+- The `PrivilegedShell` Kotlin abstraction for Android-side privileged operations (lives in the privileged-binder unification PR per `THREAT_MODEL.md § 4.4`; orthogonal to the proot launcher).
 - Reproducible-build hardening (v2).
 - Rootfs delta updates rather than full re-downloads (v2 — initial users pay the ~80 MB on first run and on version bumps).
 - x86_64 ABI support, if/when emulator-driven development becomes a priority.
 
 ## Cross-references
 
-- Resolves `AUDIT_PLAN.md § 1.5` (Chroot ↔ Android IPC protocol).
+- Resolves `AUDIT_PLAN.md § 1.5` (Chroot ↔ Android IPC protocol — retitled effectively to proot ↔ Android).
 - Resolves `AUDIT_PLAN.md § 1.9` (Distro choice).
-- Targets `THREAT_MODEL.md § 4.5` (Subscription OAuth in chroot) for `design` → `closed` once implementation lands.
-- Honors `SECURITY.md` red lines: no loopback exemption, no auto-pair, no fallback patterns, halt control hooks into all chroot processes.
+- Targets `THREAT_MODEL.md § 4.5` (Subscription OAuth in chroot — also retitled effectively) for `design` → `closed` once implementation lands.
+- Honors `SECURITY.md` red lines: no loopback exemption, no auto-pair, no fallback patterns, halt control hooks into all proot processes.
