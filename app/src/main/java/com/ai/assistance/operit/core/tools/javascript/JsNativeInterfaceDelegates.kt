@@ -10,6 +10,7 @@ import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
 import android.util.Base64
+import com.ai.assistance.operit.core.halt.HaltController
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.BinaryResultData
 import com.ai.assistance.operit.core.tools.BooleanResultData
@@ -515,9 +516,9 @@ internal object JsNativeInterfaceDelegates {
             return buildToolErrorJson("Tool name cannot be empty")
         }
 
-        if (com.ai.assistance.operit.core.halt.HaltController.isHalted) {
+        if (HaltController.isHalted) {
             return buildToolErrorJson(
-                com.ai.assistance.operit.core.halt.HaltController.haltedRefusal(
+                HaltController.haltedRefusal(
                     "JS plugin tool call '$toolType:$toolName'"
                 )
             )
@@ -560,11 +561,11 @@ internal object JsNativeInterfaceDelegates {
         binaryDataThreshold: Int,
         sendToolResult: (callbackId: String, result: String, isError: Boolean) -> Unit
     ) {
-        if (com.ai.assistance.operit.core.halt.HaltController.isHalted) {
+        if (HaltController.isHalted) {
             sendToolResult(
                 callbackId,
                 buildToolErrorJson(
-                    com.ai.assistance.operit.core.halt.HaltController.haltedRefusal(
+                    HaltController.haltedRefusal(
                         "JS plugin async tool call '$toolType:$toolName'"
                     )
                 ),
@@ -638,11 +639,11 @@ internal object JsNativeInterfaceDelegates {
         sendToolResult: (callbackId: String, result: String, isError: Boolean) -> Unit,
         sendIntermediateResult: (callbackId: String, result: String, isError: Boolean) -> Unit
     ) {
-        if (com.ai.assistance.operit.core.halt.HaltController.isHalted) {
+        if (HaltController.isHalted) {
             sendToolResult(
                 callbackId,
                 buildToolErrorJson(
-                    com.ai.assistance.operit.core.halt.HaltController.haltedRefusal(
+                    HaltController.haltedRefusal(
                         "JS plugin streaming tool call '$toolType:$toolName'"
                     )
                 ),

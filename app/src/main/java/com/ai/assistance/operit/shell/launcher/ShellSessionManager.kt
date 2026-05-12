@@ -2,6 +2,7 @@ package com.ai.assistance.operit.shell.launcher
 
 import android.content.Context
 import com.ai.assistance.operit.core.tools.javascript.JsCapabilityClass
+import com.ai.assistance.operit.shell.ShellRootfsDispatcherInstaller
 import com.ai.assistance.operit.shell.ShellRootfsLayout
 import com.ai.assistance.operit.shell.ipc.ShellIpcAuth
 import com.ai.assistance.operit.shell.ipc.ShellIpcClient
@@ -67,7 +68,7 @@ class ShellSessionManager(
         // Skipped when the rootfs isn't extracted (e.g. dev runs without a real rootfs);
         // in that case the spawner will fail with RootfsMissing anyway.
         _state.value = State.Starting("rotating IPC secret")
-        val installer = com.ai.assistance.operit.shell.ShellRootfsDispatcherInstaller(context, auth)
+        val installer = ShellRootfsDispatcherInstaller(context, auth)
         val rotated = installer.rotateForSessionStart()
         val secret = rotated ?: auth.currentOrMint()
 

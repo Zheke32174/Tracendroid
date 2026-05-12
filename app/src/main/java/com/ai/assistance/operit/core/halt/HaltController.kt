@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.core.halt
 
+import com.ai.assistance.operit.core.agent.reasoning.AgentReasoningTrace
 import com.ai.assistance.operit.util.AppLogger
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,7 +70,7 @@ object HaltController {
     fun requestHalt(
         by: String,
         reason: String,
-        context: String? = com.ai.assistance.operit.core.agent.reasoning.AgentReasoningTrace.current(),
+        context: String? = AgentReasoningTrace.current(),
     ) {
         val now = System.currentTimeMillis()
         val event = HaltEvent(now, by, reason, context)

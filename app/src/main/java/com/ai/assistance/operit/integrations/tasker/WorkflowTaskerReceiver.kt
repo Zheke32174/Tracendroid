@@ -4,8 +4,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.data.repository.WorkflowRepository
+import com.ai.assistance.operit.integrations.intent.BroadcastSenderAllowlist
+import com.ai.assistance.operit.integrations.intent.ExternalChatReceiver
+import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -54,10 +56,9 @@ class WorkflowTaskerReceiver : BroadcastReceiver() {
         val selfPackage = context.packageName
         if (intent.`package` != selfPackage) {
             val sender = intent.getStringExtra(
-                com.ai.assistance.operit.integrations.intent.ExternalChatReceiver.EXTRA_SENDER_PACKAGE
+                ExternalChatReceiver.EXTRA_SENDER_PACKAGE
             ) ?: intent.`package`
-            val allowlist = com.ai.assistance.operit.integrations.intent
-                .BroadcastSenderAllowlist(context.applicationContext)
+            val allowlist = BroadcastSenderAllowlist(context.applicationContext)
             if (!allowlist.isAllowed(ALLOWLIST_LABEL, sender)) {
                 AppLogger.w(
                     TAG,

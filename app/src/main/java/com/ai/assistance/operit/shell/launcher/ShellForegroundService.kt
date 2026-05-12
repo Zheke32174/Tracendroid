@@ -13,6 +13,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.application.ForegroundServiceCompat
+import com.ai.assistance.operit.core.halt.HaltController
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -81,7 +82,7 @@ class ShellForegroundService : Service() {
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var observerJob: Job? = null
 
-    private val haltListener = com.ai.assistance.operit.core.halt.HaltController.Listener {
+    private val haltListener = HaltController.Listener {
         // A halt from anywhere — chat halt button, plugin gate denial, whatever — stops
         // the proot session and tears down foreground state immediately.
         runCatching { manager.stop() }
@@ -93,7 +94,7 @@ class ShellForegroundService : Service() {
         super.onCreate()
         manager = ShellSessionManager(applicationContext)
         ensureNotificationChannel()
-        com.ai.assistance.operit.core.halt.HaltController.registerListener(haltListener)
+        HaltController.registerListener(haltListener)
         AppLogger.d(TAG, "created")
     }
 
@@ -103,7 +104,7 @@ class ShellForegroundService : Service() {
                 // Halt button on the notification — record it as a sovereign halt event,
                 // not just a service stop. The audit log + state propagation through
                 // HaltController is what § 4.7 wants here.
-                com.ai.assistance.operit.core.halt.HaltController.requestHalt(
+                HaltController.requestHalt(
                     by = "user:notification",
                     reason = "Halt action tapped on shell session notification",
                 )
@@ -130,7 +131,7 @@ class ShellForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onDestroy() {
-        com.ai.assistance.operit.core.halt.HaltController.unregisterListener(haltListener)
+        HaltController.unregisterListener(haltListener)
         observerJob?.cancel()
         manager.stop()
         scope.cancel()

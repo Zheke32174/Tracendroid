@@ -11,6 +11,7 @@ import com.ai.assistance.operit.integrations.externalchat.ExternalChatResponseMo
 import com.ai.assistance.operit.integrations.externalchat.ExternalChatResponseSanitizer
 import com.ai.assistance.operit.integrations.externalchat.ExternalChatResult
 import com.ai.assistance.operit.integrations.externalchat.ExternalChatStreamEnvelope
+import com.ai.assistance.operit.integrations.externalchat.ExternalChatStreamingSession
 import com.ai.assistance.operit.integrations.externalchat.ExternalChatStreamingStartResult
 import com.ai.assistance.operit.data.model.InputProcessingState
 import com.ai.assistance.operit.util.AppLogger
@@ -238,10 +239,7 @@ class ExternalChatHttpServer(
     private fun sseResponse(request: ExternalChatHttpRequest, resolvedRequestId: String): Response {
         val pipeInput = PipedInputStream(SSE_PIPE_BUFFER_SIZE)
         val pipeOutput = PipedOutputStream(pipeInput)
-        val streamingSessionRef =
-            AtomicReference<com.ai.assistance.operit.integrations.externalchat.ExternalChatStreamingSession?>(
-                null
-            )
+        val streamingSessionRef = AtomicReference<ExternalChatStreamingSession?>(null)
 
         val streamJob: Job =
             serviceScope.launch(Dispatchers.IO) {

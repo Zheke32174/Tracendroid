@@ -41,8 +41,13 @@ import com.ai.assistance.operit.data.preferences.CharacterCardManager
 import com.ai.assistance.operit.data.preferences.ExternalHttpApiPreferences
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.data.preferences.WakeWordPreferences
+import com.ai.assistance.operit.core.tools.javascript.JsPluginGate
+import com.ai.assistance.operit.core.tools.javascript.JsPluginGatePersistence
 import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
 import com.ai.assistance.operit.data.preferences.initAndroidPermissionPreferences
+import com.ai.assistance.operit.integrations.intent.BroadcastSenderAllowlist
+import com.ai.assistance.operit.integrations.tasker.WorkflowTaskerReceiver
+import com.ai.assistance.operit.shell.ShellRootfsKeyProvisioner
 import com.ai.assistance.operit.data.preferences.initUserPreferencesManager
 import com.ai.assistance.operit.data.preferences.preferencesManager
 import com.ai.assistance.operit.data.repository.CustomEmojiRepository
@@ -192,11 +197,7 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
 
         // § 4.2 JS 插件门控持久化器 —— 在 JsEngine 首次被调用前安装。
         runCatching {
-            com.ai.assistance.operit.core.tools.javascript.JsPluginGate.installPersister(
-                com.ai.assistance.operit.core.tools.javascript.JsPluginGatePersistence(
-                    applicationContext
-                )
-            )
+            JsPluginGate.installPersister(JsPluginGatePersistence(applicationContext))
         }.onFailure { e ->
             AppLogger.w(TAG, "JsPluginGate persister install failed: ${e.message}")
         }
@@ -205,8 +206,7 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
         // out of assets into app-private storage. The bootstrap signature
         // verifier reads it from there.
         runCatching {
-            com.ai.assistance.operit.shell.ShellRootfsKeyProvisioner(applicationContext)
-                .provision()
+            ShellRootfsKeyProvisioner(applicationContext).provision()
         }.onFailure { e ->
             AppLogger.w(TAG, "ShellRootfsKeyProvisioner failed: ${e.message}")
         }
@@ -214,13 +214,10 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
         // § 4.1 — pre-seed the Tasker allowlist so the legitimate integration works out
         // of the box. The user can remove entries from the settings screen if desired.
         runCatching {
-            val allowlist = com.ai.assistance.operit.integrations.intent
-                .BroadcastSenderAllowlist(applicationContext)
-            val label = com.ai.assistance.operit.integrations.tasker
-                .WorkflowTaskerReceiver.ALLOWLIST_LABEL
+            val allowlist = BroadcastSenderAllowlist(applicationContext)
+            val label = WorkflowTaskerReceiver.ALLOWLIST_LABEL
             val existing = allowlist.current(label)
-            for (taskerPkg in com.ai.assistance.operit.integrations.tasker
-                .WorkflowTaskerReceiver.DEFAULT_TASKER_SENDERS) {
+            for (taskerPkg in WorkflowTaskerReceiver.DEFAULT_TASKER_SENDERS) {
                 if (taskerPkg !in existing) allowlist.add(label, taskerPkg)
             }
         }.onFailure { e ->

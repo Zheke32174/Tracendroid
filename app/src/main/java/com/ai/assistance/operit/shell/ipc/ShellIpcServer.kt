@@ -3,6 +3,7 @@ package com.ai.assistance.operit.shell.ipc
 import android.net.LocalServerSocket
 import android.net.LocalSocket
 import android.net.LocalSocketAddress
+import com.ai.assistance.operit.core.tools.javascript.JsCapabilityClass
 import com.ai.assistance.operit.util.AppLogger
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -167,9 +168,7 @@ class ShellIpcServer(
                 error = "unknown origin tag",
             )
         val capability = runCatching {
-            com.ai.assistance.operit.core.tools.javascript.JsCapabilityClass.valueOf(
-                obj.optString("capability")
-            )
+            JsCapabilityClass.valueOf(obj.optString("capability"))
         }.getOrNull()
             ?: return ShellIpcProtocol.Response(
                 requestId = requestId,

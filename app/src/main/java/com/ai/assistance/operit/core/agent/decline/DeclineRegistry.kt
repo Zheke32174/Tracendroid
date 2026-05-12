@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.core.agent.decline
 
+import com.ai.assistance.operit.core.agent.reasoning.AgentReasoningTrace
 import com.ai.assistance.operit.util.AppLogger
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,8 +60,7 @@ object DeclineRegistry {
         // reasoning representation pre-populate `reasoningSnapshot`; backends that
         // emit reasoning into the trace via append() get the snapshot for free.
         val withSnapshot = if (decline.reasoningSnapshot == null) {
-            val snapshot = com.ai.assistance.operit.core.agent.reasoning
-                .AgentReasoningTrace.current()
+            val snapshot = AgentReasoningTrace.current()
             if (snapshot != null) decline.copy(reasoningSnapshot = snapshot) else decline
         } else {
             decline

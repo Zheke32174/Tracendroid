@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.core.tools
 
 import android.content.Context
+import com.ai.assistance.operit.core.halt.HaltController
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.mcp.MCPManager
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
@@ -326,13 +327,12 @@ class AIToolHandler private constructor(private val context: Context) {
 
         // § 4.7 halt — sovereign-user kill switch. Any in-flight tool call refuses if
         // the system is halted; the user has to clear the halt to resume.
-        if (com.ai.assistance.operit.core.halt.HaltController.isHalted) {
+        if (HaltController.isHalted) {
             val halted = ToolResult(
                 toolName = tool.name,
                 success = false,
                 result = StringResultData(""),
-                error = com.ai.assistance.operit.core.halt.HaltController
-                    .haltedRefusal("AI tool call")
+                error = HaltController.haltedRefusal("AI tool call")
             )
             notifyToolExecutionResult(tool, halted)
             notifyToolExecutionFinished(tool)
@@ -400,13 +400,12 @@ class AIToolHandler private constructor(private val context: Context) {
     fun executeToolAndStream(tool: AITool): Flow<ToolResult> = flow {
         notifyToolCallRequested(tool)
 
-        if (com.ai.assistance.operit.core.halt.HaltController.isHalted) {
+        if (HaltController.isHalted) {
             val halted = ToolResult(
                 toolName = tool.name,
                 success = false,
                 result = StringResultData(""),
-                error = com.ai.assistance.operit.core.halt.HaltController
-                    .haltedRefusal("AI streaming tool call")
+                error = HaltController.haltedRefusal("AI streaming tool call")
             )
             notifyToolExecutionResult(tool, halted)
             notifyToolExecutionFinished(tool)

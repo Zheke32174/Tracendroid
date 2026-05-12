@@ -3,6 +3,7 @@ package com.ai.assistance.operit.api.chat
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.ai.assistance.operit.core.agent.reasoning.AgentReasoningTrace
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.ChatMarkupRegex
 import com.ai.assistance.operit.api.chat.enhance.ConversationMarkupManager
@@ -863,7 +864,7 @@ class EnhancedAIService private constructor(private val context: Context) {
         // sub-tasks (isSubTask=true) keep the parent turn's trace so a halt during a
         // sub-task still surfaces the relevant context.
         if (!isSubTask) {
-            com.ai.assistance.operit.core.agent.reasoning.AgentReasoningTrace.clear()
+            AgentReasoningTrace.clear()
         }
 
         val eventChannel = MutableSharedStream<TextStreamEvent>(replay = Int.MAX_VALUE)
@@ -1105,8 +1106,7 @@ class EnhancedAIService private constructor(private val context: Context) {
                                 // can snapshot the in-flight content at the moment they
                                 // fire. AgentReasoningTrace tail-keeps at 16 KiB so the
                                 // trace stays bounded regardless of stream length.
-                                com.ai.assistance.operit.core.agent.reasoning
-                                    .AgentReasoningTrace.append(content)
+                                AgentReasoningTrace.append(content)
 
                                 // 周期性日志
                                 val currentTime = messageTimingNow()

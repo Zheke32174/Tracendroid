@@ -2,6 +2,8 @@ package com.ai.assistance.operit.shell.ipc
 
 import android.net.LocalSocket
 import android.net.LocalSocketAddress
+import com.ai.assistance.operit.core.halt.HaltController
+import com.ai.assistance.operit.core.tools.javascript.JsCapabilityClass
 import com.ai.assistance.operit.util.AppLogger
 import java.io.Closeable
 import java.io.DataInputStream
@@ -25,7 +27,7 @@ import org.json.JSONObject
  * The client is the surface the agent core calls when it wants to dispatch a command
  * into proot. Per docs/SECURITY.md, every send carries:
  *  - an [ShellIpcProtocol.Origin] tag identifying who initiated the call
- *  - a [com.ai.assistance.operit.core.tools.javascript.JsCapabilityClass] capability claim
+ *  - a [JsCapabilityClass] capability claim
  *  - the actual command + params
  *
  * The Android side performs gate checks (`JsPluginGate` / `AiToolGate`) before reaching
@@ -131,17 +133,17 @@ class ShellIpcClient(
      */
     fun send(
         origin: ShellIpcProtocol.Origin,
-        capability: com.ai.assistance.operit.core.tools.javascript.JsCapabilityClass,
+        capability: JsCapabilityClass,
         command: String,
         params: Map<String, Any?> = emptyMap(),
     ): SendResult {
-        if (com.ai.assistance.operit.core.halt.HaltController.isHalted) {
+        if (HaltController.isHalted) {
             return SendResult.Ok(
                 ShellIpcProtocol.Response(
                     requestId = requestIdCounter.get(),
                     success = false,
                     output = "",
-                    error = com.ai.assistance.operit.core.halt.HaltController.haltedRefusal(
+                    error = HaltController.haltedRefusal(
                         "shell IPC '$command'"
                     ),
                 )
