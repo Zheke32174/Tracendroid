@@ -13,6 +13,7 @@
     <string name="nav_accessibility_onboarding">无障碍引导</string>
     <string name="nav_shell_bootstrap">Shell 环境初始化</string>
     <string name="nav_plugin_gate">插件门控</string>
+    <string name="nav_broadcast_allowlist">广播发送方白名单</string>
     <string name="nav_adb_commands">权限授予</string>
     <string name="nav_settings">设置</string>
     <string name="nav_tool_permissions">工具权限</string>

@@ -166,6 +166,14 @@ object ScreenRouteRegistry {
                 order = 7
             ),
             hostEntryDefinition(
+                entryId = "main.broadcast_allowlist",
+                screen = Screen.BroadcastAllowlist,
+                surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,
+                launchNavItem = NavItem.BroadcastAllowlist,
+                icon = NavItem.BroadcastAllowlist.icon,
+                order = 8
+            ),
+            hostEntryDefinition(
                 entryId = "main.settings",
                 screen = Screen.Settings,
                 surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,
