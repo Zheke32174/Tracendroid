@@ -58,8 +58,18 @@ class ShellSessionManager(
             AppLogger.d(TAG, "start: session already running")
             return true
         }
-        _state.value = State.Starting("minting IPC secret")
-        val secret = auth.currentOrMint()
+
+        // § PR 3/N (26/N) follow-up: rotate the IPC secret AND rewrite the rootfs
+        // auth.secret file on every session start. A dispatcher spawned by a previous
+        // session would otherwise hold a stale secret and silently reject the new
+        // Android-side client. Rotating + re-writing guarantees the dispatcher this
+        // start spawns boots with the same secret the client will present.
+        // Skipped when the rootfs isn't extracted (e.g. dev runs without a real rootfs);
+        // in that case the spawner will fail with RootfsMissing anyway.
+        _state.value = State.Starting("rotating IPC secret")
+        val installer = com.ai.assistance.operit.shell.ShellRootfsDispatcherInstaller(context, auth)
+        val rotated = installer.rotateForSessionStart()
+        val secret = rotated ?: auth.currentOrMint()
 
         _state.value = State.Starting("starting IPC server")
         val server = ShellIpcServer(expectedSecret = secret, handler = handler)

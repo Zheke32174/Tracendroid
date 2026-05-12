@@ -64,6 +64,31 @@ class ShellRootfsDispatcherInstaller(
         }
     }
 
+    /**
+     * Per-session-start auth refresh. Rotates the secret in [ShellIpcAuth] and writes the
+     * fresh value to the rootfs `auth.secret` file. Returns the rotated secret on success
+     * or null when the rootfs isn't present.
+     *
+     * This is the resilience hook called out in the PR 3/N (26/N) commit message: a
+     * dispatcher spawned from a previous session would otherwise hold a stale secret and
+     * silently reject the Android client. Rotating + re-writing on every session start
+     * guarantees the dispatcher boots with the same secret the Android-side client will
+     * present.
+     */
+    fun rotateForSessionStart(rootDir: File = ShellRootfsLayout.rootDir(context)): String? {
+        if (!rootDir.exists() || rootDir.listFiles().isNullOrEmpty()) {
+            return null
+        }
+        return try {
+            ensureIpcDir(rootDir)
+            installAuthSecret(rootDir, rotate = true)
+            auth.currentOrMint()
+        } catch (e: Throwable) {
+            AppLogger.w(TAG, "rotateForSessionStart failed: ${e.message}")
+            null
+        }
+    }
+
     private fun installDispatcherScript(rootDir: File) {
         val target = File(rootDir, DISPATCHER_REL)
         target.parentFile?.mkdirs()
