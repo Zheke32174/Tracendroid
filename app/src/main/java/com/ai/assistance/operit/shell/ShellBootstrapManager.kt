@@ -207,6 +207,43 @@ class ShellBootstrapManager(
                         }
                     }
 
+                    // Provision the in-proot dispatcher script + auth secret. This is
+                    // what the IPC bridge talks to once a proot session starts.
+                    val dispatcherResult = withContext(Dispatchers.IO) {
+                        ShellRootfsDispatcherInstaller(context).install(
+                            rootDir = rootDir,
+                            rotateSecret = true,
+                        )
+                    }
+                    when (dispatcherResult) {
+                        is ShellRootfsDispatcherInstaller.Result.Ok -> Unit
+                        is ShellRootfsDispatcherInstaller.Result.RootfsMissing -> {
+                            fail(
+                                ShellBootstrapState.Failed.Phase.EXTRACTION,
+                                "Rootfs is unexpectedly missing after extraction at " +
+                                    dispatcherResult.expected
+                            )
+                            return
+                        }
+                        is ShellRootfsDispatcherInstaller.Result.AssetMissing -> {
+                            fail(
+                                ShellBootstrapState.Failed.Phase.EXTRACTION,
+                                "Dispatcher asset missing from APK: " +
+                                    dispatcherResult.name
+                            )
+                            return
+                        }
+                        is ShellRootfsDispatcherInstaller.Result.Failed -> {
+                            fail(
+                                ShellBootstrapState.Failed.Phase.EXTRACTION,
+                                dispatcherResult.cause.message
+                                    ?: dispatcherResult.cause::class.simpleName
+                                    ?: "dispatcher install failed"
+                            )
+                            return
+                        }
+                    }
+
                     val manifest = ShellRootfsManifest(
                         version = ShellRootfsRelease.EXPECTED_VERSION,
                         abi = ShellRootfsRelease.EXPECTED_ABI,

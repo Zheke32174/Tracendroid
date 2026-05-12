@@ -43,8 +43,11 @@ class ShellProcessSpawner(private val context: Context) {
         return if (candidate.exists() && candidate.canExecute()) candidate else null
     }
 
-    /** Spawns proot inside the extracted rootfs. Returns a structured Result. */
-    fun spawn(command: List<String> = listOf("/bin/bash", "-l")): Result {
+    /**
+     * Spawns proot inside the extracted rootfs. Default command launches the in-proot
+     * IPC dispatcher; pass a different command (e.g. an interactive bash) to override.
+     */
+    fun spawn(command: List<String> = listOf("/usr/bin/python3", "/usr/local/bin/operit-dispatcher")): Result {
         val rootfs = ShellRootfsLayout.rootDir(context)
         if (!rootfs.exists() || rootfs.listFiles().isNullOrEmpty()) {
             return Result.RootfsMissing(rootfs.absolutePath)
