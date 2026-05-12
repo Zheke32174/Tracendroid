@@ -116,12 +116,12 @@ The status column is one of: **closed** (rule enforced), **open** (rule not yet 
 **Risk.** OpenClaw's ClawHub supply-chain incident (1000+ malicious skills distributing macOS stealers) is the textbook example of what happens when plugin install equals plugin trust. Operit ships some plugins (`super_admin.js`) whose names alone warrant a review.
 
 **Rule.**
-- Every plugin package carries a publisher signature. Unsigned packages are quarantined on install; promotion requires an explicit user action, audit-logged.
-- Each tool the plugin declares has a capability class declared in its manifest (file-read / file-write / shell / network / SMS / etc.). The first call to a given tool surfaces a one-time prompt; the prompt names the plugin and the capability class. The grant is per-tool, revocable per-tool.
+- Every plugin package carries an Ed25519 publisher signature. The trust anchor is self-signed publisher keys with TOFU: first install records the `(pluginId, publisherKeyFingerprint)` pair; subsequent updates must verify against the same fingerprint, mismatch refuses the update. See `AUDIT_PLAN.md § 1.1`.
+- MCP servers add a second gate on top: a user-curated allowlist + per-package publisher pinning (`packageName, publisherFingerprint`) per `AUDIT_PLAN.md § 1.2`. A package not on the allowlist never runs; a package whose publisher fingerprint changed since first run prompts for fresh TOFU.
+- Each tool the plugin declares carries a capability class from `JsCapabilityClass` (`AUDIT_PLAN.md § 1.3`). The first call surfaces the per-call confirmation overlay (`ToolGateConfirmationOverlay`, § 4.2); grants persist per (caller × capability) until the user revokes them. Signature pass does not auto-grant capabilities; a fresh install starts with zero grants regardless of signature.
 - A plugin cannot install another plugin.
-- The signing-anchor question (who trusts whom) is open and lives in `AUDIT_PLAN.md § Plugin signing scheme`.
 
-**Status.** design.
+**Status.** design — trust-anchor decisions resolved (`AUDIT_PLAN.md §§ 1.1, 1.2, 1.3`); the manifest format + installer + TOFU UI ship in a follow-up implementation PR.
 
 **Location.** `app/src/main/java/com/ai/assistance/operit/core/tools/mcp/`, `core/tools/packTool/`, `core/tools/skill/`. The `packages_whitelist.txt` file at the repo root is in-scope for the build-time bundling decision but does not address runtime trust.
 
@@ -158,11 +158,16 @@ The threat model treats these as conscious trade-offs, not regressions. Where a 
 
 **Finding.** New surface introduced by the bridge-to-CLI strategy. The proot environment hosts first-party CLIs (codex, gemini-cli, claude-code) each holding long-lived subscription tokens in their own session directories.
 
-**Rule.** Per `SECURITY.md`: the proot environment is the persistence boundary. Android-side access is read-only, scoped to a specific operation, audit-logged. Token rotation operations (when initiated from outside the CLI itself) do not widen scope (per CVE-2026-32922 lesson).
+**Rule.**
+- The proot environment is the persistence boundary. Tokens stay there. Token rotation operations (when initiated from outside the CLI itself) do not widen scope (per CVE-2026-32922 lesson).
+- Android-side access to subscription state is **metadata-and-liveness only**, via three IPC commands at capability claim `METADATA` (`AUDIT_PLAN.md § 1.6`): `subscription_account` (cliName, accountEmail), `subscription_tier` (cliName, tier), `subscription_alive` (cliName, isLoggedIn, lastActiveAtMillis). Raw tokens, refresh tokens, signed JWTs, and full session configs do not cross the wire.
+- Calls that need to use the token run *inside* proot. The Android side hands the *task* across; the *credential* stays put.
+- The IPC dispatcher (`operit-dispatcher.py`) refuses any other command for the `METADATA` capability and any `FILE_READ` claim against a session-file path — defense in depth on top of the Android-side gate (§ 4.2).
+- Every cross-boundary read is recorded in `JsPluginGate.recentAudit()`.
 
-**Status.** design — depends on the shell rebuild.
+**Status.** design — API scope resolved (`AUDIT_PLAN.md § 1.6`), dispatcher allowlist + Android-side classifier wiring lands with the shell rebuild end-to-end.
 
-**Location.** See `SHELL_REBUILD.md`.
+**Location.** See `SHELL_REBUILD.md`. Dispatcher path: `app/src/main/assets/rootfs/operit-dispatcher.py` (allowlisted commands).
 
 ### 4.6 AI output as a validated channel
 
