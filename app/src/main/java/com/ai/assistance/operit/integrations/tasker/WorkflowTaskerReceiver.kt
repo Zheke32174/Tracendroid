@@ -20,7 +20,16 @@ class WorkflowTaskerReceiver : BroadcastReceiver() {
     companion object {
         private const val TAG = "WorkflowTaskerReceiver"
         const val ACTION_TRIGGER_WORKFLOW = "com.ai.assistance.operit.TRIGGER_WORKFLOW"
-        
+
+        /** § 4.1 allowlist key for this receiver. */
+        const val ALLOWLIST_LABEL = "workflow_tasker"
+
+        /** Known Tasker package names. Pre-seeded into the allowlist on first launch. */
+        val DEFAULT_TASKER_SENDERS: Set<String> = setOf(
+            "net.dinglisch.android.taskerm",
+            "net.dinglisch.android.tasker",
+        )
+
         /**
          * Creates an intent to trigger workflows based on intent data.
          * This can be used by other parts of the app or external apps to trigger a check.
@@ -37,6 +46,25 @@ class WorkflowTaskerReceiver : BroadcastReceiver() {
         val action = intent.action
         if (action.isNullOrBlank()) {
             return
+        }
+
+        // § 4.1 — sender allowlist. Self-targeted intents (set via setPackage in
+        // createTriggerIntent) bypass; cross-app senders must hold a package allowlist
+        // entry. Self-target is detected via intent.getPackage() matching our package.
+        val selfPackage = context.packageName
+        if (intent.`package` != selfPackage) {
+            val sender = intent.getStringExtra(
+                com.ai.assistance.operit.integrations.intent.ExternalChatReceiver.EXTRA_SENDER_PACKAGE
+            ) ?: intent.`package`
+            val allowlist = com.ai.assistance.operit.integrations.intent
+                .BroadcastSenderAllowlist(context.applicationContext)
+            if (!allowlist.isAllowed(ALLOWLIST_LABEL, sender)) {
+                AppLogger.w(
+                    TAG,
+                    "rejected workflow trigger — sender '$sender' not on allowlist"
+                )
+                return
+            }
         }
 
         AppLogger.d(TAG, "Received workflow trigger broadcast for action: $action. Checking for matching workflows.")

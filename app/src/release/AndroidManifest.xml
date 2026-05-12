@@ -7,6 +7,11 @@
   Manifest merger applies tools:node="remove" at the receiver name match.
   The nightly variant inherits this via matchingFallbacks=[release] in
   app/build.gradle.kts.
+
+  ScriptExecutionReceiver is also stripped: it accepts arbitrary JS for
+  in-process QuickJS execution, which is a remote code execution surface
+  no shipped build should expose. Even with a signature permission this
+  receiver is unsafe to ship — see THREAT_MODEL § 4.1.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
@@ -22,6 +27,10 @@
 
         <receiver
             android:name=".core.tools.packTool.ToolPkgComposeDslDebugDumpReceiver"
+            tools:node="remove" />
+
+        <receiver
+            android:name=".core.tools.javascript.ScriptExecutionReceiver"
             tools:node="remove" />
     </application>
 

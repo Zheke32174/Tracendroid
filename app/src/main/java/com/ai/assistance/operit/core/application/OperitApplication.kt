@@ -211,6 +211,22 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
             AppLogger.w(TAG, "ShellRootfsKeyProvisioner failed: ${e.message}")
         }
 
+        // § 4.1 — pre-seed the Tasker allowlist so the legitimate integration works out
+        // of the box. The user can remove entries from the settings screen if desired.
+        runCatching {
+            val allowlist = com.ai.assistance.operit.integrations.intent
+                .BroadcastSenderAllowlist(applicationContext)
+            val label = com.ai.assistance.operit.integrations.tasker
+                .WorkflowTaskerReceiver.ALLOWLIST_LABEL
+            val existing = allowlist.current(label)
+            for (taskerPkg in com.ai.assistance.operit.integrations.tasker
+                .WorkflowTaskerReceiver.DEFAULT_TASKER_SENDERS) {
+                if (taskerPkg !in existing) allowlist.add(label, taskerPkg)
+            }
+        }.onFailure { e ->
+            AppLogger.w(TAG, "Tasker allowlist seed failed: ${e.message}")
+        }
+
         // 初始化Android权限偏好管理器
         initAndroidPermissionPreferences(applicationContext)
         AppLogger.d(TAG, "【启动计时】Android权限偏好管理器初始化完成 - ${System.currentTimeMillis() - startTime}ms")

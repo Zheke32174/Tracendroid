@@ -70,18 +70,25 @@ The status column is one of: **closed** (rule enforced), **open** (rule not yet 
 
 | Receiver | Action | Risk | Status |
 |---|---|---|---|
-| `ScriptExecutionReceiver` | `com.ai.assistance.operit.EXECUTE_JS` | Any installed app submits JS for in-process QuickJS execution | open |
+| `ScriptExecutionReceiver` | `com.ai.assistance.operit.EXECUTE_JS` | Any installed app submits JS for in-process QuickJS execution | closed (excluded from release variant) |
 | `ToolPkgDebugInstallReceiver` | `DEBUG_INSTALL_TOOLPKG` | External app installs tool packages | closed (excluded from release variant via `app/src/release/AndroidManifest.xml`) |
 | `PackageDebugRefreshReceiver` | `DEBUG_REFRESH_PACKAGES` | Forces plugin refresh from external trigger | closed (excluded from release variant) |
 | `ToolPkgComposeDslDebugDumpReceiver` | `DUMP_COMPOSE_DSL_UI` | Dumps UI tree on external trigger | closed (excluded from release variant) |
-| `ExternalChatReceiver` | `EXTERNAL_CHAT` | External app initiates a chat session | open — needs sender allowlist |
-| `WorkflowTaskerReceiver` | `TRIGGER_WORKFLOW`, `FIRE_SETTING` | External app fires workflow automation | open — needs sender allowlist or signature perm |
+| `ExternalChatReceiver` | `EXTERNAL_CHAT` | External app initiates a chat session | closed — sender package allowlist (default empty) |
+| `WorkflowTaskerReceiver` | `TRIGGER_WORKFLOW`, `FIRE_SETTING` | External app fires workflow automation | closed — sender package allowlist (Tasker seeded by default) |
 | `WorkflowBootReceiver` | `BOOT_COMPLETED` | System trigger only (acceptable) | closed (system-only) |
 | `VoiceAssistantWidgetReceiver`, `ToolPkgDesktopWidgetReceiver` | `APPWIDGET_UPDATE` | System trigger only (acceptable) | closed (system-only) |
 
-**Rule.** Every entry above whose status is "open" gets a signature permission tied to either our own release key (debug/internal channels) or the publisher of the legitimate caller (Tasker for the workflow receiver), plus removal of debug receivers from the release variant via build-type-specific manifests. Entries with "scheduled for removal" are deleted in the implementation PRs cited.
+**Rule.**
+- Debug receivers (`ToolPkgDebugInstallReceiver`, `PackageDebugRefreshReceiver`, `ToolPkgComposeDslDebugDumpReceiver`, `ScriptExecutionReceiver`) are removed from the release variant via `tools:node="remove"` in `app/src/release/AndroidManifest.xml`. They remain in debug builds for internal tooling.
+- `ExternalChatReceiver` and `WorkflowTaskerReceiver` consult [`BroadcastSenderAllowlist`](../app/src/main/java/com/ai/assistance/operit/integrations/intent/BroadcastSenderAllowlist.kt) before doing any work. Each receiver has its own allowlist key; both default to empty (`ExternalChat`) or seeded with Tasker package names (`WorkflowTasker`). The sender's package name comes from the intent's `EXTRA_SENDER_PACKAGE` (caller-supplied) or `intent.package`. Allowlist miss → receiver returns immediately.
+- The allowlist is stored in plain SharedPreferences (`broadcast_sender_allowlist`). It is user policy, not authentication material — package-name spoofing on a rooted device is out of scope per docs/SECURITY.md.
+- `WorkflowTaskerReceiver` self-targeted intents (set via `createTriggerIntent` with `setPackage(context.packageName)`) bypass the allowlist — those are in-process calls, not cross-app dispatch.
+- A settings UI to audit and modify the allowlist is a follow-up; v1 surfaces are programmatic only.
 
-**Location.** `app/src/main/AndroidManifest.xml` (main variant) and `app/src/release/AndroidManifest.xml` (release-only overlay that strips debug receivers). Debug builds keep all receivers for internal tooling. The `nightly` build type inherits the release overlay via `matchingFallbacks=[release]` already declared in `app/build.gradle.kts`.
+**Status.** closed — all eight receivers in the table have explicit dispositions; debug-channel surfaces are stripped from release; cross-app receivers gate on a package allowlist.
+
+**Location.** `app/src/main/AndroidManifest.xml` (main variant) and `app/src/release/AndroidManifest.xml` (release-only overlay that strips debug + JS-exec receivers). `app/src/main/java/com/ai/assistance/operit/integrations/intent/BroadcastSenderAllowlist.kt` (storage + lookup). Receiver enforcement in `integrations/intent/ExternalChatReceiver.kt` and `integrations/tasker/WorkflowTaskerReceiver.kt`. Tasker seed in `core/application/OperitApplication.kt`. The `nightly` build type inherits the release overlay via `matchingFallbacks=[release]` already declared in `app/build.gradle.kts`.
 
 ### 4.2 In-process JS sandbox (QuickJS)
 
@@ -281,7 +288,7 @@ For traceability:
 | Auditability | All sections — every privileged action |
 | User authority is sovereign (halt control) | § 4.7 (partial) |
 | AI as collaborators (decline as first-class) | § 4.13 (partial), § 4.6 |
-| Exported receiver with permission/allowlist | § 4.1 |
+| Exported receiver with permission/allowlist | § 4.1 (closed) |
 | Plugin tools do not run unprompted | § 4.3 |
 | No third-party privileged-binder dependency | § 4.4 (closed) |
 | Subscription OAuth state stays in proot environment | § 4.5 |

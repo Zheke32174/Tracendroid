@@ -19,6 +19,9 @@ class ExternalChatReceiver : BroadcastReceiver() {
         const val ACTION_EXTERNAL_CHAT = "com.ai.assistance.operit.EXTERNAL_CHAT"
         const val ACTION_EXTERNAL_CHAT_RESULT = "com.ai.assistance.operit.EXTERNAL_CHAT_RESULT"
 
+        /** § 4.1 allowlist key for this receiver. */
+        const val ALLOWLIST_LABEL = "external_chat"
+
         const val EXTRA_REQUEST_ID = "request_id"
         const val EXTRA_MESSAGE = "message"
         const val EXTRA_GROUP = "group"
@@ -33,6 +36,14 @@ class ExternalChatReceiver : BroadcastReceiver() {
         const val EXTRA_TIMEOUT_MS = "timeout_ms"
         const val EXTRA_STOP_AFTER = "stop_after"
 
+        /**
+         * Caller-supplied tag identifying the sender package. Receivers that opt in to
+         * cross-app dispatch include their own package name here so the allowlist can
+         * authorize. v1 trusts this field for non-rooted devices; spoofing on a rooted
+         * device is out of scope per docs/SECURITY.md.
+         */
+        const val EXTRA_SENDER_PACKAGE = "sender_package"
+
         const val EXTRA_REPLY_ACTION = "reply_action"
         const val EXTRA_REPLY_PACKAGE = "reply_package"
 
@@ -44,6 +55,20 @@ class ExternalChatReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION_EXTERNAL_CHAT) return
+
+        // § 4.1 — sender allowlist check. The sender includes its own package name in
+        // EXTRA_SENDER_PACKAGE; the allowlist is empty by default, so unconfigured
+        // installs reject every external sender.
+        val sender = intent.getStringExtra(EXTRA_SENDER_PACKAGE)
+            ?: intent.`package`
+        val allowlist = BroadcastSenderAllowlist(context.applicationContext)
+        if (!allowlist.isAllowed(ALLOWLIST_LABEL, sender)) {
+            AppLogger.w(
+                TAG,
+                "rejected external chat broadcast — sender '$sender' not on allowlist"
+            )
+            return
+        }
 
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
