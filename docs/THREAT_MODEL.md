@@ -213,16 +213,16 @@ The threat model treats these as conscious trade-offs, not regressions. Where a 
 **Rule.**
 - Credentials live in [`CredentialVault`](../app/src/main/java/com/ai/assistance/operit/data/preferences/credentials/CredentialVault.kt), a thin wrapper over `EncryptedSharedPreferences` (AES-256-SIV key encryption, AES-256-GCM value encryption, hardware-backed master key when the device supports it).
 - Migration helper [`CredentialVault.migrateOnce`](../app/src/main/java/com/ai/assistance/operit/data/preferences/credentials/CredentialVault.kt) reads the legacy plaintext value from DataStore the first time the credential is accessed, copies it into the vault, clears the source, and logs the migration. Idempotent — every subsequent access goes straight to the vault.
-- Migrated so far:
-    - `GitHubAuthPreferences` — `access_token`, `refresh_token`, `pending_oauth_state`, `pending_oauth_code_verifier` (the four secret-bearing fields). The non-secret metadata (`is_logged_in`, `user_info`, `last_login_time`, `auth_version`, `granted_scope`, `token_expires_at`, `token_type`) stays in DataStore so the reactive flows the UI subscribes to keep working.
+- Migrated:
+    - `GitHubAuthPreferences` — `access_token`, `refresh_token`, `pending_oauth_state`, `pending_oauth_code_verifier` (the four secret-bearing fields). Non-secret metadata stays in DataStore so reactive flows keep working.
     - `ExternalHttpApiPreferences` — `bearer_token`. Enabled / port flags stay in DataStore.
-- Not yet migrated (tracked follow-ups, not blocking the row's partial closure):
-    - `ModelConfigManager` per-config blobs that include `apiKey` as a JSON field. The blob structure spans many call sites and a clean migration needs either a structural split (move `apiKey` out of the blob) or a per-blob vault entry; both are scoped for separate commits.
+    - `ModelConfigManager` — single `apiKey` per config + every `apiKeyPool[*].key`. The on-disk blob carries blanks where secrets were; the vault is keyed on `cfg:<configId>:apiKey` and `cfg:<configId>:pool:<keyInfoId>`. Reads hydrate from the vault back into the in-memory `ModelConfigData`; writes split secrets to the vault and blank them in the JSON. Legacy blobs that still carry secrets are migrated on first read.
+- Tracked follow-up:
     - SSH keys for workspace bindings and any other plaintext-on-disk material the audit surfaces.
 
-**Status.** partial-closed — vault exists; the GitHub OAuth + external HTTP API tokens (the most exposure-sensitive credentials in the codebase) are migrated. ModelConfig API keys + SSH keys are tracked follow-ups.
+**Status.** closed — vault exists; every API key, OAuth token, bearer secret, and PKCE verifier the audit identified now lives encrypted. SSH-key migration is a small follow-up if/when that path lands; nothing else in the credential-storage row remains open.
 
-**Location.** `app/src/main/java/com/ai/assistance/operit/data/preferences/credentials/CredentialVault.kt`; migrations in `data/preferences/GitHubAuthPreferences.kt` and `data/preferences/ExternalHttpApiPreferences.kt`.
+**Location.** `app/src/main/java/com/ai/assistance/operit/data/preferences/credentials/CredentialVault.kt`; migrations in `data/preferences/GitHubAuthPreferences.kt`, `data/preferences/ExternalHttpApiPreferences.kt`, `data/preferences/ModelConfigManager.kt`.
 
 ### 4.10 Documents providers
 
