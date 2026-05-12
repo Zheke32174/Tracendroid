@@ -66,12 +66,46 @@ EXEC_TIMEOUT_SECONDS = 60
 EXEC_OUTPUT_LIMIT_BYTES = 256 * 1024  # 256 KiB stdout/stderr ceiling
 
 # Capability → set of allowed command identifiers. A request whose command
-# isn't in the set for its capability is refused.
+# isn't in the set for its capability is refused. The METADATA commands for
+# subscription-OAuth state were resolved in AUDIT_PLAN § 1.6: account /
+# tier / liveness only, raw tokens never cross the wire.
 ALLOWED_COMMANDS = {
     "SHELL": {"exec"},
     "FILE_READ": {"read_file", "stat"},
     "FILE_WRITE": {"write_file"},
-    "METADATA": {"ping", "env"},
+    "METADATA": {
+        "ping",
+        "env",
+        "subscription_account",
+        "subscription_tier",
+        "subscription_alive",
+    },
+}
+
+# CLIs the subscription_* commands recognize. Each maps to the path inside the
+# rootfs where the CLI keeps its session config (FAQ-style files; the exact
+# layouts vary by CLI and may need updating per release). The map is a
+# whitelist — a CLI name not on this list refuses outright.
+SUBSCRIPTION_CLI_CONFIG = {
+    "claude-code": "/home/operator/.config/claude/config.json",
+    "codex":       "/home/operator/.config/codex/auth.json",
+    "gemini-cli":  "/home/operator/.config/gemini-cli/session.json",
+}
+
+# Field allowlist per CLI per command. Anything outside this map is refused —
+# the dispatcher does not return arbitrary JSON keys from these config files,
+# even if the file happens to contain them.
+SUBSCRIPTION_FIELD_ALLOWLIST = {
+    "subscription_account": {
+        "claude-code": ("account", "email"),
+        "codex":       ("account", "email"),
+        "gemini-cli":  ("user", "email"),
+    },
+    "subscription_tier": {
+        "claude-code": ("account", "tier"),
+        "codex":       ("subscription", "tier"),
+        "gemini-cli":  ("user", "tier"),
+    },
 }
 
 
@@ -177,6 +211,12 @@ def handle_request(conn: socket.socket, req: dict) -> None:
             do_write_file(conn, rid, params)
         elif command == "stat":
             do_stat(conn, rid, params)
+        elif command == "subscription_account":
+            do_subscription_account(conn, rid, params)
+        elif command == "subscription_tier":
+            do_subscription_tier(conn, rid, params)
+        elif command == "subscription_alive":
+            do_subscription_alive(conn, rid, params)
         else:
             respond(conn, rid, success=False, error=f"unhandled command: {command}")
     except Exception as exc:  # noqa: BLE001 — we want to surface every error verbatim
@@ -226,6 +266,22 @@ def do_read_file(conn: socket.socket, rid: int, params: dict) -> None:
     if not isinstance(path, str) or not path_is_allowed(path):
         respond(conn, rid, success=False, error=f"path not in allowlist: {path!r}")
         return
+    # AUDIT_PLAN § 1.6: subscription-OAuth session files must never cross the
+    # bridge via FILE_READ. The dedicated subscription_* METADATA commands are
+    # the only path, and they return narrow allowlisted fields rather than the
+    # raw file. Refuse here defensively even though path_is_allowed already
+    # excludes /home/operator/.config/ — a future allowlist tweak shouldn't
+    # silently re-expose token material.
+    normalized = os.path.normpath(path)
+    for cli_path in SUBSCRIPTION_CLI_CONFIG.values():
+        if normalized == os.path.normpath(cli_path):
+            respond(
+                conn,
+                rid,
+                success=False,
+                error="refused: subscription-OAuth session file is not readable via FILE_READ",
+            )
+            return
     try:
         with open(path, "rb") as fp:
             content = fp.read()
@@ -269,6 +325,109 @@ def do_stat(conn: socket.socket, rid: int, params: dict) -> None:
         "is_dir": os.path.isdir(path),
         "is_file": os.path.isfile(path),
     }))
+
+
+# ---- METADATA / subscription_* commands (AUDIT_PLAN § 1.6) -----------------
+#
+# These three handlers are the entire surface by which the Android side can
+# learn anything about the in-proot subscription state. None of them return
+# raw token material — they return narrow allowlisted fields parsed out of
+# the CLI's session config, or computed liveness signals. The Android side
+# cannot reach the underlying config files via any other code path; the
+# do_read_file refusal at the top of this script enforces that on the
+# defense-in-depth side.
+
+
+def _read_subscription_config(cli_name: str) -> dict | None:
+    """Load the subscription config JSON for a known CLI. Returns None on
+    missing-file (CLI not installed / not yet logged in) or parse error.
+    Callers never see the raw dict — only the field they asked for."""
+    config_path = SUBSCRIPTION_CLI_CONFIG.get(cli_name)
+    if config_path is None:
+        return None
+    try:
+        with open(config_path, "r", encoding="utf-8") as fp:
+            return json.load(fp)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return None
+
+
+def _extract_allowlisted_field(
+    config: dict | None,
+    cli_name: str,
+    command: str,
+) -> str | None:
+    """Walk the field path from SUBSCRIPTION_FIELD_ALLOWLIST. Returns the
+    string value or None. Anything that isn't a string is dropped — we don't
+    return arbitrary JSON shapes here."""
+    if config is None:
+        return None
+    field_map = SUBSCRIPTION_FIELD_ALLOWLIST.get(command, {})
+    path = field_map.get(cli_name)
+    if path is None:
+        return None
+    cursor: object = config
+    for segment in path:
+        if not isinstance(cursor, dict):
+            return None
+        cursor = cursor.get(segment)
+    return cursor if isinstance(cursor, str) else None
+
+
+def do_subscription_account(conn: socket.socket, rid: int, params: dict) -> None:
+    cli = params.get("cliName")
+    if not isinstance(cli, str) or cli not in SUBSCRIPTION_CLI_CONFIG:
+        respond(conn, rid, success=False, error=f"unknown cliName: {cli!r}")
+        return
+    config = _read_subscription_config(cli)
+    email = _extract_allowlisted_field(config, cli, "subscription_account")
+    respond(conn, rid, success=True, output=json.dumps({
+        "cliName": cli,
+        "accountEmail": email,
+    }))
+
+
+def do_subscription_tier(conn: socket.socket, rid: int, params: dict) -> None:
+    cli = params.get("cliName")
+    if not isinstance(cli, str) or cli not in SUBSCRIPTION_CLI_CONFIG:
+        respond(conn, rid, success=False, error=f"unknown cliName: {cli!r}")
+        return
+    config = _read_subscription_config(cli)
+    tier = _extract_allowlisted_field(config, cli, "subscription_tier")
+    respond(conn, rid, success=True, output=json.dumps({
+        "cliName": cli,
+        "tier": tier,
+    }))
+
+
+def do_subscription_alive(conn: socket.socket, rid: int, params: dict) -> None:
+    cli = params.get("cliName")
+    if not isinstance(cli, str) or cli not in SUBSCRIPTION_CLI_CONFIG:
+        respond(conn, rid, success=False, error=f"unknown cliName: {cli!r}")
+        return
+    config_path = SUBSCRIPTION_CLI_CONFIG[cli]
+    # Liveness = config file exists + has been touched recently. We do NOT
+    # invoke the CLI's own `whoami`-style command in v1 — running arbitrary
+    # CLI binaries on every liveness probe is the kind of side channel
+    # AUDIT_PLAN § 1.6 wants to avoid. File mtime is a coarse but honest
+    # signal.
+    try:
+        st = os.stat(config_path)
+    except FileNotFoundError:
+        respond(conn, rid, success=True, output=json.dumps({
+            "cliName": cli,
+            "isLoggedIn": False,
+            "lastActiveAtMillis": 0,
+        }))
+        return
+    respond(conn, rid, success=True, output=json.dumps({
+        "cliName": cli,
+        "isLoggedIn": True,
+        "lastActiveAtMillis": int(st.st_mtime * 1000),
+    }))
+
+
+# ---- connection loop -------------------------------------------------------
 
 
 def handle_connection(conn: socket.socket, expected_secret: str) -> None:

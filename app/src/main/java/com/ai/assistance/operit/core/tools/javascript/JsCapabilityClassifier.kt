@@ -116,6 +116,12 @@ object JsCapabilityClassifier {
         // Metadata
         put("calculator", JsCapabilityClass.METADATA)
         put("string", JsCapabilityClass.METADATA)
+        // Subscription-OAuth state probes (AUDIT_PLAN § 1.6, THREAT_MODEL
+        // § 4.5). Read-only metadata; the dispatcher refuses any FILE_READ
+        // claim against the underlying session files as defense in depth.
+        put("subscription_account", JsCapabilityClass.METADATA)
+        put("subscription_tier", JsCapabilityClass.METADATA)
+        put("subscription_alive", JsCapabilityClass.METADATA)
     }
 
     fun classify(toolType: String, toolName: String): JsCapabilityClass {

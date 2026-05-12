@@ -165,9 +165,9 @@ The threat model treats these as conscious trade-offs, not regressions. Where a 
 - The IPC dispatcher (`operit-dispatcher.py`) refuses any other command for the `METADATA` capability and any `FILE_READ` claim against a session-file path — defense in depth on top of the Android-side gate (§ 4.2).
 - Every cross-boundary read is recorded in `JsPluginGate.recentAudit()`.
 
-**Status.** design — API scope resolved (`AUDIT_PLAN.md § 1.6`), dispatcher allowlist + Android-side classifier wiring lands with the shell rebuild end-to-end.
+**Status.** partial-closed — dispatcher implements `subscription_account` / `subscription_tier` / `subscription_alive` against an explicit `SUBSCRIPTION_CLI_CONFIG` map (claude-code, codex, gemini-cli) with per-CLI per-command field allowlists; `do_read_file` defensively refuses any read of those session-config paths so the only path to subscription state is the three METADATA commands. Android-side `JsCapabilityClassifier` routes the three tool names to `METADATA` so the gate sees them. End-to-end validation against a live proot session is still pending the `libproot.so` binary; once that lands and the dispatcher actually runs, the row moves to closed.
 
-**Location.** See `SHELL_REBUILD.md`. Dispatcher path: `app/src/main/assets/rootfs/operit-dispatcher.py` (allowlisted commands).
+**Location.** Dispatcher: `app/src/main/assets/rootfs/operit-dispatcher.py` (handlers + `SUBSCRIPTION_CLI_CONFIG` + `SUBSCRIPTION_FIELD_ALLOWLIST` + the FILE_READ refusal). Android-side classification: `core/tools/javascript/JsCapabilityClassifier.kt`. See `SHELL_REBUILD.md` for the surrounding IPC bridge.
 
 ### 4.6 AI output as a validated channel
 
@@ -222,10 +222,7 @@ The threat model treats these as conscious trade-offs, not regressions. Where a 
     - `GitHubAuthPreferences` — `access_token`, `refresh_token`, `pending_oauth_state`, `pending_oauth_code_verifier` (the four secret-bearing fields). Non-secret metadata stays in DataStore so reactive flows keep working.
     - `ExternalHttpApiPreferences` — `bearer_token`. Enabled / port flags stay in DataStore.
     - `ModelConfigManager` — single `apiKey` per config + every `apiKeyPool[*].key`. The on-disk blob carries blanks where secrets were; the vault is keyed on `cfg:<configId>:apiKey` and `cfg:<configId>:pool:<keyInfoId>`. Reads hydrate from the vault back into the in-memory `ModelConfigData`; writes split secrets to the vault and blank them in the JSON. Legacy blobs that still carry secrets are migrated on first read.
-- Tracked follow-up:
-    - SSH keys for workspace bindings and any other plaintext-on-disk material the audit surfaces.
-
-**Status.** closed — vault exists; every API key, OAuth token, bearer secret, and PKCE verifier the audit identified now lives encrypted. SSH-key migration is a small follow-up if/when that path lands; nothing else in the credential-storage row remains open.
+**Status.** closed — vault exists; every API key, OAuth token, bearer secret, and PKCE verifier the audit identified lives encrypted. A grep across `app/src/main/java` for `ssh`, `id_rsa`, `id_ed25519`, `privateKey` surfaced only port-forwarding comments and license entries — no plaintext SSH-key storage in the codebase. Future features that introduce credential material must use `CredentialVault` by default.
 
 **Location.** `app/src/main/java/com/ai/assistance/operit/data/preferences/credentials/CredentialVault.kt`; migrations in `data/preferences/GitHubAuthPreferences.kt`, `data/preferences/ExternalHttpApiPreferences.kt`, `data/preferences/ModelConfigManager.kt`.
 
