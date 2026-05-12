@@ -171,13 +171,14 @@ The threat model treats these as conscious trade-offs, not regressions. Where a 
 **Risk.** An adversary who has compromised the input channel (poisoned context, injected prompt, malicious tool result fed back into the conversation) can shape AI output to embed attacker-controlled HTML, links, or tool-call sequences. The collaborator's reasoning isn't the problem; the channel is.
 
 **Rule.**
-- No rendering path executes script. HTML blocks render in a sandboxed WebView with `setJavaScriptEnabled(false)`, `setAllowFileAccess(false)`, `setAllowContentAccess(false)`. SVG renders through `androidsvg` (already a vector parser, no script).
-- Tool calls extracted from AI output always go through the per-call gate (§ 4.2 rule applies regardless of caller).
-- Markdown link targets are scheme-allowlisted; `intent://` and `javascript:` URLs are stripped.
+- No rendering path executes script. The AI HTML block renderer (`CustomXmlRenderer.renderHtmlContent`) configures its WebView with `javaScriptEnabled = false`, `allowFileAccess = false`, `allowContentAccess = false`, `allowFileAccessFromFileURLs = false`, `allowUniversalAccessFromFileURLs = false`, `domStorageEnabled = false`, `databaseEnabled = false`, `mixedContentMode = MIXED_CONTENT_NEVER_ALLOW`, `blockNetworkLoads = true`, `blockNetworkImage = true`. A `WebViewClient` overrides `shouldOverrideUrlLoading` to refuse every navigation and `shouldInterceptRequest` to refuse every cross-origin resource load (only `data:` and `about:blank` pass).
+- SVG renders through `androidsvg` (a vector parser; no script execution paths).
+- Tool calls extracted from AI output go through `AIToolHandler.executeTool` / `executeToolAndStream` and are gated by `AiToolGate` per § 4.2 — same gate, same audit, same per-call confirmation overlay.
+- AI-emitted links are scheme-allowlisted at the open site via [`AiOutputLinkPolicy`](../app/src/main/java/com/ai/assistance/operit/core/aioutput/AiOutputLinkPolicy.kt). Allowed schemes: `http`, `https`, `mailto`. Refused: `javascript:`, `intent:`, `content:`, `file:`, anything else. Refusal surfaces a Toast that names the offending scheme. Wire-in points: `LinkPreviewDialog` (markdown link clicks via the bubble + cursor message renderers) and `ReferencesDisplay` (AI reference chips).
 
-**Status.** open — needs audit of every rendering surface.
+**Status.** closed — HTML WebView locked down across every dangerous setting; SVG path verified script-free; AI-emitted link clicks gate on the scheme allowlist before reaching `Intent.ACTION_VIEW`.
 
-**Location.** `app/src/main/java/com/ai/assistance/operit/ui/features/chat/` (renderers), `api/chat/` (parser).
+**Location.** `app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/part/CustomXmlRenderer.kt::renderHtmlContent`; `app/src/main/java/com/ai/assistance/operit/core/aioutput/AiOutputLinkPolicy.kt`; wire-in at `ui/features/chat/components/LinkPreviewDialog.kt` and `ui/features/chat/components/ReferencesDisplay.kt`.
 
 ### 4.7 Phone-as-actuator
 
