@@ -489,5 +489,9 @@ fun OperitApp(
 
         // § 4.13 first-class AI decline surface — modal dialog when the agent declines.
         com.ai.assistance.operit.ui.features.decline.AgentDeclineOverlay()
+
+        // § 4.3 plugin install TOFU prompt — modal dialog on first-install of a new
+        // publisher key. Install flow suspends until the user picks Trust / Refuse.
+        com.ai.assistance.operit.ui.features.plugintrust.PluginTofuPromptOverlay()
     }
 }
