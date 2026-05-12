@@ -239,13 +239,17 @@ The threat model treats these as conscious trade-offs, not regressions. Where a 
 
 ### 4.12 Telemetry, analytics, crash reports
 
-**Finding.** Firebase ML analytics is explicitly disabled in `AndroidManifest.xml` (`firebase_ml_collection_enabled = false`). A `CrashReportActivity` exists at `ui/error/CrashReportActivity` running in a `:crash` process. There is no documented telemetry policy.
+**Finding.** The codebase has no Firebase Analytics, no Crashlytics, no Mixpanel, no Sentry, no first-party telemetry endpoint. Firebase ML analytics is explicitly disabled in `AndroidManifest.xml` (`firebase_ml_collection_enabled = false`, `com.google.firebase.ml.kit.analytics.collection.enabled = false`). The `CrashReportActivity` in the `:crash` process shows the stack trace to the user with three local-only actions: copy to clipboard, save to file, restart. No network call. No upload prompt.
 
-**Rule.** Per `SECURITY.md`: no aggregated background telemetry. Crash reports require per-event user opt-in, with the report content shown to the user before transmission. The user can decline; declining does not produce a degraded mode.
+**Rule.**
+- No aggregated background telemetry. The codebase contains no analytics SDK and no first-party metrics endpoint. Adding either requires deleting `docs/TELEMETRY_POLICY.md`, rewriting `ui/features/telemetry/TelemetryPolicyScreen.kt`, and moving this row back to `partial` / `open` in the same PR.
+- Crash reports are local-only. The user sees the stack trace and chooses copy / save / restart. Sharing a crash with the project is always a manual paste — there is no auto-upload path.
+- Network requests the app does make (AI API calls, web searches, browser sessions, rootfs downloads, MCP servers) are direct consequences of user actions, not telemetry.
+- The stance is surfaced in-app at `Telemetry policy` in the system sidebar so the user can read the policy without leaving the app.
 
-**Status.** open — needs policy + UI work.
+**Status.** closed — policy doc landed at `docs/TELEMETRY_POLICY.md` (+ ZH mirror); user-reachable surface at `ui/features/telemetry/TelemetryPolicyScreen.kt`; absence of telemetry SDKs verified in `app/build.gradle.kts` (no `firebase`, `crashlytics`, `mixpanel`, `sentry` deps).
 
-**Location.** `app/src/main/java/com/ai/assistance/operit/ui/error/CrashReportActivity.kt`, manifest meta-data.
+**Location.** `docs/TELEMETRY_POLICY.md`, `docs/TELEMETRY_POLICY.zh.md`; `app/src/main/java/com/ai/assistance/operit/ui/error/CrashReportActivity.kt`; `app/src/main/java/com/ai/assistance/operit/ui/features/telemetry/TelemetryPolicyScreen.kt`; manifest meta-data in `app/src/main/AndroidManifest.xml`.
 
 ### 4.13 AI collaborator decline
 
@@ -300,7 +304,7 @@ For traceability:
 | No auto-pair | § 5 ClawJacked |
 | Unsigned plugin quarantined | § 4.3, § 5 ClawHub |
 | Third-party backends not cleartext | § 5 Moltbook |
-| Telemetry opt-in per event | § 4.12 |
+| Telemetry opt-in per event | § 4.12 (closed) |
 | Halt control user-accessible | § 4.7 (partial) |
 
 ## 7. Maintenance

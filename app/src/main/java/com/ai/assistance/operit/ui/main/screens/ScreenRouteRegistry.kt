@@ -174,6 +174,14 @@ object ScreenRouteRegistry {
                 order = 8
             ),
             hostEntryDefinition(
+                entryId = "main.telemetry_policy",
+                screen = Screen.TelemetryPolicy,
+                surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,
+                launchNavItem = NavItem.TelemetryPolicy,
+                icon = NavItem.TelemetryPolicy.icon,
+                order = 9
+            ),
+            hostEntryDefinition(
                 entryId = "main.settings",
                 screen = Screen.Settings,
                 surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,
