@@ -30,11 +30,14 @@ object AiToolGate {
 
     /**
      * When true, AI calls are blocked unless an explicit grant for the matched capability
-     * exists. When false (the default), AI calls dispatch as before but still write to
-     * the audit ring.
+     * exists. Default is true now that the [ToolGateConfirmationOverlay] surfaces a
+     * per-call prompt — a denied call surfaces a confirmation dialog the user can
+     * resolve, then the agent loop retries.
+     *
+     * Set to false only when investigating a regression where the overlay is unreachable.
      */
     @Volatile
-    var enforce: Boolean = false
+    var enforce: Boolean = true
 
     sealed class Decision {
         data object Allow : Decision()

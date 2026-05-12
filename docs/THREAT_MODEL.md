@@ -93,13 +93,14 @@ The status column is one of: **closed** (rule enforced), **open** (rule not yet 
 - Each JS-originated tool call is attributed to the plugin whose script is currently executing on the QuickJS thread. The bridge tags the call with that plugin id; an in-process gate (`JsPluginGate`) consults the (pluginId × capability class) grant table before dispatching to `AIToolHandler`. Default-deny: a plugin holds no grants on first install, every call returns a structured error explaining which (plugin, capability) needs user approval.
 - Capability classes are explicit, not pattern-matched: METADATA / FILE_READ / FILE_WRITE / SHELL / NETWORK / SYSTEM_READ / SYSTEM_WRITE / UI_AUTOMATION / CHAT_READ / CHAT_WRITE / UNCLASSIFIED. Unclassified tool names fall through to UNCLASSIFIED, which the gate treats as the most-restrictive class (deny). Each tool's classification is a security decision — when a new tool lands the classifier must be updated explicitly.
 - Audit: every gated call writes an `AuditEvent(pluginId, capability, toolType, toolName, decision, timestamp)` to a bounded ring, surfaced through `JsPluginGate.recentAudit()` for the (forthcoming) settings UI.
-- AI-originated tool calls go through `AIToolHandler.executeTool` / `executeToolAndStream`. Both call `AiToolGate.evaluate(toolName)` before dispatch. The AI is tagged with a synthetic plugin id `"ai:default"`, so the user grants AI capabilities through the same Plugin & AI gate settings screen, keyed on the same capability class table. The AI-side gate has its own `AiToolGate.enforce` flag, toggled from the same screen. Default in v1 is `enforce=false` (audit-only): an enforced default-deny would brick every fresh AI session before the user has any chance to grant. Once a per-call confirmation UX lands, the AI-side default flips to `enforce=true`.
+- AI-originated tool calls go through `AIToolHandler.executeTool` / `executeToolAndStream`. Both call `AiToolGate.evaluate(toolName)` before dispatch. The AI is tagged with a synthetic plugin id `"ai:default"`, so the user grants AI capabilities through the same Plugin & AI gate settings screen, keyed on the same capability class table. The AI-side gate has its own `AiToolGate.enforce` flag, toggled from the same screen. Default is now `enforce=true` — denied calls surface a confirmation dialog rather than failing silently.
 - MCP-server tool calls flow through `MCPBridgeClient` and are out of scope for this gate; they belong to § 4.3.
 - Persistence: `JsPluginGatePersistence` writes the grant table to `js_plugin_gate` SharedPreferences as a single JSON-array key. Grants are policy, not authentication material — plain SharedPreferences is the appropriate store. Settings UI (`ui/features/plugingate/PluginGateScreen.kt`) lets the user grant/deny/forget per (plugin × capability) and review the audit ring.
+- Per-call confirmation UX: when a call from a known caller hits an UNSET decision, the gate enqueues a `PendingRequest` and emits it on `JsPluginGate.pendingFlow`. `ToolGateConfirmationOverlay` (mounted at the OperitApp shell) observes that flow and surfaces a Material 3 dialog with Grant / Deny / Later buttons. The dialog cannot be dismissed by tapping outside — the user has to make a choice. Grant or Deny records the decision (persisted via `JsPluginGatePersistence`); Later dismisses the entry without recording, the next call recreates it. Explicit DENIED never re-prompts.
 
-**Status.** partial-closed — JS-originated calls are gated with default-deny + persistence + UI. AI-originated calls are audited and gated through the same UI; AI-side enforcement defaults to off pending a per-call confirmation UX. MCP-server calls remain out of scope (§ 4.3).
+**Status.** closed — JS- and AI-originated calls are both gated with default-deny + persistence + audit + per-call confirmation overlay. MCP-server calls remain out of scope (tracked under § 4.3).
 
-**Location.** `app/src/main/java/com/ai/assistance/operit/core/tools/javascript/{JsPluginGate,JsPluginGatePersistence,JsCapabilityClassifier,JsNativeInterfaceDelegates,JsEngine}.kt`, `core/tools/AiToolGate.kt`, `core/tools/AIToolHandler.kt`, `ui/features/plugingate/PluginGateScreen.kt`.
+**Location.** `app/src/main/java/com/ai/assistance/operit/core/tools/javascript/{JsPluginGate,JsPluginGatePersistence,JsCapabilityClassifier,JsNativeInterfaceDelegates,JsEngine}.kt`, `core/tools/AiToolGate.kt`, `core/tools/AIToolHandler.kt`, `ui/features/plugingate/{PluginGateScreen,ToolGateConfirmationOverlay}.kt`.
 
 ### 4.3 Plugin marketplaces (MCP / Skill / ToolPkg)
 
@@ -270,8 +271,8 @@ For traceability:
 
 | `SECURITY.md` default | Where enforced |
 |---|---|
-| Default-deny | §§ 4.2 (partial), 4.3, 4.4 (closed), 4.7, 4.11 (closed) |
-| Per-call approval for high-blast actions | §§ 4.2 (partial), 4.3, 4.7 |
+| Default-deny | §§ 4.2 (closed), 4.3, 4.4 (closed), 4.7, 4.11 (closed) |
+| Per-call approval for high-blast actions | §§ 4.2 (closed), 4.3, 4.7 |
 | Least authority | §§ 4.4 (closed), 4.8 (closed) |
 | Isolate by default | §§ 4.2, 4.5 |
 | No secrets in build artifacts | § 4.8 (closed) |

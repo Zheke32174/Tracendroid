@@ -44,6 +44,20 @@ object JsPluginGate {
     )
 
     /**
+     * One pending decision waiting for the user. Created whenever [shouldAllow] denies a
+     * call because the (plugin, capability) pair is in [GateState.UNSET]. The UI overlay
+     * observes [pendingFlow] and surfaces a dialog; user action calls [grant] or [deny],
+     * which removes the entry from the pending set.
+     */
+    data class PendingRequest(
+        val pluginId: String,
+        val capability: JsCapabilityClass,
+        val toolType: String,
+        val toolName: String,
+        val firstSeenAtMillis: Long,
+    )
+
+    /**
      * Storage backend. Implementations decide where grants live (DataStore, in-memory,
      * file, etc.). The gate calls [save] on every grant/deny/forget. [loadInto] is
      * invoked once at startup to populate the in-memory cache.
@@ -63,6 +77,10 @@ object JsPluginGate {
 
     private val _auditFlow = MutableStateFlow<List<AuditEvent>>(emptyList())
     val auditFlow: StateFlow<List<AuditEvent>> = _auditFlow.asStateFlow()
+
+    private val pending = ConcurrentHashMap<GateKey, PendingRequest>()
+    private val _pendingFlow = MutableStateFlow<List<PendingRequest>>(emptyList())
+    val pendingFlow: StateFlow<List<PendingRequest>> = _pendingFlow.asStateFlow()
 
     private const val AUDIT_BUFFER_SIZE = 256
     private val auditBuffer = CopyOnWriteArrayList<AuditEvent>()
@@ -111,6 +129,7 @@ object JsPluginGate {
     fun grant(pluginId: String, capability: JsCapabilityClass) {
         grants[GateKey(pluginId, capability)] = GateState.GRANTED
         persister?.save(GrantEntry(pluginId, capability, GateState.GRANTED))
+        clearPending(pluginId, capability)
         refreshFlow()
         AppLogger.d(TAG, "grant: plugin=$pluginId capability=$capability")
     }
@@ -118,6 +137,7 @@ object JsPluginGate {
     fun deny(pluginId: String, capability: JsCapabilityClass) {
         grants[GateKey(pluginId, capability)] = GateState.DENIED
         persister?.save(GrantEntry(pluginId, capability, GateState.DENIED))
+        clearPending(pluginId, capability)
         refreshFlow()
         AppLogger.d(TAG, "deny: plugin=$pluginId capability=$capability")
     }
@@ -125,7 +145,19 @@ object JsPluginGate {
     fun forget(pluginId: String, capability: JsCapabilityClass) {
         grants.remove(GateKey(pluginId, capability))
         persister?.remove(pluginId, capability)
+        clearPending(pluginId, capability)
         refreshFlow()
+    }
+
+    /** Dismiss a pending request without recording a grant or deny. */
+    fun dismissPending(pluginId: String, capability: JsCapabilityClass) {
+        clearPending(pluginId, capability)
+    }
+
+    private fun clearPending(pluginId: String, capability: JsCapabilityClass) {
+        if (pending.remove(GateKey(pluginId, capability)) != null) {
+            _pendingFlow.value = pending.values.toList()
+        }
     }
 
     /** Snapshot for callers that want a pull rather than an observe. */
@@ -149,6 +181,7 @@ object JsPluginGate {
             else -> stateFor(pluginId, capability)
         }
 
+        val now = System.currentTimeMillis()
         recordAudit(
             AuditEvent(
                 pluginId = pluginId,
@@ -156,9 +189,26 @@ object JsPluginGate {
                 toolType = toolType,
                 toolName = toolName,
                 decision = state,
-                timestamp = System.currentTimeMillis()
+                timestamp = now,
             )
         )
+
+        // An UNSET decision from a known caller becomes a pending confirmation for the
+        // UI overlay to surface. Explicit DENIED never becomes pending — the user has
+        // already said no.
+        if (pluginId != null && state == GateState.UNSET) {
+            val key = GateKey(pluginId, capability)
+            if (!pending.containsKey(key)) {
+                pending[key] = PendingRequest(
+                    pluginId = pluginId,
+                    capability = capability,
+                    toolType = toolType,
+                    toolName = toolName,
+                    firstSeenAtMillis = now,
+                )
+                _pendingFlow.value = pending.values.toList()
+            }
+        }
 
         val computedAllow = (state == GateState.GRANTED)
         return if (enforceGate) computedAllow else true
