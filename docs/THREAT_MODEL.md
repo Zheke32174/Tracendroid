@@ -226,13 +226,20 @@ The threat model treats these as conscious trade-offs, not regressions. Where a 
 
 ### 4.10 Documents providers
 
-**Finding.** `WorkspaceDocumentsProvider` and `MemoryDocumentsProvider` are declared in `AndroidManifest.xml` with `android:exported="true"` and `MANAGE_DOCUMENTS` permission requirement. The Android `MANAGE_DOCUMENTS` requirement is system-enforced, but the *internal* path-resolution logic inside each provider determines what other apps can read.
+**Finding.** `WorkspaceDocumentsProvider` and `MemoryDocumentsProvider` are declared in `AndroidManifest.xml` with `android:exported="true"` and `MANAGE_DOCUMENTS` permission requirement. The Android `MANAGE_DOCUMENTS` requirement is system-enforced (only the system Documents UI can call the provider for arbitrary apps), but the *internal* path-resolution logic inside each provider determines what those callers can read.
 
-**Rule.** Provider implementations are reviewed for unintended cross-app file access. Specifically: workspace-bound directories are not exposed to apps lacking explicit user grant; memory-document URIs are not enumerable by callers who didn't receive the URI from us.
+Audit results:
+- `MemoryDocumentsProvider` was already correct: profile / directory / memory IDs are validated against an allowlist of forms, directory paths are checked against `MemoryRepository.normalizeFolderPath` and rejected if non-normalized, and `/` is refused inside ID segments.
+- `WorkspaceDocumentsProvider` had a path-traversal bug: `getFileForDocId` resolved `documentId` as a relative path with `File(workspaceRoot, relativePath)` without canonicalization. A documentId containing `..` segments would escape the workspace root and let the caller open / create / delete / rename files anywhere the app's UID can reach (e.g. `/data/data/<package>/shared_prefs/*.xml`). `createDocument` and `renameDocument` had the same shape on the `displayName` parameter.
 
-**Status.** open — audit needed.
+**Rule.**
+- `getFileForDocId` canonicalizes the resolved file and verifies its path is `workspaceRoot.canonicalFile.absolutePath` or starts with `rootPath + File.separator`. Any escape produces `FileNotFoundException("documentId escapes workspace root: …")` rather than a successful open of an unrelated file.
+- `createDocument` and `renameDocument` reject `displayName` values that are blank, `.`, `..`, or contain `/` / `\`. The destination file is then canonicalized and checked for workspace containment in case a symlink under the parent points elsewhere.
+- `MemoryDocumentsProvider` keeps its existing per-ID-form validation; no changes needed.
 
-**Location.** `provider/WorkspaceDocumentsProvider`, `provider/MemoryDocumentsProvider`.
+**Status.** closed — `WorkspaceDocumentsProvider` traversal fixed; `MemoryDocumentsProvider` verified clean. Both providers are now safe to expose under `MANAGE_DOCUMENTS`.
+
+**Location.** `app/src/main/java/com/ai/assistance/operit/provider/WorkspaceDocumentsProvider.kt::getFileForDocId`, `::createDocument`, `::renameDocument`. `app/src/main/java/com/ai/assistance/operit/provider/MemoryDocumentsProvider.kt::parseDirectDocumentId` (pre-existing defense).
 
 ### 4.11 Cleartext traffic
 

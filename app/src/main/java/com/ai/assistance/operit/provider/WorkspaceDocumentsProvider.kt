@@ -138,13 +138,37 @@ class WorkspaceDocumentsProvider : DocumentsProvider() {
         displayName: String
     ): String? {
         val parent = getFileForDocId(parentDocumentId)
-        
+
         if (!parent.isDirectory) {
             throw IllegalArgumentException("Parent is not a directory")
         }
-        
+
+        // § 4.10 — defend against a displayName like "../foo" creating files outside
+        // the workspace. The display name must be a single path component with no
+        // separator and no traversal segment.
+        if (displayName.isBlank() ||
+            displayName == "." ||
+            displayName == ".." ||
+            displayName.contains('/') ||
+            displayName.contains('\\')
+        ) {
+            throw IllegalArgumentException("Invalid display name: $displayName")
+        }
+
         val file = File(parent, displayName)
-        
+        // Canonicalize and verify the child is still inside the workspace. Belt and
+        // braces — the displayName checks above already rule out traversal, but a
+        // symlink under the parent could conceivably point elsewhere.
+        val canonicalRoot = workspaceRoot.canonicalFile.absolutePath
+        val canonicalChild = file.canonicalFile.absolutePath
+        if (canonicalChild != canonicalRoot &&
+            !canonicalChild.startsWith("$canonicalRoot${File.separator}")
+        ) {
+            throw IllegalArgumentException(
+                "createDocument target escapes workspace root: $displayName"
+            )
+        }
+
         try {
             if (DocumentsContract.Document.MIME_TYPE_DIR == mimeType) {
                 if (!file.mkdir()) {
@@ -177,8 +201,29 @@ class WorkspaceDocumentsProvider : DocumentsProvider() {
     
     override fun renameDocument(documentId: String, displayName: String): String? {
         val sourceFile = getFileForDocId(documentId)
+
+        // § 4.10 — same single-component check as createDocument; a renameTo target
+        // outside the workspace would re-link a file path that callers later read via
+        // openDocument.
+        if (displayName.isBlank() ||
+            displayName == "." ||
+            displayName == ".." ||
+            displayName.contains('/') ||
+            displayName.contains('\\')
+        ) {
+            throw IllegalArgumentException("Invalid display name: $displayName")
+        }
         val destFile = File(sourceFile.parentFile, displayName)
-        
+        val canonicalRoot = workspaceRoot.canonicalFile.absolutePath
+        val canonicalDest = destFile.canonicalFile.absolutePath
+        if (canonicalDest != canonicalRoot &&
+            !canonicalDest.startsWith("$canonicalRoot${File.separator}")
+        ) {
+            throw IllegalArgumentException(
+                "renameDocument target escapes workspace root: $displayName"
+            )
+        }
+
         if (!sourceFile.renameTo(destFile)) {
             throw IllegalStateException("Failed to rename file")
         }
@@ -260,22 +305,47 @@ class WorkspaceDocumentsProvider : DocumentsProvider() {
     }
     
     /**
-     * 根据Document ID获取文件
+     * 根据Document ID获取文件。
+     *
+     * § 4.10 — defends against path traversal. The relative path inside the documentId
+     * is joined to [workspaceRoot] and then canonicalized; the result must remain inside
+     * [workspaceRoot] (i.e. equal to it or starting with `rootPath + File.separator`).
+     * Any `..` segment that escapes the root produces a FileNotFoundException rather
+     * than a successful read of an unrelated file in the app's data dir.
      */
     private fun getFileForDocId(documentId: String): File {
-        val file = if (documentId == "/") {
+        val candidate = if (documentId == "/") {
             workspaceRoot
         } else {
-            // 移除开头的/，拼接到workspace根目录
+            // Reject Windows-style absolute drives or backslash separators; defense in
+            // depth even though Android storage uses forward slashes.
+            if (documentId.contains('\\') || documentId.indexOf(':') in 0..2) {
+                throw FileNotFoundException("Invalid documentId: $documentId")
+            }
             val relativePath = documentId.trimStart('/')
             File(workspaceRoot, relativePath)
         }
-        
-        if (!file.exists()) {
-            throw FileNotFoundException("File not found: ${file.absolutePath}")
+
+        // Canonicalize the candidate and the root, then verify containment. canonicalFile
+        // resolves `..` segments and any intermediate symlinks; a non-existent path
+        // canonicalizes too (without throwing), so we check existence afterward.
+        val canonicalRoot = workspaceRoot.canonicalFile
+        val canonicalCandidate = candidate.canonicalFile
+        val rootPath = canonicalRoot.absolutePath
+        val candidatePath = canonicalCandidate.absolutePath
+        if (candidatePath != rootPath &&
+            !candidatePath.startsWith("$rootPath${File.separator}")
+        ) {
+            throw FileNotFoundException(
+                "documentId escapes workspace root: $documentId"
+            )
         }
-        
-        return file
+
+        if (!canonicalCandidate.exists()) {
+            throw FileNotFoundException("File not found: ${canonicalCandidate.absolutePath}")
+        }
+
+        return canonicalCandidate
     }
     
     /**
