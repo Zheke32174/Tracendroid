@@ -16,9 +16,9 @@ import org.json.JSONObject
 /**
  * Android-side client for the proot IPC bridge (Shell rebuild PR 3/N follow-up).
  *
- * Counterpart to [ShellIpcServer]. Connects to the abstract-namespace LocalSocket, sends
- * the auth frame, then handles synchronous request/response exchanges. One client owns
- * one connection; concurrent callers serialize through [sendLock].
+ * Counterpart to [ShellIpcServer]. Connects to a LocalSocket, sends the auth frame, then
+ * handles synchronous request/response exchanges. One client owns one connection;
+ * concurrent callers serialize through [sendLock].
  *
  * Wire format: length-prefixed JSON frames per [ShellIpcProtocol].
  *
@@ -31,11 +31,36 @@ import org.json.JSONObject
  * The Android side performs gate checks (`JsPluginGate` / `AiToolGate`) before reaching
  * this client; the in-proot dispatcher checks the capability claim again — defense in
  * depth per the IPC protocol spec.
+ *
+ * Two address modes:
+ *  - [Address.Filesystem] is the default — targets the in-proot dispatcher socket file
+ *    at <rootfs>/var/lib/operit/ipc/dispatcher.sock.
+ *  - [Address.Abstract] is kept for the proot→Android callback path (the existing
+ *    [ShellIpcServer] binds the abstract namespace; the callback channel reuses this
+ *    client to reach it).
  */
 class ShellIpcClient(
     private val secret: String,
+    private val address: Address,
     private val timeoutMillis: Int = 10_000,
 ) : Closeable {
+
+    sealed class Address {
+        data class Filesystem(val path: String) : Address()
+        data class Abstract(val name: String) : Address()
+    }
+
+    constructor(
+        secret: String,
+        socketFile: java.io.File,
+        timeoutMillis: Int = 10_000,
+    ) : this(secret, Address.Filesystem(socketFile.absolutePath), timeoutMillis)
+
+    constructor(
+        secret: String,
+        abstractName: String,
+        timeoutMillis: Int = 10_000,
+    ) : this(secret, Address.Abstract(abstractName), timeoutMillis)
 
     companion object {
         private const val TAG = "ShellIpcClient"
@@ -72,7 +97,13 @@ class ShellIpcClient(
         if (connected.get()) return ConnectResult.Ok
         val s = LocalSocket()
         return try {
-            s.connect(LocalSocketAddress(ShellIpcServer.ABSTRACT_NAME, LocalSocketAddress.Namespace.ABSTRACT))
+            val addr = when (val a = address) {
+                is Address.Filesystem ->
+                    LocalSocketAddress(a.path, LocalSocketAddress.Namespace.FILESYSTEM)
+                is Address.Abstract ->
+                    LocalSocketAddress(a.name, LocalSocketAddress.Namespace.ABSTRACT)
+            }
+            s.connect(addr)
             s.soTimeout = timeoutMillis
             val out = DataOutputStream(s.outputStream)
             val inp = DataInputStream(s.inputStream)

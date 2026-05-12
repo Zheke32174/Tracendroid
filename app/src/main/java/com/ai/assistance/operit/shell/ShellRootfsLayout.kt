@@ -23,4 +23,15 @@ object ShellRootfsLayout {
 
     /** Where the public verification key is stored (single trust anchor for v1). */
     fun publicKeyFile(context: Context): File = File(context.filesDir, "rootfs-pubkey.pem")
+
+    /**
+     * Filesystem path of the IPC socket the in-proot dispatcher binds.
+     *
+     * Inside proot the dispatcher binds `/var/lib/operit/ipc/dispatcher.sock`. proot
+     * provides a chroot view rather than a new filesystem, so from the Android side the
+     * same socket file is reachable at this path. The Android-side IPC client connects
+     * here directly.
+     */
+    fun dispatcherSocketFile(context: Context): File =
+        File(rootDir(context), "var/lib/operit/ipc/dispatcher.sock")
 }

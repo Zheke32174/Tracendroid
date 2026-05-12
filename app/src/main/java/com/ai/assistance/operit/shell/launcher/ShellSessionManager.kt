@@ -2,7 +2,9 @@ package com.ai.assistance.operit.shell.launcher
 
 import android.content.Context
 import com.ai.assistance.operit.core.tools.javascript.JsCapabilityClass
+import com.ai.assistance.operit.shell.ShellRootfsLayout
 import com.ai.assistance.operit.shell.ipc.ShellIpcAuth
+import com.ai.assistance.operit.shell.ipc.ShellIpcClient
 import com.ai.assistance.operit.shell.ipc.ShellIpcProtocol
 import com.ai.assistance.operit.shell.ipc.ShellIpcServer
 import com.ai.assistance.operit.util.AppLogger
@@ -154,4 +156,19 @@ class ShellSessionManager(
         command: String,
         params: Map<String, Any?> = emptyMap(),
     ): String = ShellIpcProtocol.Request(requestId, origin, capability, command, params).toJson()
+
+    /**
+     * Build a client pointed at the in-proot dispatcher socket. The client is not
+     * connected on return — callers do [ShellIpcClient.connect] when ready, and close
+     * when done. The auth secret comes from [ShellIpcAuth.currentOrMint], so the secret
+     * the client presents matches the one the dispatcher saw when proot started.
+     */
+    fun newDispatcherClient(timeoutMillis: Int = 10_000): ShellIpcClient {
+        val socketFile = ShellRootfsLayout.dispatcherSocketFile(context)
+        return ShellIpcClient(
+            secret = auth.currentOrMint(),
+            socketFile = socketFile,
+            timeoutMillis = timeoutMillis,
+        )
+    }
 }
