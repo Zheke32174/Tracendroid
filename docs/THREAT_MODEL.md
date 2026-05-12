@@ -121,9 +121,9 @@ The status column is one of: **closed** (rule enforced), **open** (rule not yet 
 - Each tool the plugin declares carries a capability class from `JsCapabilityClass` (`AUDIT_PLAN.md § 1.3`). The first call surfaces the per-call confirmation overlay (`ToolGateConfirmationOverlay`, § 4.2); grants persist per (caller × capability) until the user revokes them. Signature pass does not auto-grant capabilities; a fresh install starts with zero grants regardless of signature.
 - A plugin cannot install another plugin.
 
-**Status.** design — trust-anchor decisions resolved (`AUDIT_PLAN.md §§ 1.1, 1.2, 1.3`); the manifest format + installer + TOFU UI ship in a follow-up implementation PR.
+**Status.** design — trust-anchor decisions resolved (`AUDIT_PLAN.md §§ 1.1, 1.2, 1.3`); the manifest format, trust pipeline (`PluginManifest`, `PluginSignatureVerifier`, `PluginPublisherTofuStore`, `PluginTrustChecker`), the TOFU prompt overlay, the trust settings screen, and the suspending install entry point (`TrustedPluginInstaller`) are all in place. Still pending: wiring `TrustedPluginInstaller.verifyAndApprove()` into the existing `PackageManager.addPackageFileFromExternalStorage` and the MCP / Skill install paths so unsigned plugins are refused at the point of install. The trust pipeline is callable standalone today; refusing existing-format installs is a deliberate cut-over that lands when those install paths are updated.
 
-**Location.** `app/src/main/java/com/ai/assistance/operit/core/tools/mcp/`, `core/tools/packTool/`, `core/tools/skill/`. The `packages_whitelist.txt` file at the repo root is in-scope for the build-time bundling decision but does not address runtime trust.
+**Location.** `app/src/main/java/com/ai/assistance/operit/core/tools/mcp/`, `core/tools/packTool/`, `core/tools/skill/` (legacy install paths). `core/plugintrust/{PluginManifest,PluginSignatureVerifier,PluginPublisherTofuStore,PluginTrustChecker,PluginInstallTofuRegistry,TrustedPluginInstaller}.kt` (trust pipeline). `ui/features/plugintrust/{PluginTrustScreen,PluginTofuPromptOverlay}.kt` (user surfaces). `docs/TOOLPKG_MANIFEST.md` (manifest format for plugin authors).
 
 ### 4.4 Privileged automation channel: AccessibilityService only
 
