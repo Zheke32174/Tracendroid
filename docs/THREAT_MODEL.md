@@ -245,13 +245,13 @@ The threat model treats these as conscious trade-offs, not regressions. Where a 
 **Finding.** Per `SECURITY.md` principle 8, an AI's refusal of an action is a first-class outcome — not an error to suppress. The project does not implement bypass paths around a model's decline.
 
 **Rule.**
-- Declines surface in the UI alongside the AI's stated reason (when provided) and a classification (e.g., capability refusal, safety refusal, needs-clarification). Classification is informative, not gating — the app does not behave differently based on classification, but the audit log captures it.
-- The user is offered options after a decline: rephrase the request, abandon the action, or — only via explicit re-prompt — attempt a fresh turn. There is no automatic retry path.
-- Declines are recorded in the audit log alongside the AI reasoning state preserved at the moment of decline.
+- Declines surface in the UI alongside the AI's stated reason (when provided) and a classification: `CapabilityRefusal`, `SafetyRefusal`, `NeedsClarification`, `ContextLimit`, `Other`. Classification is informative, not gating — the app does not behave differently based on classification, but the audit log captures it.
+- The user is offered three options after a decline: rephrase the request, abandon the action, or — only via explicit re-prompt — attempt a fresh turn. There is no automatic retry path.
+- Declines are recorded in the audit ring on `DeclineRegistry.recent` along with the user's response. The reasoning-snapshot-at-decline preservation (mirroring the open follow-up on § 4.7) is the same hook and is tracked together.
 
-**Status.** design — depends on the `AgentOutcome` data model defined in `AUDIT_PLAN.md § 1.7` and surfaced in `AGENT_CORE.md § Decline channel`.
+**Status.** partial-closed — data model, registry, audit ring, and UI surface are in place. The remaining gap is backend-side wiring: each chat backend (Anthropic, OpenAI, Google, Azure, local llama.cpp/MNN, codex/gemini-cli/claude-code over proot) needs to recognize a decline and call `DeclineRegistry.record(...)`. That wiring lands per-backend in follow-up commits as the agent-core surface absorbs each backend.
 
-**Location.** Forthcoming. Likely lives in `app/src/main/java/com/ai/assistance/operit/api/chat/` and `app/src/main/java/com/ai/assistance/operit/services/core/` (chat coordination layer).
+**Location.** `app/src/main/java/com/ai/assistance/operit/core/agent/decline/AgentDecline.kt` (data class + classification enum); `core/agent/decline/DeclineRegistry.kt` (singleton + audit); `ui/features/decline/AgentDeclineOverlay.kt` (Material 3 dialog); mounted at `ui/main/OperitApp.kt`.
 
 ## 5. OpenClaw lessons applied
 
@@ -280,7 +280,7 @@ For traceability:
 | No secrets in build artifacts | § 4.8 (closed) |
 | Auditability | All sections — every privileged action |
 | User authority is sovereign (halt control) | § 4.7 (partial) |
-| AI as collaborators (decline as first-class) | § 4.13, § 4.6 |
+| AI as collaborators (decline as first-class) | § 4.13 (partial), § 4.6 |
 | Exported receiver with permission/allowlist | § 4.1 |
 | Plugin tools do not run unprompted | § 4.3 |
 | No third-party privileged-binder dependency | § 4.4 (closed) |

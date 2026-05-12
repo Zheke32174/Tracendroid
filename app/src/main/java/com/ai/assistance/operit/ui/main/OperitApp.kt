@@ -486,5 +486,8 @@ fun OperitApp(
 
         // § 4.7 sovereign halt overlay — always-reachable halt control + halted banner.
         com.ai.assistance.operit.ui.features.halt.HaltControlOverlay()
+
+        // § 4.13 first-class AI decline surface — modal dialog when the agent declines.
+        com.ai.assistance.operit.ui.features.decline.AgentDeclineOverlay()
     }
 }
