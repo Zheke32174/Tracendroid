@@ -135,6 +135,18 @@ class ShellIpcClient(
         command: String,
         params: Map<String, Any?> = emptyMap(),
     ): SendResult {
+        if (com.ai.assistance.operit.core.halt.HaltController.isHalted) {
+            return SendResult.Ok(
+                ShellIpcProtocol.Response(
+                    requestId = requestIdCounter.get(),
+                    success = false,
+                    output = "",
+                    error = com.ai.assistance.operit.core.halt.HaltController.haltedRefusal(
+                        "shell IPC '$command'"
+                    ),
+                )
+            )
+        }
         if (!connected.get()) return SendResult.NotConnected
 
         val request = ShellIpcProtocol.Request(

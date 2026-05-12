@@ -483,5 +483,8 @@ fun OperitApp(
         // § 4.2 per-call confirmation overlay. Sits on top of every screen so the user
         // can grant / deny / defer pending tool-gate decisions without navigating away.
         com.ai.assistance.operit.ui.features.plugingate.ToolGateConfirmationOverlay()
+
+        // § 4.7 sovereign halt overlay — always-reachable halt control + halted banner.
+        com.ai.assistance.operit.ui.features.halt.HaltControlOverlay()
     }
 }

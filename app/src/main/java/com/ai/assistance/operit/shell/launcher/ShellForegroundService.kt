@@ -81,16 +81,32 @@ class ShellForegroundService : Service() {
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var observerJob: Job? = null
 
+    private val haltListener = com.ai.assistance.operit.core.halt.HaltController.Listener {
+        // A halt from anywhere — chat halt button, plugin gate denial, whatever — stops
+        // the proot session and tears down foreground state immediately.
+        runCatching { manager.stop() }
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
     override fun onCreate() {
         super.onCreate()
         manager = ShellSessionManager(applicationContext)
         ensureNotificationChannel()
+        com.ai.assistance.operit.core.halt.HaltController.registerListener(haltListener)
         AppLogger.d(TAG, "created")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
+                // Halt button on the notification — record it as a sovereign halt event,
+                // not just a service stop. The audit log + state propagation through
+                // HaltController is what § 4.7 wants here.
+                com.ai.assistance.operit.core.halt.HaltController.requestHalt(
+                    by = "user:notification",
+                    reason = "Halt action tapped on shell session notification",
+                )
                 manager.stop()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -114,6 +130,7 @@ class ShellForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onDestroy() {
+        com.ai.assistance.operit.core.halt.HaltController.unregisterListener(haltListener)
         observerJob?.cancel()
         manager.stop()
         scope.cancel()

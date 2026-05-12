@@ -177,14 +177,16 @@ The threat model treats these as conscious trade-offs, not regressions. Where a 
 **Finding.** The app holds permissions to act on the phone in destructive or visible ways: `SEND_SMS`, `READ_SMS`, `CALL_PHONE`, `REQUEST_INSTALL_PACKAGES`, `WRITE_SETTINGS`, `MANAGE_EXTERNAL_STORAGE`, `BIND_VOICE_INTERACTION`, `BIND_NOTIFICATION_LISTENER_SERVICE`, AccessibilityService, MediaProjection foreground service. After the § 4.4 cleanup, AccessibilityService is the only privileged automation channel.
 
 **Rule.**
-- Actuator capability is not the default for any AI session. A session starts with zero phone-side capability; the user grants it per-session via a visible prompt.
-- An always-on indicator (status bar / floating dot) shows when actuator capability is active in the current session. Hiding the indicator is not a user-configurable option.
-- The halt control (per `SECURITY.md` principle 7) halts every in-flight action — invocations the AI is performing, proot processes the AI launched, foreground services tied to the session — and revokes the session's actuator capability. The halt control is reachable from one tap in the always-on indicator.
-- The halt action is audit-logged. The log preserves the AI's reasoning state at the moment of halt, not only the actions taken.
+- Actuator capability is not the default for any AI session. A session starts with zero phone-side capability; the user grants it per-session via the existing per-call confirmation overlay (§ 4.2). Sessions and capabilities are decoupled — a grant is to (caller × capability), the session simply observes.
+- An always-on indicator (status bar / floating dot) shows when actuator capability is active in the current session. Hiding the indicator is not a user-configurable option. (Indicator surface lives alongside the halt FAB; a stricter "actuator-active-only" variant is a follow-up to this row.)
+- The halt control (per `SECURITY.md` principle 7) halts every in-flight action — invocations the AI is performing, proot processes the AI launched, foreground services tied to the session — and refuses every new tool call until cleared. The halt is reachable from one tap on the halt FAB (`HaltControlOverlay`) mounted at the app shell, from the foreground-service notification's Halt action, or from any code path that calls `HaltController.requestHalt(by, reason)`.
+- Surfaces that consult the halt before doing work: `AIToolHandler.executeTool` and `executeToolAndStream`; the JS bridge `callToolSync` / `callToolAsync` / `callToolAsyncStreaming`; `ShellIpcClient.send`; the `ShellForegroundService` halt listener tears down the proot session and self-terminates the service.
+- The halt is audit-logged through `HaltController.audit` (a bounded ring StateFlow, 64 events). Each `HaltEvent` records the timestamp, who, and the verbatim reason. Preserving the AI's full reasoning snapshot is a follow-up; the v1 audit captures the minimal who/why/when chain.
+- The halt is sovereign-not-final: `HaltController.clear()` resumes activity. New halt events recreate the halted state; the audit ring keeps every event regardless of state.
 
-**Status.** open — halt control UI is new; per-session grant flow needs design.
+**Status.** partial-closed — halt control + audit + enforcement across all current blast-radius surfaces is in place. Per-session "AI reasoning snapshot at halt" preservation and the strict actuator-active-only indicator are tracked follow-ups.
 
-**Location.** Permissions in `AndroidManifest.xml`; capability checks across `core/tools/defaultTool/`; session management in `services/core/`.
+**Location.** `app/src/main/java/com/ai/assistance/operit/core/halt/HaltController.kt`; halt checks in `core/tools/AIToolHandler.kt`, `core/tools/javascript/JsNativeInterfaceDelegates.kt`, `shell/ipc/ShellIpcClient.kt`, `shell/launcher/ShellForegroundService.kt`; UI in `ui/features/halt/HaltIndicator.kt`; mounted at `ui/main/OperitApp.kt`.
 
 ### 4.8 Build-time secrets
 
@@ -277,7 +279,7 @@ For traceability:
 | Isolate by default | §§ 4.2, 4.5 |
 | No secrets in build artifacts | § 4.8 (closed) |
 | Auditability | All sections — every privileged action |
-| User authority is sovereign (halt control) | § 4.7 |
+| User authority is sovereign (halt control) | § 4.7 (partial) |
 | AI as collaborators (decline as first-class) | § 4.13, § 4.6 |
 | Exported receiver with permission/allowlist | § 4.1 |
 | Plugin tools do not run unprompted | § 4.3 |
@@ -292,7 +294,7 @@ For traceability:
 | Unsigned plugin quarantined | § 4.3, § 5 ClawHub |
 | Third-party backends not cleartext | § 5 Moltbook |
 | Telemetry opt-in per event | § 4.12 |
-| Halt control user-accessible | § 4.7 |
+| Halt control user-accessible | § 4.7 (partial) |
 
 ## 7. Maintenance
 

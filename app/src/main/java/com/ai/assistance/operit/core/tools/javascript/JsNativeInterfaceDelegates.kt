@@ -515,6 +515,13 @@ internal object JsNativeInterfaceDelegates {
             return buildToolErrorJson("Tool name cannot be empty")
         }
 
+        if (com.ai.assistance.operit.core.halt.HaltController.isHalted) {
+            return buildToolErrorJson(
+                com.ai.assistance.operit.core.halt.HaltController.haltedRefusal(
+                    "JS plugin tool call '$toolType:$toolName'"
+                )
+            )
+        }
         val capability = JsCapabilityClassifier.classify(toolType, toolName)
         if (!JsPluginGate.shouldAllow(pluginId, capability, toolType, toolName)) {
             return buildToolErrorJson(
@@ -553,6 +560,18 @@ internal object JsNativeInterfaceDelegates {
         binaryDataThreshold: Int,
         sendToolResult: (callbackId: String, result: String, isError: Boolean) -> Unit
     ) {
+        if (com.ai.assistance.operit.core.halt.HaltController.isHalted) {
+            sendToolResult(
+                callbackId,
+                buildToolErrorJson(
+                    com.ai.assistance.operit.core.halt.HaltController.haltedRefusal(
+                        "JS plugin async tool call '$toolType:$toolName'"
+                    )
+                ),
+                true
+            )
+            return
+        }
         val capability = JsCapabilityClassifier.classify(toolType, toolName)
         if (!JsPluginGate.shouldAllow(pluginId, capability, toolType, toolName)) {
             sendToolResult(
@@ -619,6 +638,18 @@ internal object JsNativeInterfaceDelegates {
         sendToolResult: (callbackId: String, result: String, isError: Boolean) -> Unit,
         sendIntermediateResult: (callbackId: String, result: String, isError: Boolean) -> Unit
     ) {
+        if (com.ai.assistance.operit.core.halt.HaltController.isHalted) {
+            sendToolResult(
+                callbackId,
+                buildToolErrorJson(
+                    com.ai.assistance.operit.core.halt.HaltController.haltedRefusal(
+                        "JS plugin streaming tool call '$toolType:$toolName'"
+                    )
+                ),
+                true
+            )
+            return
+        }
         val capability = JsCapabilityClassifier.classify(toolType, toolName)
         if (!JsPluginGate.shouldAllow(pluginId, capability, toolType, toolName)) {
             sendToolResult(
