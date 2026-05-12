@@ -82,6 +82,21 @@ fun AgentDeclineOverlay() {
                         )
                     }
                 }
+                val snapshot = decline.reasoningSnapshot
+                if (!snapshot.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "AI reasoning at the moment of decline:",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = snapshot.take(2_000),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     "No automatic retry. Choosing a next move below is on you.",

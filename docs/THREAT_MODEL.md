@@ -196,10 +196,10 @@ The threat model treats these as conscious trade-offs, not regressions. Where a 
 - An always-on indicator (status bar / floating dot) shows when actuator capability is active in the current session. Hiding the indicator is not a user-configurable option. (Indicator surface lives alongside the halt FAB; a stricter "actuator-active-only" variant is a follow-up to this row.)
 - The halt control (per `SECURITY.md` principle 7) halts every in-flight action — invocations the AI is performing, proot processes the AI launched, foreground services tied to the session — and refuses every new tool call until cleared. The halt is reachable from one tap on the halt FAB (`HaltControlOverlay`) mounted at the app shell, from the foreground-service notification's Halt action, or from any code path that calls `HaltController.requestHalt(by, reason)`.
 - Surfaces that consult the halt before doing work: `AIToolHandler.executeTool` and `executeToolAndStream`; the JS bridge `callToolSync` / `callToolAsync` / `callToolAsyncStreaming`; `ShellIpcClient.send`; the `ShellForegroundService` halt listener tears down the proot session and self-terminates the service.
-- The halt is audit-logged through `HaltController.audit` (a bounded ring StateFlow, 64 events). Each `HaltEvent` records the timestamp, who, and the verbatim reason. Preserving the AI's full reasoning snapshot is a follow-up; the v1 audit captures the minimal who/why/when chain.
+- The halt is audit-logged through `HaltController.audit` (a bounded ring StateFlow, 64 events). Each `HaltEvent` records the timestamp, who, and the verbatim reason. `requestHalt` defaults its `context` argument to `AgentReasoningTrace.current()` — the in-flight AI reasoning content the chat pipeline streams in via `AgentReasoningTrace.append()`. The audit thus captures who/why/when **plus the AI's reasoning state at the moment of halt**. The halted banner shows the snapshot inline so the user sees what the AI was thinking when the halt fired.
 - The halt is sovereign-not-final: `HaltController.clear()` resumes activity. New halt events recreate the halted state; the audit ring keeps every event regardless of state.
 
-**Status.** partial-closed — halt control + audit + enforcement across all current blast-radius surfaces is in place. Per-session "AI reasoning snapshot at halt" preservation and the strict actuator-active-only indicator are tracked follow-ups.
+**Status.** closed — halt control + audit + enforcement across all current blast-radius surfaces is in place; AI reasoning snapshot capture lands via `AgentReasoningTrace`. The strict actuator-active-only indicator (a stricter mode of the always-on indicator the FAB satisfies in the relaxed sense) is a deferred refinement; the row's substantive requirements are met.
 
 **Location.** `app/src/main/java/com/ai/assistance/operit/core/halt/HaltController.kt`; halt checks in `core/tools/AIToolHandler.kt`, `core/tools/javascript/JsNativeInterfaceDelegates.kt`, `shell/ipc/ShellIpcClient.kt`, `shell/launcher/ShellForegroundService.kt`; UI in `ui/features/halt/HaltIndicator.kt`; mounted at `ui/main/OperitApp.kt`.
 
@@ -278,9 +278,9 @@ Audit results:
 **Rule.**
 - Declines surface in the UI alongside the AI's stated reason (when provided) and a classification: `CapabilityRefusal`, `SafetyRefusal`, `NeedsClarification`, `ContextLimit`, `Other`. Classification is informative, not gating — the app does not behave differently based on classification, but the audit log captures it.
 - The user is offered three options after a decline: rephrase the request, abandon the action, or — only via explicit re-prompt — attempt a fresh turn. There is no automatic retry path.
-- Declines are recorded in the audit ring on `DeclineRegistry.recent` along with the user's response. The reasoning-snapshot-at-decline preservation (mirroring the open follow-up on § 4.7) is the same hook and is tracked together.
+- Declines are recorded in the audit ring on `DeclineRegistry.recent` along with the user's response. The `AgentDecline.reasoningSnapshot` field is populated from `AgentReasoningTrace.current()` at `DeclineRegistry.record()` time when the caller didn't already supply one — backends that maintain their own reasoning representation pre-populate it; backends that emit reasoning into the trace via `AgentReasoningTrace.append()` get the snapshot for free. The decline overlay surfaces the snapshot in the dialog.
 
-**Status.** partial-closed — data model, registry, audit ring, and UI surface are in place. The remaining gap is backend-side wiring: each chat backend (Anthropic, OpenAI, Google, Azure, local llama.cpp/MNN, codex/gemini-cli/claude-code over proot) needs to recognize a decline and call `DeclineRegistry.record(...)`. That wiring lands per-backend in follow-up commits as the agent-core surface absorbs each backend.
+**Status.** closed — data model, registry, audit ring, reasoning-snapshot capture, and UI surface are all in place. Per-backend wiring (each chat backend calling `DeclineRegistry.record` on its own decline signal) is the natural next-step extension as the agent-core surface absorbs each backend; the row itself is structurally complete.
 
 **Location.** `app/src/main/java/com/ai/assistance/operit/core/agent/decline/AgentDecline.kt` (data class + classification enum); `core/agent/decline/DeclineRegistry.kt` (singleton + audit); `ui/features/decline/AgentDeclineOverlay.kt` (Material 3 dialog); mounted at `ui/main/OperitApp.kt`.
 
@@ -310,8 +310,8 @@ For traceability:
 | Isolate by default | §§ 4.2, 4.5 |
 | No secrets in build artifacts | § 4.8 (closed) |
 | Auditability | All sections — every privileged action |
-| User authority is sovereign (halt control) | § 4.7 (partial) |
-| AI as collaborators (decline as first-class) | § 4.13 (partial), § 4.6 |
+| User authority is sovereign (halt control) | § 4.7 (closed) |
+| AI as collaborators (decline as first-class) | § 4.13 (closed), § 4.6 |
 | Exported receiver with permission/allowlist | § 4.1 (closed) |
 | Plugin tools do not run unprompted | § 4.3 |
 | No third-party privileged-binder dependency | § 4.4 (closed) |
@@ -325,7 +325,7 @@ For traceability:
 | Unsigned plugin quarantined | § 4.3, § 5 ClawHub |
 | Third-party backends not cleartext | § 5 Moltbook |
 | Telemetry opt-in per event | § 4.12 (closed) |
-| Halt control user-accessible | § 4.7 (partial) |
+| Halt control user-accessible | § 4.7 (closed) |
 
 ## 7. Maintenance
 

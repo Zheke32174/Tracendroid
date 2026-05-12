@@ -22,6 +22,13 @@ data class AgentDecline(
     val suggestedAlternatives: List<String>? = null,
     val recordedAtMillis: Long = System.currentTimeMillis(),
     val conversationId: String? = null,
+    /**
+     * The AI's in-flight reasoning at the moment the decline was recorded (§ 4.13:
+     * "Declines are recorded in the audit ring … along with the AI reasoning state
+     * preserved at the moment of decline"). Captured from [AgentReasoningTrace]
+     * inside [DeclineRegistry.record]; null when the trace was empty.
+     */
+    val reasoningSnapshot: String? = null,
 )
 
 /**

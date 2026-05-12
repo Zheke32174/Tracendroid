@@ -110,46 +110,68 @@ private fun HaltFab(modifier: Modifier = Modifier) {
 }
 
 @Composable
+@Composable
 private fun HaltedBanner(state: HaltController.State.Halted, modifier: Modifier = Modifier) {
+    val audit by HaltController.audit.collectAsState()
+    // § 4.7 — surface the AI reasoning snapshot the audit ring captured for this halt
+    // event. Match by timestamp + by + reason; the most recent matching entry is the
+    // one this banner instance is for.
+    val snapshot = remember(audit, state.at, state.by, state.reason) {
+        audit.lastOrNull { it.at == state.at && it.by == state.by && it.reason == state.reason }
+            ?.context
+            ?.takeIf { it.isNotBlank() }
+    }
+
     Surface(
-        modifier = modifier
-            .fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
         tonalElevation = 4.dp,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .background(Color.Transparent, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PowerSettingsNew,
-                    contentDescription = null,
-                )
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .background(Color.Transparent, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PowerSettingsNew,
+                        contentDescription = null,
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "AI activity halted",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "By ${state.by} — ${state.reason}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+                TextButton(
+                    onClick = { HaltController.clear() },
+                ) { Text("Resume") }
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
+            if (snapshot != null) {
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "AI activity halted",
-                    style = MaterialTheme.typography.titleSmall,
+                    text = "AI reasoning at halt:",
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "By ${state.by} — ${state.reason}",
+                    text = snapshot.take(800),
                     style = MaterialTheme.typography.bodySmall,
                     fontFamily = FontFamily.Monospace,
                 )
             }
-            TextButton(
-                onClick = { HaltController.clear() },
-            ) { Text("Resume") }
         }
     }
 }

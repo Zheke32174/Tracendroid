@@ -54,9 +54,20 @@ object DeclineRegistry {
 
     /** Publish a fresh decline. */
     fun record(decline: AgentDecline) {
-        AppLogger.d(TAG, "decline recorded: ${decline.classification} ${decline.reason.take(80)}")
-        appendAudit(AuditEntry(decline = decline))
-        _active.value = decline
+        // § 4.13 — capture the in-flight reasoning trace into the audit entry if the
+        // caller didn't already populate it. Backends that have their own
+        // reasoning representation pre-populate `reasoningSnapshot`; backends that
+        // emit reasoning into the trace via append() get the snapshot for free.
+        val withSnapshot = if (decline.reasoningSnapshot == null) {
+            val snapshot = com.ai.assistance.operit.core.agent.reasoning
+                .AgentReasoningTrace.current()
+            if (snapshot != null) decline.copy(reasoningSnapshot = snapshot) else decline
+        } else {
+            decline
+        }
+        AppLogger.d(TAG, "decline recorded: ${withSnapshot.classification} ${withSnapshot.reason.take(80)}")
+        appendAudit(AuditEntry(decline = withSnapshot))
+        _active.value = withSnapshot
     }
 
     /** User abandoned the action after the decline. Audit reflects the choice. */

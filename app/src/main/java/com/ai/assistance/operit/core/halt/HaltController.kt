@@ -61,8 +61,16 @@ object HaltController {
     /**
      * Request a halt. Idempotent — if already halted, records a second audit entry but
      * does not re-fire listeners. The first reason wins on the StateFlow.
+     *
+     * [context] defaults to a snapshot of the in-flight AI reasoning trace (§ 4.7
+     * "audit log preserves the AI's reasoning state at the moment of halt"). Callers
+     * that want to record a different context (or none) pass it explicitly.
      */
-    fun requestHalt(by: String, reason: String, context: String? = null) {
+    fun requestHalt(
+        by: String,
+        reason: String,
+        context: String? = com.ai.assistance.operit.core.agent.reasoning.AgentReasoningTrace.current(),
+    ) {
         val now = System.currentTimeMillis()
         val event = HaltEvent(now, by, reason, context)
         recordAudit(event)
