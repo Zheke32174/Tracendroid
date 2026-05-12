@@ -29,6 +29,7 @@ import com.ai.assistance.operit.ui.features.accessibilityonboarding.Accessibilit
 import com.ai.assistance.operit.ui.features.broadcastallowlist.BroadcastAllowlistScreen
 import com.ai.assistance.operit.ui.features.telemetry.TelemetryPolicyScreen
 import com.ai.assistance.operit.ui.features.plugingate.PluginGateScreen
+import com.ai.assistance.operit.ui.features.plugintrust.PluginTrustScreen
 import com.ai.assistance.operit.ui.features.shellbootstrap.ShellBootstrapScreen
 import com.ai.assistance.operit.ui.features.assistant.screens.AssistantConfigScreen
 import com.ai.assistance.operit.ui.features.chat.screens.AIChatScreen
@@ -588,6 +589,21 @@ sealed class Screen(
                 onGestureConsumed: (Boolean) -> Unit
         ) {
             TelemetryPolicyScreen()
+        }
+    }
+
+    data object PluginTrust : Screen(navItem = NavItem.PluginTrust) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            PluginTrustScreen()
         }
     }
 

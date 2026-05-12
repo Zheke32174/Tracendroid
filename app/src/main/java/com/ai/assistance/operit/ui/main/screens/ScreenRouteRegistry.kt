@@ -182,6 +182,14 @@ object ScreenRouteRegistry {
                 order = 9
             ),
             hostEntryDefinition(
+                entryId = "main.plugin_trust",
+                screen = Screen.PluginTrust,
+                surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,
+                launchNavItem = NavItem.PluginTrust,
+                icon = NavItem.PluginTrust.icon,
+                order = 10
+            ),
+            hostEntryDefinition(
                 entryId = "main.settings",
                 screen = Screen.Settings,
                 surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,

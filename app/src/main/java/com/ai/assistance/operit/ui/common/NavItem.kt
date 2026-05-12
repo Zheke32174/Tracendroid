@@ -54,6 +54,12 @@ sealed class NavItem(val route: String, val titleResId: Int, val icon: ImageVect
                         R.string.nav_telemetry_policy,
                         Icons.Default.Info
                 )
+        object PluginTrust :
+                NavItem(
+                        "plugin_trust",
+                        R.string.nav_plugin_trust,
+                        Icons.Default.Security
+                )
         object AssistantConfig :
                 NavItem("assistant_config", R.string.nav_assistant_config, Icons.Default.Tune)
         object Settings : NavItem("settings", R.string.nav_settings, Icons.Default.Settings)
