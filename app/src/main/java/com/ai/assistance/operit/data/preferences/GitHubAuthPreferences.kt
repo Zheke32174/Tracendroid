@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.ai.assistance.operit.BuildConfig
+import com.ai.assistance.operit.data.preferences.credentials.CredentialVault
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -53,17 +54,27 @@ class GitHubAuthPreferences(private val context: Context) {
         
         // 认证相关键
         private val IS_LOGGED_IN = booleanPreferencesKey("is_logged_in")
-        private val ACCESS_TOKEN = stringPreferencesKey("access_token")
+        // ACCESS_TOKEN, REFRESH_TOKEN, PENDING_OAUTH_CODE_VERIFIER, PENDING_OAUTH_STATE
+        // moved to CredentialVault per § 4.9. The DataStore keys below are retained as
+        // legacy-source pointers for the one-time migration on first read.
+        private val LEGACY_ACCESS_TOKEN = stringPreferencesKey("access_token")
+        private val LEGACY_REFRESH_TOKEN = stringPreferencesKey("refresh_token")
+        private val LEGACY_PENDING_OAUTH_STATE = stringPreferencesKey("pending_oauth_state")
+        private val LEGACY_PENDING_OAUTH_CODE_VERIFIER =
+            stringPreferencesKey("pending_oauth_code_verifier")
         private val TOKEN_TYPE = stringPreferencesKey("token_type")
         private val TOKEN_EXPIRES_AT = longPreferencesKey("token_expires_at")
-        private val REFRESH_TOKEN = stringPreferencesKey("refresh_token")
         private val USER_INFO = stringPreferencesKey("user_info")
         private val LAST_LOGIN_TIME = longPreferencesKey("last_login_time")
         private val AUTH_VERSION = longPreferencesKey("auth_version")
         private val GRANTED_SCOPE = stringPreferencesKey("granted_scope")
-        private val PENDING_OAUTH_STATE = stringPreferencesKey("pending_oauth_state")
-        private val PENDING_OAUTH_CODE_VERIFIER =
-            stringPreferencesKey("pending_oauth_code_verifier")
+
+        // Vault keys mirror the legacy DataStore key names so the migration is a 1:1 copy.
+        private const val VAULT_STORE = "github_auth_credentials"
+        private const val VK_ACCESS_TOKEN = "access_token"
+        private const val VK_REFRESH_TOKEN = "refresh_token"
+        private const val VK_PENDING_OAUTH_STATE = "pending_oauth_state"
+        private const val VK_PENDING_OAUTH_CODE_VERIFIER = "pending_oauth_code_verifier"
         
         @Volatile
         private var INSTANCE: GitHubAuthPreferences? = null
@@ -86,10 +97,31 @@ class GitHubAuthPreferences(private val context: Context) {
         }
     }
 
-    private val json = Json { 
+    private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
     }
+
+    private val vault = CredentialVault(context, VAULT_STORE)
+
+    /** Read the access token, migrating from the legacy DataStore copy on first read. */
+    private suspend fun readAccessToken(): String? = vault.migrateOnce(
+        vaultKey = VK_ACCESS_TOKEN,
+        readLegacy = { context.githubAuthDataStore.data.first()[LEGACY_ACCESS_TOKEN] },
+        clearLegacy = {
+            context.githubAuthDataStore.edit { it.remove(LEGACY_ACCESS_TOKEN) }
+        },
+    )
+
+    /** Read the refresh token, with the same one-time migration. */
+    @Suppress("unused")
+    private suspend fun readRefreshToken(): String? = vault.migrateOnce(
+        vaultKey = VK_REFRESH_TOKEN,
+        readLegacy = { context.githubAuthDataStore.data.first()[LEGACY_REFRESH_TOKEN] },
+        clearLegacy = {
+            context.githubAuthDataStore.edit { it.remove(LEGACY_REFRESH_TOKEN) }
+        },
+    )
 
     private val requiredScopes: Set<String> =
         GITHUB_SCOPE.split(",")
@@ -117,9 +149,11 @@ class GitHubAuthPreferences(private val context: Context) {
         (preferences[IS_LOGGED_IN] ?: false) && isAuthSessionCurrent(preferences)
     }
 
-    // 访问令牌Flow
+    // 访问令牌Flow — reads from CredentialVault inside the map block. The Flow's
+    // reactivity is driven by DataStore state changes (IS_LOGGED_IN, AUTH_VERSION,
+    // GRANTED_SCOPE), which is exactly when consumers need to re-evaluate.
     val accessTokenFlow: Flow<String?> = context.githubAuthDataStore.data.map { preferences ->
-        if (isAuthSessionCurrent(preferences)) preferences[ACCESS_TOKEN] else null
+        if (isAuthSessionCurrent(preferences)) readAccessToken() else null
     }
 
     // 用户信息Flow
@@ -157,21 +191,19 @@ class GitHubAuthPreferences(private val context: Context) {
     ) {
         context.githubAuthDataStore.edit { preferences ->
             preferences[IS_LOGGED_IN] = true
-            preferences[ACCESS_TOKEN] = accessToken
             preferences[TOKEN_TYPE] = tokenType
             preferences[USER_INFO] = json.encodeToString(userInfo)
             preferences[LAST_LOGIN_TIME] = System.currentTimeMillis()
             preferences[AUTH_VERSION] = REQUIRED_AUTH_VERSION.toLong()
             preferences[GRANTED_SCOPE] = grantedScope.orEmpty()
-            
+
             expiresIn?.let {
                 preferences[TOKEN_EXPIRES_AT] = System.currentTimeMillis() + (it * 1000)
             }
-            
-            refreshToken?.let {
-                preferences[REFRESH_TOKEN] = it
-            }
         }
+        // Tokens go to the vault, not to DataStore.
+        vault.put(VK_ACCESS_TOKEN, accessToken)
+        if (refreshToken != null) vault.put(VK_REFRESH_TOKEN, refreshToken)
     }
 
     /**
@@ -193,15 +225,15 @@ class GitHubAuthPreferences(private val context: Context) {
         grantedScope: String? = null
     ) {
         context.githubAuthDataStore.edit { preferences ->
-            preferences[ACCESS_TOKEN] = accessToken
             preferences[TOKEN_TYPE] = tokenType
             preferences[AUTH_VERSION] = REQUIRED_AUTH_VERSION.toLong()
             preferences[GRANTED_SCOPE] = grantedScope.orEmpty()
-            
+
             expiresIn?.let {
                 preferences[TOKEN_EXPIRES_AT] = System.currentTimeMillis() + (it * 1000)
             }
         }
+        vault.put(VK_ACCESS_TOKEN, accessToken)
     }
 
     /**
@@ -221,7 +253,7 @@ class GitHubAuthPreferences(private val context: Context) {
         if (!isAuthSessionCurrent(preferences)) {
             return null
         }
-        return preferences[ACCESS_TOKEN]
+        return readAccessToken()
     }
 
     /**
@@ -259,33 +291,37 @@ class GitHubAuthPreferences(private val context: Context) {
         context.githubAuthDataStore.edit { preferences ->
             preferences.clear()
         }
+        // Clear vault entries too — logout is "forget everything", not "forget
+        // metadata only".
+        vault.remove(VK_ACCESS_TOKEN)
+        vault.remove(VK_REFRESH_TOKEN)
+        vault.remove(VK_PENDING_OAUTH_STATE)
+        vault.remove(VK_PENDING_OAUTH_CODE_VERIFIER)
     }
 
     suspend fun setPendingOAuthState(state: String) {
-        context.githubAuthDataStore.edit { preferences ->
-            preferences[PENDING_OAUTH_STATE] = state
-        }
+        vault.put(VK_PENDING_OAUTH_STATE, state)
     }
 
     suspend fun consumePendingOAuthState(): String? {
-        val preferences = context.githubAuthDataStore.data.first()
-        val state = preferences[PENDING_OAUTH_STATE]
-        context.githubAuthDataStore.edit { mutablePreferences ->
-            mutablePreferences.remove(PENDING_OAUTH_STATE)
-        }
+        // Migrate from the legacy DataStore copy if present.
+        val state = vault.migrateOnce(
+            vaultKey = VK_PENDING_OAUTH_STATE,
+            readLegacy = { context.githubAuthDataStore.data.first()[LEGACY_PENDING_OAUTH_STATE] },
+            clearLegacy = {
+                context.githubAuthDataStore.edit { it.remove(LEGACY_PENDING_OAUTH_STATE) }
+            },
+        )
+        vault.remove(VK_PENDING_OAUTH_STATE)
         return state
     }
 
     /**
      * Persist the PKCE code_verifier between the authorize-URL build and the
-     * callback. Mirrors the state pattern. Lives in plain DataStore for v1
-     * alongside PENDING_OAUTH_STATE; both migrate to EncryptedSharedPreferences
-     * as part of THREAT_MODEL.md § 4.9 (credential storage).
+     * callback. Stored in CredentialVault per § 4.9 (encrypted at rest).
      */
     suspend fun setPendingCodeVerifier(verifier: String) {
-        context.githubAuthDataStore.edit { preferences ->
-            preferences[PENDING_OAUTH_CODE_VERIFIER] = verifier
-        }
+        vault.put(VK_PENDING_OAUTH_CODE_VERIFIER, verifier)
     }
 
     /**
@@ -293,11 +329,18 @@ class GitHubAuthPreferences(private val context: Context) {
      * a second read returns null.
      */
     suspend fun consumePendingCodeVerifier(): String? {
-        val preferences = context.githubAuthDataStore.data.first()
-        val verifier = preferences[PENDING_OAUTH_CODE_VERIFIER]
-        context.githubAuthDataStore.edit { mutablePreferences ->
-            mutablePreferences.remove(PENDING_OAUTH_CODE_VERIFIER)
-        }
+        val verifier = vault.migrateOnce(
+            vaultKey = VK_PENDING_OAUTH_CODE_VERIFIER,
+            readLegacy = {
+                context.githubAuthDataStore.data.first()[LEGACY_PENDING_OAUTH_CODE_VERIFIER]
+            },
+            clearLegacy = {
+                context.githubAuthDataStore.edit {
+                    it.remove(LEGACY_PENDING_OAUTH_CODE_VERIFIER)
+                }
+            },
+        )
+        vault.remove(VK_PENDING_OAUTH_CODE_VERIFIER)
         return verifier
     }
 

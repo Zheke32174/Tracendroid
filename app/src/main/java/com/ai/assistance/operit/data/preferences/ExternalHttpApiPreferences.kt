@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.ai.assistance.operit.data.preferences.credentials.CredentialVault
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -26,6 +27,16 @@ data class ExternalHttpApiConfig(
 
 class ExternalHttpApiPreferences private constructor(private val context: Context) {
 
+    private val vault = CredentialVault(context, VAULT_STORE)
+
+    private suspend fun readBearerToken(): String = vault.migrateOnce(
+        vaultKey = VK_BEARER_TOKEN,
+        readLegacy = { context.externalHttpApiDataStore.data.first()[LEGACY_BEARER_TOKEN] },
+        clearLegacy = {
+            context.externalHttpApiDataStore.edit { it.remove(LEGACY_BEARER_TOKEN) }
+        },
+    ).orEmpty()
+
     val enabledFlow: Flow<Boolean> =
         context.externalHttpApiDataStore.data.map { preferences ->
             preferences[KEY_ENABLED] ?: false
@@ -37,9 +48,7 @@ class ExternalHttpApiPreferences private constructor(private val context: Contex
         }
 
     val bearerTokenFlow: Flow<String> =
-        context.externalHttpApiDataStore.data.map { preferences ->
-            preferences[KEY_BEARER_TOKEN].orEmpty()
-        }
+        context.externalHttpApiDataStore.data.map { _ -> readBearerToken() }
 
     suspend fun setEnabled(enabled: Boolean) {
         context.externalHttpApiDataStore.edit { preferences ->
@@ -55,22 +64,18 @@ class ExternalHttpApiPreferences private constructor(private val context: Contex
     }
 
     suspend fun ensureBearerToken(): String {
-        val existing = getConfig().bearerToken
+        val existing = readBearerToken()
         if (existing.isNotBlank()) {
             return existing
         }
         val generated = generateBearerToken()
-        context.externalHttpApiDataStore.edit { preferences ->
-            preferences[KEY_BEARER_TOKEN] = generated
-        }
+        vault.put(VK_BEARER_TOKEN, generated)
         return generated
     }
 
     suspend fun resetBearerToken(): String {
         val generated = generateBearerToken()
-        context.externalHttpApiDataStore.edit { preferences ->
-            preferences[KEY_BEARER_TOKEN] = generated
-        }
+        vault.put(VK_BEARER_TOKEN, generated)
         return generated
     }
 
@@ -79,7 +84,7 @@ class ExternalHttpApiPreferences private constructor(private val context: Contex
         return ExternalHttpApiConfig(
             enabled = preferences[KEY_ENABLED] ?: false,
             port = preferences[KEY_PORT] ?: DEFAULT_PORT,
-            bearerToken = preferences[KEY_BEARER_TOKEN].orEmpty()
+            bearerToken = readBearerToken(),
         )
     }
 
@@ -104,7 +109,12 @@ class ExternalHttpApiPreferences private constructor(private val context: Contex
 
         private val KEY_ENABLED = booleanPreferencesKey("external_http_api_enabled")
         private val KEY_PORT = intPreferencesKey("external_http_api_port")
-        private val KEY_BEARER_TOKEN = stringPreferencesKey("external_http_api_bearer_token")
+        // Legacy DataStore key for the bearer token. Retained for the one-time
+        // migration into CredentialVault per § 4.9.
+        private val LEGACY_BEARER_TOKEN = stringPreferencesKey("external_http_api_bearer_token")
+
+        private const val VAULT_STORE = "external_http_api_credentials"
+        private const val VK_BEARER_TOKEN = "bearer_token"
 
         @Volatile
         private var INSTANCE: ExternalHttpApiPreferences? = null
