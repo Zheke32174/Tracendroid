@@ -322,6 +322,12 @@
             android:foregroundServiceType="dataSync" />
 
         <service
+            android:name=".shell.launcher.ShellForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
             android:name=".core.tools.system.ScreenCaptureService"
             android:enabled="true"
             android:exported="false"

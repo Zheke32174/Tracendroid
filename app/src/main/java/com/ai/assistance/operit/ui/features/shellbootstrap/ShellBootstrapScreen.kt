@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.shell.ShellBootstrapManager
 import com.ai.assistance.operit.shell.ShellBootstrapState
+import com.ai.assistance.operit.shell.launcher.ShellForegroundService
 import kotlinx.coroutines.launch
 
 /**
@@ -73,8 +74,20 @@ fun ShellBootstrapScreen(
             }
             is ShellBootstrapState.Installed,
             is ShellBootstrapState.Ready -> {
+                Button(
+                    onClick = { ShellForegroundService.start(context) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Start shell session")
+                }
+                OutlinedButton(
+                    onClick = { ShellForegroundService.stop(context) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Halt shell session")
+                }
                 if (onClose != null) {
-                    Button(
+                    TextButton(
                         onClick = onClose,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
