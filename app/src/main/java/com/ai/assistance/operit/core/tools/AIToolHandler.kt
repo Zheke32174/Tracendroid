@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.core.tools
 
 import android.content.Context
+import com.ai.assistance.operit.core.halt.HaltController
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.mcp.MCPManager
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
@@ -323,6 +324,35 @@ class AIToolHandler private constructor(private val context: Context) {
     /** Executes a tool directly */
     fun executeTool(tool: AITool): ToolResult {
         notifyToolCallRequested(tool)
+
+        // § 4.7 halt — sovereign-user kill switch. Any in-flight tool call refuses if
+        // the system is halted; the user has to clear the halt to resume.
+        if (HaltController.isHalted) {
+            val halted = ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = HaltController.haltedRefusal("AI tool call")
+            )
+            notifyToolExecutionResult(tool, halted)
+            notifyToolExecutionFinished(tool)
+            return halted
+        }
+
+        // § 4.2 AI-side gate. Records audit + (when enforce=true) blocks the call.
+        val gateDecision = AiToolGate.evaluate(toolName = tool.name)
+        if (gateDecision is AiToolGate.Decision.Deny) {
+            val denied = ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = gateDecision.reason
+            )
+            notifyToolExecutionResult(tool, denied)
+            notifyToolExecutionFinished(tool)
+            return denied
+        }
+
         val executor = getToolExecutorOrActivate(tool.name)
 
         if (executor == null) {
@@ -369,6 +399,34 @@ class AIToolHandler private constructor(private val context: Context) {
     /** Executes a tool and preserves intermediate streaming results when supported by the executor. */
     fun executeToolAndStream(tool: AITool): Flow<ToolResult> = flow {
         notifyToolCallRequested(tool)
+
+        if (HaltController.isHalted) {
+            val halted = ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = HaltController.haltedRefusal("AI streaming tool call")
+            )
+            notifyToolExecutionResult(tool, halted)
+            notifyToolExecutionFinished(tool)
+            emit(halted)
+            return@flow
+        }
+
+        val gateDecision = AiToolGate.evaluate(toolName = tool.name)
+        if (gateDecision is AiToolGate.Decision.Deny) {
+            val denied = ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = gateDecision.reason
+            )
+            notifyToolExecutionResult(tool, denied)
+            notifyToolExecutionFinished(tool)
+            emit(denied)
+            return@flow
+        }
+
         val executor = getToolExecutorOrActivate(tool.name)
 
         if (executor == null) {

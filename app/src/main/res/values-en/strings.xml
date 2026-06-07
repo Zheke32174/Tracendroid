@@ -10,6 +10,12 @@
     
     <!-- Navigation -->
     <string name="nav_ai_chat">AI Chat</string>
+    <string name="nav_accessibility_onboarding">Accessibility setup</string>
+    <string name="nav_shell_bootstrap">Shell environment setup</string>
+    <string name="nav_plugin_gate">Plugin gate</string>
+    <string name="nav_broadcast_allowlist">Broadcast sender allowlist</string>
+    <string name="nav_telemetry_policy">Telemetry policy</string>
+    <string name="nav_plugin_trust">Plugin trust</string>
     <string name="nav_adb_commands">Permissions</string>
     <string name="nav_settings">Settings</string>
     <string name="nav_tool_permissions">Tool Permissions</string>
@@ -531,7 +537,6 @@
     <string name="voice_keyword_attachments_type_label">Type</string>
 
     <!-- NavItem class identifiers -->
-    <string name="shizuku_commands">Permissions</string>
     <string name="tool_permissions">Tool Permission Settings</string>
     <string name="about">About</string>
     <string name="terminal">Terminal</string>
@@ -570,7 +575,6 @@
     <string name="install_termux_title">Install Termux</string>
     <string name="install_termux_from_store">Install Termux from App Store</string>
     <string name="install_bundled_termux">Install Bundled Version</string>
-    <string name="installing_bundled_termux">Installing bundled Termux, please grant installation permissions</string>
     <string name="install_termux_failed">Termux Installation Failed</string>
     <string name="open_termux">Open Termux</string>
     <string name="termux_setup_guide">Termux Setup Guide</string>
@@ -939,11 +943,9 @@
     <string name="settings_total">Total</string>
     
     <!-- Shizuku Command Screen -->
-    <string name="shizuku_command_executor">Shizuku ADB Command Executor</string>
     <string name="device_info">Device Information</string>
     <string name="android_version">Android Version: %1$s (API %2$d)</string>
     <string name="device_model">Device Model: %1$s %2$s</string>
-    <string name="shizuku_status">Shizuku Status</string>
     <string name="refresh">Refresh</string>
     <string name="installed">Installed</string>
     <string name="service_running">Service Running: %1$s</string>
@@ -952,8 +954,6 @@
     <string name="no">No</string>
     <string name="authorized">Authorized</string>
     <string name="unauthorized">Unauthorized</string>
-    <string name="install_shizuku">Install Shizuku</string>
-    <string name="open_shizuku">Open Shizuku App</string>
     <string name="show_help">Show help</string>
     <string name="hide_help">Hide help</string>
     <string name="request_permission">Request Shizuku permission</string>
@@ -968,17 +968,12 @@
     <string name="executing">Executing...</string>
     <string name="command_success">Command executed successfully:\n%1$s</string>
     <string name="command_failure">Command execution failed (exit code: %1$d):\n%2$s</string>
-    <string name="start_shizuku_first">Please start Shizuku service first</string>
     <string name="grant_permission_first">Please grant Shizuku permission</string>
     <string name="feature_unavailable">ADB command feature unavailable</string>
     <string name="thinking_process">Thinking Process</string>
     
     <!-- Built-in Shizuku -->
-    <string name="install_from_store">Install Shizuku from App Store</string>
     <string name="install_bundled">Install Bundled Version (v%1$s)</string>
-    <string name="installing_bundled">Installing bundled Shizuku, please grant installation permission</string>
-    <string name="install_failed">Built-in Shizuku installation failed, please try installing from the app store</string>
-    
     <!-- User Preferences -->
     <string name="user_preferences_guide">Personalization</string>
     <string name="user_preferences">User Preferences</string>
@@ -1171,10 +1166,6 @@
     <string name="permission_guide_standard_desc">Basic app operation permissions, no special permissions required</string>
     <string name="permission_guide_accessibility_title">Accessibility Permissions</string>
     <string name="permission_guide_accessibility_desc">Enables screen content analysis and operation simulation via accessibility service</string>
-    <string name="permission_guide_debugger_title">Debug Permissions</string>
-    <string name="permission_guide_debugger_desc">Provides ADB-level system access through Shizuku</string>
-    <string name="permission_guide_root_title">Root Permissions</string>
-    <string name="permission_guide_root_desc">Superuser permissions, can perform any system operations</string>
     <string name="permission_guide_confirm">Confirm Selection</string>
     <string name="permission_guide_change_anytime">You can change the permission level in settings at any time</string>
     
@@ -1211,31 +1202,6 @@
     <string name="root_wizard_risk_details">1. ROOT operations carry risk and may void your warranty\n2. Some apps may refuse to run on rooted devices\n3. Improper ROOT operations may cause system instability</string>
     
     <!-- ShizukuWizardCard -->
-    <string name="shizuku_wizard_title">Shizuku Setup Wizard</string>
-    <string name="shizuku_wizard_update_title">Shizuku Update Wizard</string>
-    <string name="shizuku_wizard_step1">Step 1: Install Shizuku App</string>
-    <string name="shizuku_wizard_step2">Step 2: Start Shizuku Service</string>
-    <string name="shizuku_wizard_step3">Step 3: Grant Shizuku Permission</string>
-    <string name="shizuku_wizard_completed">Shizuku Setup Complete</string>
-    <string name="shizuku_wizard_install_message">Shizuku is a tool that grants apps advanced permissions without requiring root. We need to install this app first.</string>
-    <string name="shizuku_wizard_install_bundled">Install Bundled Version</string>
-    <string name="shizuku_wizard_start_message">Shizuku is installed. Now you need to start the Shizuku service. Please follow one of the methods below:</string>
-    <string name="shizuku_wizard_method1_title">Method 1: In-App Start (Recommended)</string>
-    <string name="shizuku_wizard_method1_steps">1. Click the \"Open Shizuku\" button below\n2. In the Shizuku app, select \"Start via Wireless Debugging\"\n3. Follow the prompts to enable \"Developer Options\" and \"Wireless Debugging\"\n4. Allow Shizuku to get wireless debugging permissions</string>
-    <string name="shizuku_wizard_method2_title">Method 2: Start via USB</string>
-    <string name="shizuku_wizard_method2_steps">1. Install ADB tools on your computer\n2. Connect your phone to your computer via USB\n3. Execute in computer command line:\n   adb shell sh /sdcard/Android/data/moe.shizuku.privileged.api/files/start.sh</string>
-    <string name="shizuku_wizard_open_shizuku">Open Shizuku</string>
-    <string name="shizuku_wizard_permission_message">Shizuku service is running. Now you need to grant permission to this app. Click the button below and select \"Allow\" in the dialog that appears.</string>
-    <string name="shizuku_wizard_permission_notice">Note: If you don\'t see the authorization dialog, check:</string>
-    <string name="shizuku_wizard_permission_notice_details">1. Whether the Shizuku service is running\n2. Try restarting the Shizuku service\n3. Confirm you\'ve allowed overlay display permission</string>
-    <string name="shizuku_wizard_grant_permission">Grant Shizuku Permission</string>
-    <string name="shizuku_wizard_success_message">Congratulations! Shizuku is fully set up. You can now use debugging permission features.</string>
-    <string name="shizuku_wizard_update_available">New Version Available</string>
-    <string name="shizuku_wizard_update_message">The app has a newer version of Shizuku built in. We recommend updating for better compatibility and features.</string>
-    <string name="shizuku_wizard_current_version">Current version: %1$s</string>
-    <string name="shizuku_wizard_latest_version">Latest version: %1$s</string>
-    <string name="shizuku_wizard_update">Update Shizuku</string>
-    
     <!-- TermuxWizardCard -->
     <string name="termux_wizard_title">Termux Setup Wizard</string>
     <string name="termux_wizard_step1">Step 1: Install Termux</string>
@@ -1281,28 +1247,6 @@
     <string name="termux_wizard_open">Open Termux</string>
     
     <!-- ShizukuDemoScreen -->
-    <string name="shizuku_demo_loading">Loading application status...</string>
-    <string name="shizuku_demo_permission_failed">Cannot open permission settings</string>
-    <string name="shizuku_demo_overlay_failed">Cannot open overlay settings</string>
-    <string name="shizuku_demo_battery_failed">Cannot open battery optimization settings</string>
-    <string name="shizuku_demo_accessibility_failed">Cannot open accessibility service settings</string>
-    <string name="shizuku_demo_title">Setup Wizard</string>
-    <string name="shizuku_demo_download_failed">Cannot open download link</string>
-    <string name="shizuku_demo_extract_failed">Failed to extract APK, please try again later</string>
-    <string name="shizuku_demo_install_notify">Shizuku installation started, please follow system prompts to complete installation</string>
-    <string name="shizuku_demo_update_notify">Shizuku update started, please follow system prompts to complete installation</string>
-    <string name="shizuku_demo_install_failed">Installation failed: %1$s</string>
-    <string name="shizuku_demo_update_failed">Update failed: %1$s</string>
-    <string name="shizuku_demo_shizuku_not_found">Cannot find Shizuku app</string>
-    <string name="shizuku_demo_shizuku_launch_failed">Cannot launch Shizuku app</string>
-    <string name="shizuku_demo_root_tutorial_failed">Cannot open Root tutorial link</string>
-    <string name="shizuku_demo_shizuku_permission_granted">Shizuku permission granted</string>
-    <string name="shizuku_demo_shizuku_permission_denied">Shizuku permission request denied</string>
-    <string name="shizuku_demo_termux_install_success">Termux installation started, please follow system prompts to complete installation</string>
-    <string name="shizuku_demo_termux_install_failed_store">Built-in APK installation failed, opening download page</string>
-    <string name="shizuku_demo_termux_download_failed">Cannot open download link, please download and install Termux manually</string>
-    <string name="shizuku_demo_termux_tuna_skipped">Skipped Tuna mirror configuration, you can configure the mirror in Termux later</string>
-
     <!-- Permission Level Cards -->
     <string name="permission_level">Permission Level</string>
     <string name="permission_level_icon">Permission Level Icon</string>
@@ -1318,7 +1262,6 @@
     <string name="accessibility_service">Accessibility Service</string>
     <string name="admin_permission">Admin Permission</string>
     <string name="debug_permission">Debug Permission</string>
-    <string name="shizuku_service">Shizuku Service</string>
     <string name="root_permission">Root Permission</string>
     <string name="root_access_permission">Root Access Permission</string>
     <string name="status_not_installed">Not Installed</string>
@@ -1339,12 +1282,10 @@
     <string name="permission_level_standard_desc">Basic application permissions, no special system authorization required</string>
     <string name="permission_level_accessibility_desc">Added accessibility service support, can simulate screen operations</string>
     <string name="permission_level_admin_desc">Added device administrator permissions, can access more system functions</string>
-    <string name="permission_level_debugger_desc">Provides ADB-level system access through Shizuku</string>
     <string name="permission_level_root_desc">Superuser permissions, can execute any system operations</string>
     <string name="permission_level_standard_full_desc">Standard Permissions: Basic application permissions, no special privileges required</string>
     <string name="permission_level_accessibility_full_desc">Accessibility Permissions: Allows the app to simulate user operations, requires enabling accessibility services</string>
     <string name="permission_level_admin_full_desc">Admin Permissions: Allows the app to access more system functions, such as location services</string>
-    <string name="permission_level_debugger_full_desc">Debug Permissions: Allows advanced operations through ADB debugging functions, requires Shizuku service</string>
     <string name="permission_level_root_full_desc">Root Permissions: Allows the app to run as superuser, requires a rooted device</string>
     
     <!-- Root Status Information -->
@@ -1541,9 +1482,6 @@
     <string name="accessibility_wizard_success_message">Accessibility service is properly configured and ready to use!</string>
 
     <!-- Debugger Mode -->
-    <string name="debugger_accessibility_fallback_title">Accessibility Acceleration (High Risk)</string>
-    <string name="debugger_accessibility_fallback_description">Debugger mode performs UI operations via Shell by default. Enabling the accessibility service can significantly accelerate UI automation, but it also substantially increases the risk of being detected and banned by some applications. It is not recommended unless you require maximum operational speed.</string>
-
     <string name="accessibility_risk_warning_title">Accessibility Service Risk Warning</string>
     <string name="accessibility_risk_warning_message">While enabling the accessibility service can speed up UI operations, some apps may detect this service and impose restrictions, including account bans. Please enable only after understanding and accepting the associated risks.</string>
     
@@ -1555,7 +1493,6 @@
 
     <!-- Toast Messages -->
     <string name="pip_package_install_success">PIP package installation successful</string>
-    <string name="pip_package_install_failed">PIP package installation failed</string>
     <string name="please_press_back_to_return">Please press back button to return</string>
     <string name="please_input_command">Please enter command</string>
     <string name="background_image_migrated">Background image migrated to internal storage</string>
@@ -1614,13 +1551,10 @@
     <string name="tuna_source_setup_failed">Tuna mirror setup failed</string>
     <string name="tuna_source_setup_error">Error configuring Tuna mirror</string>
     <string name="python_install_success">Python installation successful</string>
-    <string name="python_install_failed">Python installation failed</string>
     <string name="python_install_error">Error installing Python environment</string>
     <string name="uv_install_success">UV installation successful</string>
-    <string name="uv_install_failed">UV installation failed</string>
     <string name="uv_install_error">Error installing UV package manager</string>
     <string name="nodejs_install_success">Node.js installation successful</string>
-    <string name="nodejs_install_failed">Node.js installation failed</string>
     <string name="nodejs_install_error">Error installing Node.js environment</string>
     <string name="battery_optimization_reminder">Please allow Termux battery optimization exemption in system settings</string>
     <string name="cannot_open_termux_battery_settings">Cannot open Termux battery optimization settings</string>
@@ -1631,8 +1565,6 @@
     <string name="cannot_open_accessibility_settings">Cannot open accessibility service settings</string>
     <string name="accessibility_provider_installed">Service provider installed</string>
     <string name="cannot_open_root_tutorial">Cannot open Root tutorial link</string>
-    <string name="cannot_find_shizuku_app">Cannot find Shizuku app</string>
-    <string name="cannot_launch_shizuku_app">Cannot launch Shizuku app</string>
     <string name="cannot_open_docs_link">Cannot open documentation link</string>
     <string name="plugin_loading_skipped">Plugin loading skipped</string>
     <string name="press_back_again_to_exit">Press back again to exit</string>
@@ -1950,11 +1882,6 @@
     <string name="tool_terminal_auto_config_desc">Automatically install and configure Python, PIP and other development tools</string>
     <string name="tool_terminal_auto_config_under_construction">Terminal auto configuration feature is being refactored...</string>
     <string name="tool_ui_debugger">UI Debug Tool</string>
-    <string name="tool_ui_debugger_desc">Debug and analyze interface elements with element search and interaction support</string>
-    <string name="ui_debugger_title">UI Debugging Tool</string>
-    <string name="ui_debugger_description">Tap the button in the bottom right corner to launch the floating window for UI debugging</string>
-    <string name="ui_debugger_launch_floating">Launch Floating Window</string>
-    <string name="ui_debugger_start_float">Start Float</string>
     <string name="tool_ffmpeg_toolbox">FFmpeg Toolbox</string>
     <string name="tool_ffmpeg_toolbox_desc">Powerful audio/video processing tool supporting conversion, cropping, merging and more</string>
     <string name="tool_stream_markdown_demo">Streaming Markdown Demo</string>
@@ -2187,8 +2114,6 @@
     <string name="battery_settings_failed">Failed to open battery optimization settings</string>
     <string name="accessibility_settings_failed">Failed to open accessibility service settings</string>
     <string name="provider_installed">Service provider is installed</string>
-    <string name="shizuku_not_found">Shizuku app not found</string>
-    <string name="shizuku_start_failed">Failed to start Shizuku app</string>
     <string name="doc_link_failed">Failed to open documentation link</string>
     <string name="root_tutorial_failed">Failed to open Root tutorial link</string>
     <string name="file_open_failed">Failed to open file: %1$s</string>
@@ -2903,7 +2828,6 @@
     <string name="loading_app_state">Loading application state...</string>
     <string name="setup_wizard">Setup Wizard</string>
     <string name="setup_wizard_icon_desc">Setup wizard icon</string>
-    <string name="cannot_start_shizuku_app">Cannot start Shizuku app</string>
     <string name="cannot_open_doc_link">Cannot open documentation link</string>
     <string name="welcome_termux_config">Welcome to Termux configuration tool\nClick the corresponding button to start configuration</string>
     <string name="executing_task">Executing: %1$s...</string>
@@ -2969,9 +2893,6 @@
     <string name="foldernav_refresh_folders">Refresh folder list</string>
     <string name="foldernav_new_folder">New folder</string>
     <string name="foldernav_folder">Folder</string>
-    <string name="uidebugger_copy_activity_name">Copy activity name</string>
-    <string name="uidebugger_close_panel">Close panel</string>
-    <string name="uidebugger_minimize">Minimize</string>
     <string name="activity_monitor_close">Close</string>
     <string name="theme_background_preview">Background preview</string>
     <string name="theme_recrop">Recrop</string>
@@ -3046,12 +2967,8 @@
     <string name="emoticon_shyness">Shyness</string>
     <string name="emoticon_blush">Blush</string>
     <string name="emoticon_embarrassed">Embarrassed</string>
-    <string name="autoglm_task_complete">✅ Task completed: %1$s</string>
-    <string name="autoglm_thinking_process">💭 Thinking Process:</string>
-    <string name="autoglm_execute_action">🎯 Execute Action:</string>
     <string name="version_update">Version Update</string>
     <string name="mcp_no_zip_selected">No ZIP file selected</string>
-    <string name="mcp_uninstall_failed">Uninstall failed</string>
     <string name="chatgpt_parse_error">Failed to parse ChatGPT format: %1$s</string>
     <string name="chatgpt_import_from">Import from ChatGPT</string>
     <string name="uiautomation_execute">Execute</string>
@@ -3066,7 +2983,6 @@
     <string name="stream_data_required">Data stream must be set</string>
     <string name="deepseek_request_body">Final DeepSeek reasoning mode request body: </string>
     <string name="admin_shell_permission">Device administrator permission required to execute system operations</string>
-    <string name="virtual_display_not_ready">Shower virtual display not ready</string>
     <string name="xml_content">XML Content</string>
     <string name="browser_preview">Browser Preview</string>
     <string name="edittext_empty">EditText cannot be empty</string>
@@ -4362,7 +4278,6 @@
     <string name="mcp_market_config_import_failed_with_error">Failed to import config: %1$s</string>
     <string name="mcp_market_config_import_success_with_count">Imported %1$s config successfully. Merged %2$d server(s).</string>
     <string name="mcp_market_install_success">Installed %1$s successfully</string>
-    <string name="mcp_market_install_failed_with_error">Install failed: %1$s</string>
     <string name="mcp_market_parse_install_info_failed">Failed to parse installation info. Please view the Issue details and install manually.</string>
     <string name="mcp_market_github_logout_success">Logged out</string>
     <string name="mcp_market_github_logout_failed_with_error">Logout failed: %1$s</string>
@@ -5217,66 +5132,6 @@
     <string name="ffmpeg_processing_time">Processing time: %1$sms</string>
 
     <!-- UI Debugger -->
-    <string name="uidebugger_current_interface">Current analysis interface</string>
-    <string name="uidebugger_package_name">Package: %1$s</string>
-    <string name="uidebugger_close_ui_analysis">Close UI analysis</string>
-    <string name="uidebugger_ui_analysis">UI analysis</string>
-    <string name="uidebugger_collapse_panel">Collapse panel</string>
-    <string name="uidebugger_activity_monitor">Activity monitor</string>
-    <string name="uidebugger_activity_monitor_listening">Listening for Activity events</string>
-    <string name="uidebugger_activity_monitor_stopped">Monitoring stopped</string>
-    <string name="uidebugger_activity_monitor_current_activity">Current activity</string>
-    <string name="uidebugger_activity_monitor_waiting">Listening... waiting for Activity events</string>
-    <string name="uidebugger_activity_monitor_click_to_start">Click Start Monitoring to begin listening for Activity events</string>
-    <string name="uidebugger_activity_monitor_event_log">Event log (%1$d)</string>
-    <string name="uidebugger_activity_monitor_item_activity">Activity: %1$s</string>
-    <string name="uidebugger_activity_monitor_item_text">Text: %1$s</string>
-    <string name="uidebugger_activity_monitor_item_package">Package: %1$s</string>
-    <string name="uidebugger_activity_monitor_item_click">Click</string>
-    <string name="uidebugger_activity_monitor_item_long_click">Long press</string>
-    <string name="uidebugger_activity_monitor_item_swipe">Swipe</string>
-    <string name="uidebugger_activity_monitor_item_text_input">Text input</string>
-    <string name="uidebugger_activity_monitor_item_key_press">Key press</string>
-    <string name="uidebugger_activity_monitor_item_scroll">Scroll</string>
-    <string name="uidebugger_activity_monitor_item_gesture">Gesture</string>
-    <string name="uidebugger_activity_monitor_item_app_switch">App switch</string>
-    <string name="uidebugger_activity_monitor_item_screen_change">Screen change</string>
-    <string name="uidebugger_activity_monitor_item_system_event">System event</string>
-
-    <string name="uidebugger_action_click_success">Click succeeded</string>
-    <string name="uidebugger_action_click_failed">Click failed</string>
-    <string name="uidebugger_action_highlighted">Element highlighted</string>
-    <string name="uidebugger_action_selected">Element selected</string>
-    <string name="uidebugger_action_failed">Action failed</string>
-    <string name="uidebugger_error_wrong_result_type">Wrong result type returned</string>
-    <string name="uidebugger_error_fetch_ui_failed">Failed to fetch UI info</string>
-    <string name="uidebugger_error_refresh_failed">Refresh failed</string>
-    <string name="uidebugger_activity_monitor_already_running">Monitoring is already running</string>
-    <string name="uidebugger_activity_monitor_permission_insufficient">Insufficient permission: %1$s</string>
-    <string name="uidebugger_activity_monitor_started">Activity monitor started</string>
-    <string name="uidebugger_activity_monitor_start_failed_with_reason">Failed to start monitoring: %1$s</string>
-    <string name="uidebugger_activity_monitor_stop_failed">Failed to stop monitoring</string>
-    <string name="uidebugger_activity_monitor_stop_failed_with_reason">Failed to stop monitoring: %1$s</string>
-
-    <string name="uidebugger_element_type_button">Button</string>
-    <string name="uidebugger_element_type_text">Text</string>
-    <string name="uidebugger_element_type_input">Input</string>
-    <string name="uidebugger_element_type_image">Image</string>
-    <string name="uidebugger_element_type_view">View</string>
-    <string name="uidebugger_element_type_generic">UI element</string>
-    <string name="uidebugger_element_detail_class_name">Class: %1$s</string>
-    <string name="uidebugger_element_detail_package_name">Package: %1$s</string>
-    <string name="uidebugger_element_detail_activity_name">Activity: %1$s</string>
-    <string name="uidebugger_element_detail_resource_id">Resource ID: %1$s</string>
-    <string name="uidebugger_element_detail_content_desc">Content description: %1$s</string>
-    <string name="uidebugger_element_detail_text">Text: %1$s</string>
-    <string name="uidebugger_element_detail_bounds">Bounds: [%1$d, %2$d, %3$d, %4$d]</string>
-    <string name="uidebugger_element_detail_clickable">Clickable: %1$s</string>
-    <string name="uidebugger_element_info_title">Element info</string>
-    <string name="uidebugger_element_info_current_activity">Current Activity</string>
-    <string name="uidebugger_element_info_package_name">Package: %1$s</string>
-    <string name="uidebugger_element_info_size_px">Size: %1$d×%2$dpx</string>
-
     <!-- Logcat -->
     <string name="logcat_no_logs_to_save">No logs to save</string>
     <string name="logcat_header">=== Operit Logs ===</string>
@@ -5307,7 +5162,6 @@
     <string name="toolreg_env_info"> (env: %1$s)</string>
     <string name="toolreg_env_arrow_info"> (%1$s → %2$s)</string>
     <string name="toolreg_execute_shell_desc">Execute ADB shell: %1$s</string>
-    <string name="toolreg_close_all_virtual_displays_desc">Close all virtual displays</string>
     <string name="toolreg_unnamed">Unnamed</string>
     <string name="toolreg_create_terminal_session_desc">Create or get terminal session: %1$s</string>
     <string name="toolreg_execute_in_terminal_session_desc">Execute in terminal session [%1$s]: %2$s</string>
@@ -5437,18 +5291,6 @@
     <string name="toolreg_ffmpeg_convert_desc">Convert video: %1$s → %2$s</string>
 
     <!-- AutoGLM One-Click Configuration -->
-    <string name="autoglm_config_name">AutoGLM Configuration</string>
-    <string name="autoglm_one_click_title">AutoGLM One-Click Config</string>
-    <string name="autoglm_one_click_subtitle">Automatically create Zhipu autoglm-phone model configuration for UI controller and switch to AutoGLM toolkit.</string>
-    <string name="autoglm_open_apikey_center">Go to Zhipu API Key Page</string>
-    <string name="autoglm_open_apikey_tip">After logging in, create and copy your API Key on the Zhipu platform</string>
-    <string name="autoglm_api_key_placeholder">Paste your Zhipu API Key here</string>
-    <string name="autoglm_one_click_button">One-Click AutoGLM Config</string>
-    <string name="autoglm_status_running">Running one-click configuration, please wait...</string>
-    <string name="autoglm_status_success">AutoGLM one-click configuration completed:\nModel: %1$s\nAPI Key: %2$s\nToolkit: AutoGLM\n\nYou can now use AutoGLM mode in the chat interface.</string>
-    <string name="autoglm_status_error">One-click configuration failed: %1$s</string>
-    <string name="autoglm_error_empty_api_key">Please fill in the Zhipu API Key first.</string>
-
     <!-- Skill Market -->
     <string name="available_skills_market">Available Skills</string>
     <string name="beta_plan">Beta Program</string>
@@ -5460,8 +5302,6 @@
     <string name="click_button_publish_first_skill">Click the button above to publish your first Skill</string>
     <string name="confirm_remove_skill_from_market">Are you sure you want to remove Skill "%1$s" from the market? This will close the corresponding Issue but will not delete your code repository.</string>
     <string name="confirm_skill_git_import_deployment">I confirm that this Skill can be properly installed and used through the app\'s Git repository import method</string>
-    <string name="experimental_virtual_display">Experimental Virtual Display</string>
-    <string name="experimental_virtual_display_description">Use ADB+Shizuku automation based on virtual display. This feature is still experimental and may be unstable.</string>
     <string name="hide_runtime_task_view">Hide runtime task view</string>
     <string name="hide_runtime_task_view_description">Hide the app card from system recents while AI is processing or executing tools to reduce accidental dismissal.</string>
     <string name="get_skill">Get Skill</string>
@@ -5507,8 +5347,6 @@
     <string name="patch_install_confirm_message">New patch version detected: %1$s\n\nInstall now?</string>
     <string name="prepare_patch_update">Preparing patch update...</string>
     <string name="publish_new_skill">Publish New Skill</string>
-    <string name="screen_title_autoglm_one_click">AutoGLM One-Click Config</string>
-    <string name="screen_title_autoglm_tool">AutoGLM Execution</string>
     <string name="screen_title_skill_detail">Skill Detail</string>
     <string name="screen_title_skill_manage">Manage My Skills</string>
     <string name="screen_title_skill_market">Skill Market</string>
@@ -5522,10 +5360,6 @@
     <string name="skill_repo_address_required">GitHub Repository Address *</string>
     <string name="skill_update_success_message">Your Skill information has been successfully updated.</string>
     <string name="skill_zip_package">Skill ZIP Package</string>
-    <string name="tool_autoglm_one_click">AutoGLM One-Click Config</string>
-    <string name="tool_autoglm_one_click_desc">One-click configure autoglm-phone model for UI controller and switch to AutoGLM toolkit</string>
-    <string name="tool_autoglm_tool">AutoGLM Execution</string>
-    <string name="tool_autoglm_tool_desc">Use autoglm-phone agent to execute mobile automation tasks step by step</string>
     <string name="ui_accessibility_mode">Accessibility Mode</string>
     <string name="ui_accessibility_mode_description">Optimize UI automation behavior for accessibility users like TalkBack, prioritize providing readable operation steps, and carefully execute automatic taps.</string>
     <string name="workflow_execution_failed">Execution Failed</string>
@@ -5735,7 +5569,6 @@
     <string name="apk_editor_change_icon_failed">Failed to change app icon</string>
 
     <!-- Common Module -->
-    <string name="common_phone_agent">Phone Agent</string>
     <string name="common_resume_agent">Resume Agent</string>
     <string name="common_take_over">Take Over</string>
     <string name="common_cancel">Cancel</string>
@@ -5875,13 +5708,7 @@
     <string name="memory_search_hint2">Search memories</string>
 
     <!-- UI Debugger -->
-    <string name="uidebugger_stop_monitoring">Stop Monitoring</string>
-    <string name="uidebugger_start_monitoring">Start Monitoring</string>
-    <string name="uidebugger_clear">Clear</string>
-
     <!-- Auto GLM Tool Screen -->
-    <string name="autoglm_virtual_screen">Virtual screen this time</string>
-
     <!-- HTML Packager Screen -->
     <string name="htmlpackager_step1_title">Step 1: Select project folder</string>
     <string name="htmlpackager_select_folder">Select Folder</string>
@@ -5898,28 +5725,7 @@
     <string name="document_block_label">Block %1$d</string>
 
     <!-- Auto GLM One Click Tool Screen -->
-    <string name="autoglm_go_to_model_config">Go to Model Config</string>
-    <string name="autoglm_custom_endpoint">Custom Endpoint (OpenAI Compatible)</string>
-    <string name="autoglm_model_name">Model Name</string>
-    <string name="autoglm_restore_original">Restore Original Automation Logic</string>
-    <string name="autoglm_step1_title">step1 Configure Basic Conversation Model</string>
-    <string name="autoglm_step1_warning">Do not use the autoglm model as the main conversation model</string>
-    <string name="autoglm_step1_note">Note: If you have already configured it, you don\'t need to worry about it here. Do not change it to autoglm or other small models.</string>
-    <string name="autoglm_step2_title">step2 Visit Zhipu Official Website to Get API Key</string>
-    <string name="autoglm_step3_title">step3 Enter API Key and Click One-Click Configuration</string>
-    <string name="autoglm_hide_advanced">Hide Advanced Settings</string>
-    <string name="autoglm_show_advanced">Show Advanced Settings (Custom Endpoint / Model Name)</string>
-    <string name="autoglm_step4_title">step4 Restore Non-AutoGLM Automation (Optional)</string>
-    <string name="autoglm_step4_description">If you find automation operations difficult after using AutoGLM one-click configuration, you can click the button below to restore the software\'s original automation logic (enable base package, disable subagent package, other settings remain unchanged). If you want to enable AutoGLM again, just follow step3 to enter the key and click one-click configuration again.</string>
-    <string name="autoglm_restore_success">Restored to the software\'s original automation logic</string>
-
     <!-- UI Debugger Components -->
-    <string name="uidebugger_create_new_package">Create New Config Package</string>
-    <string name="uidebugger_app_name">App Name</string>
-    <string name="uidebugger_description_optional">Description (Optional)</string>
-    <string name="uidebugger_create">Create</string>
-    <string name="uidebugger_cancel2">Cancel</string>
-
     <!-- Stream Markdown Demo -->
     <string name="stream_markdown_pause">Pause</string>
     <string name="stream_markdown_resume">Resume</string>
@@ -6194,7 +6000,6 @@
     <string name="skillmarket_load_comments_failed">Failed to load comments: %1$s</string>
     <string name="skillmarket_post_comment_failed">Failed to post comment: %1$s</string>
     <string name="skillmarket_invalid_repo_url">Invalid repository URL</string>
-    <string name="skillmarket_install_failed">Installation failed: %1$s</string>
     <string name="skillmarket_like_failed">Failed to like: %1$s</string>
     <string name="skillmarket_like_error">Error while liking: %1$s</string>
 
@@ -6355,17 +6160,6 @@
     <string name="openai_connection_test_failed">Connection test failed: %1$s</string>
 
     <!-- Phone Agent -->
-    <string name="phone_agent_need_debug_permission">Requires Debug/Admin/Root permission and experimental virtual screen enabled to use virtual screen automation.</string>
-    <string name="phone_agent_shizuku_unavailable">Shizuku is not available, cannot start virtual screen.</string>
-    <string name="phone_agent_virtual_screen_service_start_failed">Virtual screen service failed to start.</string>
-    <string name="phone_agent_virtual_screen_create_failed">Failed to create virtual screen.</string>
-    <string name="phone_agent_virtual_screen_prewarm_failed">Virtual screen prewarm failed: %1$s</string>
-    <string name="phone_agent_virtual_screen_not_started">Virtual screen failed to start, aborted to avoid operations on main screen.</string>
-    <string name="phone_agent_thinking">Thinking...</string>
-    <string name="phone_agent_completed">Completed</string>
-    <string name="phone_agent_executing_action">Executing %1$s...</string>
-    <string name="phone_agent_executing">Executing...</string>
-
     <!-- Workflow Executor -->
     <string name="workflow_skip">Skip</string>
     <string name="workflow_condition_type_mismatch">Condition type mismatch: left=\'%1$s\', right=\'%2$s\'</string>
@@ -6450,13 +6244,6 @@
 
     <!-- Global Display Settings -->
     <string name="global_display_automation_behavior">Automation Display &amp; Behavior</string>
-    <string name="root_execution_mode_title">Root Execution Mode</string>
-    <string name="root_execution_mode_description">Auto picks based on environment; manual mode overrides auto selection.</string>
-    <string name="root_execution_mode_auto">Auto</string>
-    <string name="root_execution_mode_force_libsu">Manual Magisk SU</string>
-    <string name="root_execution_mode_force_exec">Manual KernelSU</string>
-    <string name="root_custom_su_command">Custom su command (KernelSU mode)</string>
-    <string name="root_custom_su_command_description">Applies only in KernelSU mode. You can enter commands like su or su --mount-master.</string>
     <string name="global_display_virtual_screen_bitrate">Virtual Screen Bitrate</string>
     <string name="global_display_status_indicator_style">Status Indicator Style</string>
     <string name="global_display_screenshot_settings">Screenshot Settings</string>
@@ -6987,17 +6774,7 @@
     <string name="pathfinder_cannot_find_path">Cannot find valid state path from \'%1$s\' to \'%2$s\'</string>
 
     <!-- ShizukuAuthorizer -->
-    <string name="shizuku_start_service_intro">To start Shizuku service:\n</string>
-    <string name="shizuku_step1_ensure_installed">1. Ensure Shizuku app is installed\n</string>
-    <string name="shizuku_step2_adb_command">2. Use ADB command to start Shizuku:\n</string>
-    <string name="shizuku_or">Or\n\n</string>
-    <string name="shizuku_step2_follow_instructions">2. Open Shizuku app and follow on-screen instructions</string>
-
     <!-- ShizukuInstaller -->
-    <string name="shizuku_install_update">Update</string>
-    <string name="shizuku_install_install">Install</string>
-    <string name="shizuku_install_unknown">Unknown</string>
-
     <!-- RootActionListener -->
     <string name="root_no_root_permission">No root permission on device</string>
     <string name="root_check_permission_error">Error checking root permission: %1$s</string>
@@ -7079,8 +6856,6 @@
     <string name="ocr_cannot_open_uri_stream">Cannot open input stream for URI</string>
 
     <!-- DebuggerActionListener -->
-    <string name="debugger_ui_listener_started">Debugger UI operation listener started</string>
-
     <!-- ModelConfigManager -->
     <string name="model_config_default_name">Default Config</string>
     <string name="model_config_config_id">Config %1$s</string>
@@ -7295,7 +7070,6 @@
     <string name="web_session_userscript_status_success">Ran</string>
     <string name="web_session_userscript_status_error">Error</string>
     <string name="web_session_userscript_invalid_url">Invalid userscript URL</string>
-    <string name="web_session_userscript_install_failed">Failed to install userscript</string>
     <string name="web_session_userscript_installed">Installed userscript: %1$s</string>
     <string name="web_session_userscript_deleted">Userscript deleted</string>
     <string name="web_session_userscript_no_update">No newer version is available</string>

@@ -10,6 +10,7 @@ import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
 import android.util.Base64
+import com.ai.assistance.operit.core.halt.HaltController
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.BinaryResultData
 import com.ai.assistance.operit.core.tools.BooleanResultData
@@ -502,6 +503,7 @@ internal object JsNativeInterfaceDelegates {
 
     fun callToolSync(
         toolHandler: AIToolHandler,
+        pluginId: String?,
         toolType: String,
         toolName: String,
         paramsJson: String,
@@ -512,6 +514,20 @@ internal object JsNativeInterfaceDelegates {
         if (toolName.trim().isEmpty()) {
             AppLogger.e(TAG, "Tool name cannot be empty")
             return buildToolErrorJson("Tool name cannot be empty")
+        }
+
+        if (HaltController.isHalted) {
+            return buildToolErrorJson(
+                HaltController.haltedRefusal(
+                    "JS plugin tool call '$toolType:$toolName'"
+                )
+            )
+        }
+        val capability = JsCapabilityClassifier.classify(toolType, toolName)
+        if (!JsPluginGate.shouldAllow(pluginId, capability, toolType, toolName)) {
+            return buildToolErrorJson(
+                JsPluginGate.denialMessage(pluginId, capability, toolType, toolName)
+            )
         }
 
         return try {
@@ -535,6 +551,7 @@ internal object JsNativeInterfaceDelegates {
 
     fun callToolAsync(
         toolHandler: AIToolHandler,
+        pluginId: String?,
         callbackId: String,
         toolType: String,
         toolName: String,
@@ -544,6 +561,30 @@ internal object JsNativeInterfaceDelegates {
         binaryDataThreshold: Int,
         sendToolResult: (callbackId: String, result: String, isError: Boolean) -> Unit
     ) {
+        if (HaltController.isHalted) {
+            sendToolResult(
+                callbackId,
+                buildToolErrorJson(
+                    HaltController.haltedRefusal(
+                        "JS plugin async tool call '$toolType:$toolName'"
+                    )
+                ),
+                true
+            )
+            return
+        }
+        val capability = JsCapabilityClassifier.classify(toolType, toolName)
+        if (!JsPluginGate.shouldAllow(pluginId, capability, toolType, toolName)) {
+            sendToolResult(
+                callbackId,
+                buildToolErrorJson(
+                    JsPluginGate.denialMessage(pluginId, capability, toolType, toolName)
+                ),
+                true
+            )
+            return
+        }
+
         val parsed =
             try {
                 parseToolCall(toolType, toolName, paramsJson)
@@ -586,6 +627,7 @@ internal object JsNativeInterfaceDelegates {
 
     fun callToolAsyncStreaming(
         toolHandler: AIToolHandler,
+        pluginId: String?,
         callbackId: String,
         intermediateCallbackId: String,
         toolType: String,
@@ -597,6 +639,30 @@ internal object JsNativeInterfaceDelegates {
         sendToolResult: (callbackId: String, result: String, isError: Boolean) -> Unit,
         sendIntermediateResult: (callbackId: String, result: String, isError: Boolean) -> Unit
     ) {
+        if (HaltController.isHalted) {
+            sendToolResult(
+                callbackId,
+                buildToolErrorJson(
+                    HaltController.haltedRefusal(
+                        "JS plugin streaming tool call '$toolType:$toolName'"
+                    )
+                ),
+                true
+            )
+            return
+        }
+        val capability = JsCapabilityClassifier.classify(toolType, toolName)
+        if (!JsPluginGate.shouldAllow(pluginId, capability, toolType, toolName)) {
+            sendToolResult(
+                callbackId,
+                buildToolErrorJson(
+                    JsPluginGate.denialMessage(pluginId, capability, toolType, toolName)
+                ),
+                true
+            )
+            return
+        }
+
         val parsed =
             try {
                 parseToolCall(toolType, toolName, paramsJson)

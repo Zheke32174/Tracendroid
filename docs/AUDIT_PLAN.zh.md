@@ -18,25 +18,31 @@
 
 **问题。** 每个 `.toolpkg`、MCP 服务器与 Skill 捆绑包都携带发行方签名。信任根是什么——谁有资格作为发行方？设备端如何验证“这是真实的发行方”？
 
-**考虑。**
-- 发行方自签密钥 + 安装时的 TOFU（首次见到即信任）提示——基础设施需求最小，把信任决策放在用户身上。
-- 由项目维护的已知发行方白名单——治理负担更重，假冒风险更小。
-- 混合方案：知名发行方预置信任；未知发行方走 TOFU 并带更显眼的提示。
+**决策。** 发行方自签密钥 + 首次见到即信任（TOFU）。无项目维护的"已祝福"发行方白名单——那是项目不打算承担的治理负担。
 
-**决策。**（待定）
+具体：
+- 插件包携带 `manifest.json` 与 `manifest.sig`。签名为对 `manifest.json` 的 Ed25519 分离签名，使用发行方私钥。`manifest.json` 内联发行方公钥（X.509 SubjectPublicKeyInfo、PEM 包装）以及发行方自选的 `publisherName` 字符串。
+- 首次安装时，设备在 TOFU 映射（SharedPreferences）中记录 `(pluginId, publisherKeyFingerprint)`。安装对话框呈现发行方名称与密钥指纹；用户确认。
+- 后续更新必须对同一 `publisherKeyFingerprint` 验证。不匹配则直接拒绝更新——告知用户这看起来像另一个发行方声称同一插件 id，并不提供自动升级路径。
+- 签名门控独立于逐次调用能力门控（`JsPluginGate`，§ 4.2）。签名验证证明"该更新与你曾信任的发行方一致"；能力门控决定"该插件被允许做什么"。签名通过不会自动授予能力；无论签名如何，全新安装从零授权开始。
 
-**受影响章节。** `THREAT_MODEL.md § 4.3`（插件市场）。
+什么不是信任根：CA 体系、公证机构、应用内市场注册中心都不是。用户是根，设备本地的 TOFU 映射是记录。这与项目更宽泛的"用户权威具有主权"姿态（`SECURITY.md` 原则 7）以及无遥测立场（`§ 4.12`）一致。
+
+**受影响章节。** `THREAT_MODEL.md § 4.3`（插件市场）。§ 4.2（JS 插件门控）不受影响——其 `pluginId` 字段是 TOFU 的键；签名验证是叠加在其上的另一层门控。
 
 ### 1.2 MCP 服务器身份
 
 **问题。** MCP 服务器是网络端点（常常是 `npx` / `uvx` 运行）。一个服务器名（如 `mcp-server-filesystem`）与某个特定发行方之间由什么绑定？当前 MCP 生态依赖包管理器的身份（`npm`、`PyPI`）；两者皆有已知的供应链风险。
 
-**考虑。**
-- 逐服务器发行方钉定——首次安装固定发行方；后续更新对其验证。
-- 由操作者定义的 MCP 白名单——用户明确策划的可接受服务器包列表。
-- 已安装包的哈希钉定——版本更新需要明确的重新授权。
+**决策。** 逐服务器发行方钉定 + 操作者策划的白名单。两者协作——白名单门控哪些包可以运行；钉定确保包在更新间不能静默更换发行方。不在版本级别做哈希钉定：MCP 包更新频繁，强制每个发布的哈希钉定要么退化为"自动批准"，要么使该特性不可用。
 
-**决策。**（待定）
+具体：
+- 用户维护一个 MCP 包白名单（形似 [`BroadcastSenderAllowlist`](../app/src/main/java/com/ai/assistance/operit/integrations/intent/BroadcastSenderAllowlist.kt)，但针对 MCP 运行时）。默认为空——除非 `(runtime, packageName)` 对在白名单中，否则不运行任何 MCP server。通过同类设置屏曝露。
+- 首次运行白名单中的包时，设备捕获运行时可见的发行方身份：对 npm 是已发布的作者 + 已安装 tarball 的 SHA-256；对 uvx / PyPI 是 wheel 作者 + tarball SHA-256。`(packageName, publisherFingerprint)` 对记录于平行于 § 1.1 插件 TOFU 的 TOFU 映射。
+- 同一 `packageName` 的后续运行验证发行方指纹相符。不匹配则在用户重新批准之前拒绝启动该 server（视为新的 TOFU，而非自动更新）。审计日志记录每次指纹变更。
+- 来自白名单内、已钉定的 MCP server 的工具调用仍穿过逐次能力门控（§ 4.2）。白名单 + 钉定门控"该 server 能运行"；能力门控决定"其工具调用被允许做什么"。深度防御。
+
+v1 明确不做的：完整可重现构建、确定性哈希链、对 npm / PyPI 注册表的证书钉定。npm + PyPI 注册表自身的认证特性（`npm provenance`、PyPI `[provenance]` PEP）是尽力而为的信号——存在时记录，拒绝以其为必要条件。
 
 **受影响章节。** `THREAT_MODEL.md § 4.3`。
 
@@ -44,42 +50,57 @@
 
 **问题。** 每个插件工具声明其能力类别。最终的类别清单是什么？
 
-**当前拟定分类。**（在我们遍历现有工具注册表之后会修订）
+**决策。** 已落地枚举为 [`JsCapabilityClass`](../app/src/main/java/com/ai/assistance/operit/core/tools/javascript/JsCapabilityClassifier.kt)。十一类，分别由 JS 插件门控、AI 工具门控以及 IPC 协议的能力声明消费：
 
-| 类别 | 示例 | 默认授权范围 |
+| 类别 | 覆盖范围 | 示例 |
 |---|---|---|
-| `read.local` | 读取当前工作区项目文件 | 按工作区、持久 |
-| `read.user-data` | 读取照片、联系人、位置、SMS | 逐次调用 |
-| `write.local` | 修改工作区文件 | 按工作区、持久 |
-| `write.user-data` | 修改联系人、日历 | 逐次调用 |
-| `shell.proot` | 在 proot 环境内执行 | 按会话 |
-| `network.outbound` | 发出 HTTP / WebSocket 调用 | 按域名、持久 |
-| `network.listen` | 在设备上绑定端口 | 按会话 |
-| `telephony` | SMS、拨打电话 | 逐次调用 |
-| `accessibility` | UI 树读取、手势注入——唯一的特权 UI 控制通道 | 按会话，配常驻指示器 |
-| `screen` | MediaProjection 截屏 / 录屏 | 逐次调用，配提示 |
-| `screen_perception` | （v2 预留）对截屏进行视觉语言定位 | 逐次调用 |
-| `install` | 安装另一个包 | 逐次调用，配系统提示 |
-| `apk.read` | 反编译 / 检查 APK（apktool 读路径）| 逐次调用 |
-| `apk.write` | 重打包 / 重签名 APK（apktool 写路径）。如果安装产物，仍然经由 `install` 与系统 `PackageInstaller`。| 逐次调用 |
+| `METADATA` | 纯计算与对应用自身静态资源的读 | `calculator`、`string` 操作、列出已导入的插件包 |
+| `FILE_READ` | 读取用户可见存储中的文件 | `read_file`、`list_dir`、`file_info`、`read_lines` |
+| `FILE_WRITE` | 创建、编辑或删除文件 | `create_file`、`edit_file`、`delete_file`、`move_file`、`unzip_files` |
+| `SHELL` | shell 命令或终端会话，含 proot 分派 | `execute_shell`、`execute_terminal_command`、`create_terminal_session` |
+| `NETWORK` | 出站 HTTP、WebSocket、网页搜索、浏览器会话 | `visit_web`、`http_request`、`various_search`、`browser_open` |
+| `SYSTEM_READ` | 设备 / 系统状态的读 | `device_info`、`list_apps` |
+| `SYSTEM_WRITE` | 设备 / 系统状态的写（设置、广播、SMS、intent）| `modify_software_settings`、`send_broadcast`、`send_sms`、`execute_intent` |
+| `UI_AUTOMATION` | 通过 AccessibilityService 或输入模拟驱动 UI | `tap`、`long_press`、`swipe`、`press_key`、`set_input_text`、`capture_screenshot`、`get_page_info`、`ui_dump` |
+| `CHAT_READ` | 聊天 / 记忆 / 对话状态的读 | `memory_query`、`chat_history_read` |
+| `CHAT_WRITE` | 聊天 / 记忆状态的写 | `memory_write`、`chat_send` |
+| `UNCLASSIFIED` | 分类器不识别的工具 | 最受限类别。默认拒绝。新增工具意味着在 `JsCapabilityClassifier.toolNameToClass` 中添加 `(toolName → class)` 行；忘记添加则回落到 `UNCLASSIFIED`，门控拒绝。|
 
-关于不存在 `shell.privileged` 的说明：不存在 `shell.privileged` 类别。libsu、Shizuku、Shower 被移除（`THREAT_MODEL.md § 4.4`）；唯一保留的特权路径是 `accessibility`。若出现某个 AccessibilityService 不能服务的合法用例，那是一个决策问题的时刻，而不是一个可填填的槽位。
+什么不是一个类别：
+- 无 `shell.privileged` —— libsu、Shizuku、Shower 已移除（`THREAT_MODEL.md § 4.4`）。UI 自动化通过 `UI_AUTOMATION` 走 AccessibilityService；shell 执行通过 `SHELL`，或在 Android 侧 shell 或经 proot 分派。
+- 无独立的 `accessibility` 类别 —— accessibility 是 `UI_AUTOMATION` 的底层载体，不是正交轴。
+- 无 `apk.read` / `apk.write` —— APK 内省是 `FILE_READ` / `FILE_WRITE` 的实例，安装由系统 `PackageInstaller` 作为其自身确认面调和。
+- 无独立于 `SYSTEM_WRITE` 的 `telephony` —— SMS / 拨号属于 `SYSTEM_WRITE`，是用户在逐次确认对话框中看到的一次性设备状态变更，无论再做更细分类。
 
-**决策。**（待定——上表用作工作集；最终清单位于调度器的实现 PR 中）
+默认拒绝在所有类别均匀适用。逐次确认浮层（`ToolGateConfirmationOverlay`，§ 4.2）是用户的授权接触面；一旦 `(caller × class)` 对处于 GRANTED，该类别的后续调用静默通过。工作表中曾考虑的"按工作区持久"/"按域名持久"粒度不在 v1 范围 —— 无论文件或域名，授权一律视同。后续若要在某个子键上细分，是对门控的有意扩展，而非类别清单的重述。
 
-**受影响章节。** `THREAT_MODEL.md § 4.3`、§ 4.4、§ 4.7。
+**受影响章节。** `THREAT_MODEL.md § 4.2`（门控）、§ 4.3（插件清单将引用这些类别名）、§ 4.4（无特权 shell 类别）、§ 4.7（`UI_AUTOMATION` 是执行器接触面）。
 
 ### 1.4 审计日志范围与同步
 
 **问题。** 审计日志在本地且防篡改。它是否曾可同步至云端（用于跨设备的取证审查）或严格仅本地？
 
-**考虑。**
-- 仅本地更简单，且与“第三方后端不以明文持有”红线一致。
-- 经明确授权可同步：在设备遗失后可进行取证审查，但引入云端接触面。
+**决策。** 严格仅本地。审计材料驻留于应用内界面已读取的设备本地存储：
 
-**决策。**（待定——倾向默认仅本地；同步作为未来的选择加入功能，不进入 v1）
+- `JsPluginGate.recentAudit()` —— 每次受门控工具调用决策的有界环（256 条）。在 Plugin & AI gate 屏中可见。
+- `HaltController.audit` —— 每次中止请求 who / why / when 的有界环（64 条）。
+- `DeclineRegistry.recent` —— AI 拒绝与用户应对的有界环（32 条）。
+- `BroadcastSenderAllowlist` —— 长期的逐接收器白名单；审计轨迹隐含（当前状态 + Android 系统日志）。
 
-**受影响章节。** `THREAT_MODEL.md § 4.12`。
+同步**不是** v1 特性，也不在 v2 范畴。引入同步端点意味着：
+1. 应用在缺乏即时用户可见原因的情况下与第三方后端对话 —— 恰恰是"无聚合的后台遥测"红线（`THREAT_MODEL.md § 4.12`、`SECURITY.md`）。
+2. 构建加密信封，使同步流自身不能成为审计日志的对手。
+3. 用户改主意之后的撤回-事后机制。
+
+v1 没有哪一项有强到足以为之承担这一接触面的用例。设备遗失后的取证审查是真实用例，但 v1 的答案是"用户将日志导出到他们管理的文件" —— 与 `§ 4.12` 中现存的 logcat 导出和崩溃报告流同形。导出路径在用户的条款、其日程、其挑选的目的地上进行。
+
+若未来变更确曾引入同步路径，须：
+- 默认关闭，
+- 每次推送前向用户展示将离开设备的精确字节，
+- 可通过"擦除云端副本"动作可逆，
+- 在任何代码落地前于本行先文档化。
+
+**受影响章节。** `THREAT_MODEL.md § 4.12`（遥测——确认无同步立场）。`SECURITY.md` 关于无聚合后台遥测的红线适用。
 
 ### 1.5 proot ↔ Android IPC 协议
 
@@ -93,14 +114,28 @@
 
 **问题。** `THREAT_MODEL.md § 4.5` 允许 Android 侧对 proot 内订阅状态进行只读、限定作用域、审计日志记录的读取。API 长什么样？存在哪些作用域？
 
-**考虑。**
-- 读取账户元数据（账户邮箱、订阅级别）——敏感度低。
-- 读取会话存活性（CLI 是否已登录？）——敏感度低。
-- 读取令牌本身——高敏感；是否允许？
+**决策。** 仅限元数据与存活性。原始令牌材料绝不跨越 proot 边界进入 Android 侧内存。
 
-**决策。**（待定——倾向只允许元数据与存活性；原始令牌永不越界）
+Android 侧可经 IPC 桥请求三个作用域；每个映射到 `METADATA` 能力声明上的一个具体 `command`：
 
-**受影响章节。** `THREAT_MODEL.md § 4.5`。
+| Command | 返回 | 从何处读 |
+|---|---|---|
+| `subscription_account` | `{cliName, accountEmail}`（账户邮箱若提供方不暴露则可能为 null）| CLI 自身的元数据文件（例如 `~/.config/claude/config.json` 的 `account.email`）—— 无令牌字节 |
+| `subscription_tier` | `{cliName, tier}`（free / pro / team / null）| 同一元数据文件，仅 tier 字段 |
+| `subscription_alive` | `{cliName, isLoggedIn, lastActiveAtMillis}` | 对 CLI 会话是否最新的尽力检查。可能 `stat` 会话文件或运行 CLI 自身的 `whoami`-类命令——但输出在跨线前先穿过严格白名单解析器（不返回原始 stdout）|
+
+什么*不*越界：
+- 原始访问令牌、刷新令牌或任何签名 JWT。
+- OAuth 客户端密钥。
+- 完整会话配置 blob（可能含其他秘密）。
+
+如果工具需要代用户调用订阅提供方的 API，该工具运行在 proot *内部*，令牌不离开。Android 侧把*任务*递过去（例如"让 claude-code 总结这个文件"）；*凭据*留原地。
+
+IPC 调度器（`operit-dispatcher.py`）当能力声明为 `METADATA` 时拒绝白名单外的任何命令，并拒绝任何对会话文件路径声称 `FILE_READ` 的尝试。深度防御：Android 侧的 `JsPluginGate` / `AiToolGate` 也已将这些工具名分类到 `METADATA`（已纳入 `JsCapabilityClassifier`）。
+
+审计：每次跨边界读取记录于 `JsPluginGate.recentAudit()`，附 origin（`User` / `AiAgent` / `Plugin:<id>`）与能力声明。用户可回顾每一次其会话元数据被 AI 运行读取的时刻。
+
+**受影响章节。** `THREAT_MODEL.md § 4.5`（订阅 OAuth 行）。§ 4.2（门控的 `METADATA` 类别是 Android 侧入口）。
 
 ### 1.7 AI 拒绝作为一等结果
 

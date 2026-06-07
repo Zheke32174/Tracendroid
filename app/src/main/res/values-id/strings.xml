@@ -278,7 +278,6 @@
     <string name="voice_keyword_attachments_add_title">Tambah</string>
     <string name="voice_keyword_attachments_add_item_title">Tambah item lampiran</string>
     <string name="voice_keyword_attachments_type_label">Tipe</string>
-    <string name="shizuku_commands">Pemberian izin</string>
     <string name="tool_permissions">Pengaturan izin alat</string>
     <string name="about">Tentang</string>
     <string name="terminal">Terminal</string>
@@ -571,7 +570,6 @@
     <string name="install_termux_title">Pasang Termux</string>
     <string name="install_termux_from_store">Pasang Termux dari Toko Aplikasi</string>
     <string name="install_bundled_termux">Pasang Versi Bawaan</string>
-    <string name="installing_bundled_termux">Memasang Termux bawaan, berikan izin pemasangan</string>
     <string name="install_termux_failed">Pemasangan Termux Gagal</string>
 
     <string name="plugin_checking_env">Memeriksa lingkungan...</string>
@@ -630,11 +628,9 @@
     <string name="settings_preference_input_token">Token Input Analisis Preferensi</string>
     <string name="settings_preference_output_token">Token Output Analisis Preferensi</string>
     <string name="settings_total">Total</string>
-    <string name="shizuku_command_executor">Eksekutor Perintah ADB Shizuku</string>
     <string name="device_info">Informasi Perangkat</string>
     <string name="android_version">Versi Android: %1$s (API %2$d)</string>
     <string name="device_model">Model perangkat: %1$s %2$s</string>
-    <string name="shizuku_status">Status Shizuku</string>
     <string name="refresh">Segarkan</string>
     <string name="installed">Terinstal</string>
     <string name="service_running">Layanan berjalan: %1$s</string>
@@ -643,8 +639,6 @@
     <string name="no">Tidak</string>
     <string name="authorized">Telah diizinkan</string>
     <string name="unauthorized">Belum diizinkan</string>
-    <string name="install_shizuku">Instal Shizuku</string>
-    <string name="open_shizuku">Buka aplikasi Shizuku</string>
     <string name="show_help">Tampilkan bantuan</string>
     <string name="hide_help">Sembunyikan bantuan</string>
     <string name="request_permission">Minta izin Shizuku</string>
@@ -660,14 +654,10 @@
     <string name="executing">Menjalankan...</string>
     <string name="command_success">Perintah berhasil dijalankan:\n%1$s</string>
     <string name="command_failure">Gagal menjalankan perintah (kode keluar: %1$d):\n%2$s</string>
-    <string name="start_shizuku_first">Harap mulai layanan Shizuku terlebih dahulu</string>
     <string name="grant_permission_first">Harap berikan izin Shizuku</string>
     <string name="feature_unavailable">Fitur perintah ADB tidak dapat digunakan</string>
     <string name="thinking_process">Proses berpikir</string>
-    <string name="install_from_store">Instal Shizuku dari toko aplikasi</string>
     <string name="install_bundled">Instal versi bawaan (v%1$s)</string>
-    <string name="installing_bundled">Menginstal Shizuku bawaan, harap berikan izin instalasi</string>
-    <string name="install_failed">Gagal menginstal Shizuku bawaan, coba instal dari toko aplikasi</string>
     <string name="user_preferences_guide">Pengaturan personalisasi</string>
     <string name="user_preferences">Preferensi pengguna</string>
     <string name="user_preferences_settings">Pengaturan detail preferensi pengguna</string>
@@ -984,12 +974,6 @@
     <string name="permission_guide_all_granted">Semua izin dasar telah diberikan, dapat melanjutkan ke langkah berikutnya</string>
     <string name="permission_guide_warning_title">Pemberian Izin Tidak Lengkap</string>
 
-    <string name="shizuku_demo_shizuku_permission_granted">Izin Shizuku telah diberikan</string>
-    <string name="shizuku_demo_shizuku_permission_denied">Permintaan izin Shizuku ditolak</string>
-    <string name="shizuku_demo_termux_install_success">Instalasi Termux telah dimulai, silakan ikuti petunjuk sistem untuk menyelesaikan instalasi</string>
-    <string name="shizuku_demo_termux_install_failed_store">Instalasi APK bawaan gagal, membuka halaman unduhan</string>
-    <string name="shizuku_demo_termux_download_failed">Tidak dapat membuka tautan unduhan, silakan unduh dan instal Termux secara manual</string>
-    <string name="shizuku_demo_termux_tuna_skipped">Konfigurasi sumber Tsinghua telah dilewati, Anda dapat mengonfigurasi sumber di Termux nanti</string>
     <string name="permission_level">Tingkat Izin</string>
     <string name="permission_level_icon">Ikon Tingkat Izin</string>
     <string name="set_as_current_level">Tetapkan sebagai tingkat saat ini</string>
@@ -1004,7 +988,6 @@
     <string name="accessibility_service">Layanan Aksesibilitas</string>
     <string name="admin_permission">Izin Administrator</string>
     <string name="debug_permission">Izin Debug</string>
-    <string name="shizuku_service">Layanan Shizuku</string>
     <string name="root_permission">Izin Root</string>
     <string name="root_access_permission">Izin Akses Root</string>
     <string name="status_not_installed">Belum terinstal</string>
@@ -1023,8 +1006,6 @@
     <string name="permission_level_standard_desc">Izin dasar untuk menjalankan aplikasi, tidak memerlukan otorisasi khusus sistem</string>
     <string name="permission_level_accessibility_desc">Menambahkan dukungan layanan aksesibilitas, dapat meniru operasi layar</string>
     <string name="permission_level_admin_desc">Menambahkan izin administrator perangkat, dapat mengakses lebih banyak fungsi sistem</string>
-    <string name="permission_level_debugger_desc">Menyediakan akses sistem tingkat ADB melalui Shizuku</string>
-
     <string name="tone_prompt_desc">Atur nada dan cara ekspresi balasan AI</string>
     <string name="prompt_tip">Tips: Prompt sistem yang efektif dapat membantu asisten AI lebih sesuai dengan harapan Anda, tetapi prompt yang terlalu panjang mungkin akan mengonsumsi lebih banyak Token.</string>
     <string name="prompts_saved">Prompt telah disimpan</string>
@@ -1075,10 +1056,6 @@
     <string name="permission_guide_standard_desc">Izin dasar untuk menjalankan aplikasi, tidak memerlukan izin khusus</string>
     <string name="permission_guide_accessibility_title">Izin Aksesibilitas</string>
     <string name="permission_guide_accessibility_desc">Menganalisis konten layar dan mensimulasikan operasi melalui layanan aksesibilitas</string>
-    <string name="permission_guide_debugger_title">Izin Debug</string>
-    <string name="permission_guide_debugger_desc">Menyediakan akses sistem tingkat ADB melalui Shizuku</string>
-    <string name="permission_guide_root_title">Izin Root</string>
-    <string name="permission_guide_root_desc">Izin pengguna super, dapat menjalankan operasi sistem apa pun</string>
     <string name="permission_guide_confirm">Konfirmasi Pilihan</string>
     <string name="permission_guide_change_anytime">Anda dapat mengubah tingkat izin kapan saja di pengaturan</string>
     <string name="permission_guide_storage_setting_failed">Tidak dapat membuka pengaturan izin penyimpanan, harap berikan izin secara manual</string>
@@ -1105,8 +1082,6 @@
     <string name="root_wizard_device_not_rooted">Tidak terdeteksi perangkat Anda telah di-root. ROOT memerlukan modifikasi sistem tertentu, dan dapat menyebabkan garansi perangkat tidak berlaku. Jika ingin menggunakan fungsi ROOT, harap selesaikan operasi root perangkat terlebih dahulu.</string>
     <string name="root_wizard_risk_notice">Perhatian: Peringatan Risiko Operasi Root</string>
     <string name="root_wizard_risk_details">1. Operasi ROOT memiliki risiko tertentu, dapat menyebabkan garansi perangkat tidak berlaku\n2. Beberapa aplikasi mungkin menolak berjalan di perangkat yang di-root\n3. Operasi ROOT yang tidak tepat dapat menyebabkan sistem tidak stabil</string>
-    <string name="shizuku_wizard_title">Panduan Pengaturan Shizuku</string>
-
     <string name="current_version">Versi saat ini: %1$s</string>
     <string name="new_version">Versi saat ini: %1$s -&gt; Versi baru: %2$s</string>
     <string name="update_content">Konten pembaruan:</string>
@@ -1255,22 +1230,6 @@
     <string name="termux_wizard_success_title">Selamat! Lingkungan Termux Telah Sepenuhnya Dikonfigurasi</string>
     <string name="termux_wizard_success_message">Sekarang Anda dapat menggunakan Termux untuk berbagai operasi baris perintah</string>
     <string name="termux_wizard_open">Buka Termux</string>
-    <string name="shizuku_demo_loading">Memuat status aplikasi...</string>
-    <string name="shizuku_demo_permission_failed">Tidak dapat membuka pengaturan izin</string>
-    <string name="shizuku_demo_overlay_failed">Tidak dapat membuka pengaturan jendela mengambang</string>
-    <string name="shizuku_demo_battery_failed">Tidak dapat membuka pengaturan optimasi baterai</string>
-    <string name="shizuku_demo_accessibility_failed">Tidak dapat membuka pengaturan layanan aksesibilitas</string>
-    <string name="shizuku_demo_title">Panduan Pengaturan</string>
-    <string name="shizuku_demo_download_failed">Tidak dapat membuka tautan unduhan</string>
-    <string name="shizuku_demo_extract_failed">Gagal mengekstrak APK, coba lagi nanti</string>
-    <string name="shizuku_demo_install_notify">Pemasangan Shizuku telah dimulai, silakan ikuti petunjuk sistem untuk menyelesaikan pemasangan</string>
-    <string name="shizuku_demo_update_notify">Pembaruan Shizuku telah dimulai, silakan ikuti petunjuk sistem untuk menyelesaikan pemasangan</string>
-    <string name="shizuku_demo_install_failed">Pemasangan gagal: %1$s</string>
-    <string name="shizuku_demo_update_failed">Pembaruan gagal: %1$s</string>
-    <string name="shizuku_demo_shizuku_not_found">Tidak dapat menemukan aplikasi Shizuku</string>
-    <string name="shizuku_demo_shizuku_launch_failed">Tidak dapat menjalankan aplikasi Shizuku</string>
-    <string name="shizuku_demo_root_tutorial_failed">Tidak dapat membuka tautan tutorial Root</string>
-
     <string name="accessibility_wizard_step2">Langkah 2: Aktifkan Layanan Aksesibilitas</string>
     <string name="accessibility_wizard_completed">Layanan aksesibilitas telah berhasil dikonfigurasi</string>
     <string name="accessibility_wizard_install_message">Penyedia layanan aksesibilitas adalah aplikasi independen yang menyediakan fungsi layanan aksesibilitas, membantu AI menganalisis dan mengoperasikan konten layar.</string>
@@ -1314,7 +1273,6 @@
     <string name="permission_level_standard_full_desc">Izin standar: izin dasar untuk menjalankan aplikasi, tidak memerlukan izin khusus</string>
     <string name="permission_level_accessibility_full_desc">Izin aksesibilitas: memungkinkan aplikasi meniru tindakan pengguna, memerlukan pengaktifan layanan aksesibilitas</string>
     <string name="permission_level_admin_full_desc">Izin administrator: memungkinkan aplikasi mengakses lebih banyak fungsi sistem, seperti layanan lokasi, dll.</string>
-    <string name="permission_level_debugger_full_desc">Izin debug: memungkinkan operasi lanjutan melalui fungsi debug ADB, memerlukan layanan Shizuku</string>
     <string name="permission_level_root_full_desc">Izin Root: memungkinkan aplikasi berjalan sebagai pengguna super, memerlukan perangkat yang sudah di-Root</string>
     <string name="root_access_granted">Aplikasi telah mendapatkan izin Root, dapat menjalankan perintah istimewa</string>
     <string name="device_rooted_request_permission">Perangkat sudah di-Root, ketuk untuk meminta izin aplikasi</string>
@@ -1351,29 +1309,6 @@
     <string name="termux_not_installed_message">Harap instal aplikasi Termux terlebih dahulu</string>
     <string name="termux_manual_auth_title">Memerlukan otorisasi manual</string>
 
-    <string name="shizuku_wizard_update_title">Panduan Pembaruan Shizuku</string>
-    <string name="shizuku_wizard_step1">Langkah 1: Instal Aplikasi Shizuku</string>
-    <string name="shizuku_wizard_step2">Langkah 2: Mulai Layanan Shizuku</string>
-    <string name="shizuku_wizard_step3">Langkah 3: Berikan Izin ke Shizuku</string>
-    <string name="shizuku_wizard_completed">Shizuku Telah Diatur Sepenuhnya</string>
-    <string name="shizuku_wizard_install_message">Shizuku adalah alat yang memberikan izin tingkat lanjut ke aplikasi tanpa perlu root. Kita perlu menginstal aplikasi ini terlebih dahulu.</string>
-    <string name="shizuku_wizard_install_bundled">Instal Versi Terbundle</string>
-    <string name="shizuku_wizard_start_message">Shizuku telah diinstal, sekarang perlu memulai layanan Shizuku. Silakan ikuti salah satu metode berikut:</string>
-    <string name="shizuku_wizard_method1_title">Metode 1: Mulai dari Dalam Aplikasi (Direkomendasikan)</string>
-    <string name="shizuku_wizard_method1_steps">1. Klik tombol \"Buka Shizuku\" di bawah\n2. Di aplikasi Shizuku, pilih \"Mulai melalui Debug Nirkabel\"\n3. Ikuti petunjuk untuk mengaktifkan \"Opsi Pengembang\" dan \"Debug Nirkabel\"\n4. Izinkan Shizuku mendapatkan izin debug nirkabel</string>
-    <string name="shizuku_wizard_method2_title">Metode 2: Mulai Menggunakan USB</string>
-    <string name="shizuku_wizard_method2_steps">1. Instal alat ADB di komputer\n2. Hubungkan ponsel ke komputer melalui USB\n3. Jalankan di baris perintah komputer:\n   adb shell sh /sdcard/Android/data/moe.shizuku.privileged.api/files/start.sh</string>
-    <string name="shizuku_wizard_open_shizuku">Buka Shizuku</string>
-    <string name="shizuku_wizard_permission_message">Layanan Shizuku telah dimulai, sekarang perlu memberikan izin ke aplikasi ini. Klik tombol di bawah, lalu pilih \"Izinkan\" di dialog yang muncul.</string>
-    <string name="shizuku_wizard_permission_notice">Perhatian: Jika tidak melihat popup pemberian izin, periksa:</string>
-    <string name="shizuku_wizard_permission_notice_details">1. Apakah layanan Shizuku sedang berjalan\n2. Coba lagi setelah memulai ulang layanan Shizuku\n3. Pastikan izin tampilan jendela mengambang diizinkan</string>
-    <string name="shizuku_wizard_grant_permission">Berikan Izin Shizuku</string>
-    <string name="shizuku_wizard_success_message">Selamat! Shizuku telah diatur sepenuhnya, Anda sekarang dapat menggunakan fitur izin debug.</string>
-    <string name="shizuku_wizard_update_available">Versi Baru Ditemukan</string>
-    <string name="shizuku_wizard_update_message">Aplikasi ini memiliki versi Shizuku yang lebih baru yang terbundle, disarankan untuk memperbarui demi kompatibilitas dan fungsionalitas yang lebih baik.</string>
-    <string name="shizuku_wizard_current_version">Versi Saat Ini: %1$s</string>
-    <string name="shizuku_wizard_latest_version">Versi Terbaru: %1$s</string>
-    <string name="shizuku_wizard_update">Perbarui Shizuku</string>
     <string name="termux_wizard_title">Panduan Pengaturan Termux</string>
     <string name="termux_wizard_step1">Langkah 1: Instal Termux</string>
     <string name="termux_wizard_step2">Langkah 2: Berikan Izin ke Termux</string>
@@ -1406,7 +1341,6 @@
     <string name="theme_background_blur_desc">Tambahkan efek blur Gaussian untuk gambar atau video latar belakang</string>
     <string name="theme_background_blur_radius">Radius Blur</string>
     <string name="pip_package_install_success">Paket PIP berhasil diinstal</string>
-    <string name="pip_package_install_failed">Paket PIP gagal diinstal</string>
     <string name="please_press_back_to_return">Silakan tekan tombol kembali untuk kembali ke halaman sebelumnya</string>
     <string name="please_input_command">Silakan masukkan perintah</string>
     <string name="background_image_migrated">Gambar latar belakang telah dipindahkan ke penyimpanan internal</string>
@@ -1517,14 +1451,10 @@
     <string name="tuna_source_setup_failed">Pengaturan sumber Tuna gagal</string>
     <string name="tuna_source_setup_error">Kesalahan mengonfigurasi sumber Tuna</string>
     <string name="python_install_success">Python berhasil diinstal</string>
-    <string name="python_install_failed">Instalasi Python gagal</string>
     <string name="python_install_error">Kesalahan menginstal lingkungan Python</string>
     <string name="uv_install_success">UV berhasil diinstal</string>
-    <string name="uv_install_failed">Instalasi UV gagal</string>
     <string name="uv_install_error">Kesalahan menginstal manajer paket UV</string>
     <string name="nodejs_install_success">Node.js berhasil diinstal</string>
-    <string name="nodejs_install_failed">Instalasi Node.js gagal</string>
-
     <string name="nodejs_install_error">Terjadi kesalahan saat menginstal lingkungan Node.js</string>
     <string name="battery_optimization_reminder">Harap izinkan pengecualian pengoptimalan baterai Termux di pengaturan sistem</string>
     <string name="cannot_open_termux_battery_settings">Tidak dapat membuka pengaturan pengoptimalan baterai Termux</string>
@@ -1535,8 +1465,6 @@
     <string name="cannot_open_accessibility_settings">Tidak dapat membuka pengaturan layanan aksesibilitas</string>
     <string name="accessibility_provider_installed">Penyedia layanan telah diinstal</string>
     <string name="cannot_open_root_tutorial">Tidak dapat membuka tautan tutorial Root</string>
-    <string name="cannot_find_shizuku_app">Tidak dapat menemukan aplikasi Shizuku</string>
-    <string name="cannot_launch_shizuku_app">Tidak dapat meluncurkan aplikasi Shizuku</string>
     <string name="cannot_open_docs_link">Tidak dapat membuka tautan dokumentasi</string>
     <string name="plugin_loading_skipped">Pemuatan plugin telah dilewati</string>
     <string name="press_back_again_to_exit">Tekan kembali sekali lagi untuk keluar aplikasi</string>
@@ -1801,8 +1729,6 @@
     <string name="permission_guide_intro_3_title">Lepaskan Kreativitas, Siap Kapan Saja</string>
     <string name="permission_guide_intro_3_desc">Baik merancang halaman web, memproses file media, atau membangunkan AI kapan saja melalui jendela mengambang, Operit menyediakan lingkungan kreasi dan bantuan yang kuat, fleksibel, dan aman. Data Anda, di bawah kendali Anda.</string>
     <string name="permission_guide_intro_page_indicator">Fitur %1$d/%2$d</string>
-    <string name="debugger_accessibility_fallback_title">Skema Akselerasi Aksesibilitas (Risiko Tinggi)</string>
-    <string name="debugger_accessibility_fallback_description">Mode debug secara default menjalankan operasi UI melalui Shell. Mengaktifkan layanan aksesibilitas dapat mempercepat otomatisasi UI secara signifikan, tetapi akan meningkatkan risiko terdeteksi oleh beberapa aplikasi dan menyebabkan pemblokiran akun. Kecuali Anda mengejar kecepatan operasi tertinggi, tidak disarankan untuk mengaktifkannya.</string>
     <string name="accessibility_risk_warning_title">Peringatan Risiko Layanan Aksesibilitas</string>
     <string name="accessibility_risk_warning_message">Mengaktifkan layanan aksesibilitas dapat mempercepat operasi UI, tetapi beberapa aplikasi mungkin mendeteksi layanan ini dan mengambil tindakan pembatasan, termasuk pemblokiran akun. Harap aktifkan hanya setelah memahami dan menerima risiko terkait.</string>
     <string name="accessibility_risk_warning_additional">Perhatian: Mode debug secara default sudah memiliki kemampuan operasi UI. Mengaktifkan layanan aksesibilitas hanya untuk mempercepat operasi UI, tetapi akan meningkatkan risiko pemblokiran akun. Jika tidak membutuhkan kecepatan ekstrem, disarankan untuk tidak mengaktifkannya. Jika sudah diaktifkan, disarankan untuk segera mematikannya setelah selesai digunakan.</string>
@@ -1812,7 +1738,6 @@
     <string name="accessibility_risk_warning_cancel">Batal</string>
     <string name="theme_appbar_content_color_title">Warna Konten Bilah Atas</string>
 
-    <string name="ui_debugger_start_float">Mulai Jendela Mengambang</string>
     <string name="tool_ffmpeg_toolbox">Kotak Peralatan FFmpeg</string>
     <string name="tool_ffmpeg_toolbox_desc">Alat pemrosesan audio dan video yang kuat, mendukung konversi, pemotongan, penggabungan, dan fungsi lainnya</string>
     <string name="tool_stream_markdown_demo">Demo Markdown Streaming</string>
@@ -1889,11 +1814,6 @@
     <string name="tool_terminal_auto_config_desc">Instal dan konfigurasi otomatis alat pengembangan seperti Python, PIP, dll.</string>
     <string name="tool_terminal_auto_config_under_construction">Fitur konfigurasi otomatis terminal sedang direstrukturisasi...</string>
     <string name="tool_ui_debugger">Alat Debug UI</string>
-    <string name="tool_ui_debugger_desc">Debug dan analisis elemen antarmuka, dukung pencarian dan interaksi elemen</string>
-    <string name="ui_debugger_title">Alat Debug UI</string>
-    <string name="ui_debugger_description">Klik tombol di sudut kanan bawah untuk meluncurkan jendela mengambang untuk debug UI</string>
-    <string name="ui_debugger_launch_floating">Luncurkan Jendela Mengambang</string>
-
     <string name="mcp_remote_remove_header">Hapus Header Permintaan</string>
     <string name="service_metadata">Metadata Layanan</string>
     <string name="plugin_name">Nama Plugin</string>
@@ -2034,17 +1954,6 @@
     <string name="tool_process_limit_remover_desc">Kelola batas jumlah proses phantom di Android 12+, izinkan lebih banyak proses latar belakang</string>
     <string name="tool_html_packager">Pengemas HTML</string>
     <string name="tool_html_packager_desc">Kemas file HTML dan dependensinya menjadi satu file HTML, mudah dibagikan dan diterapkan</string>
-    <string name="tool_autoglm_one_click">Konfigurasi Satu Klik AutoGLM</string>
-    <string name="tool_autoglm_one_click_desc">Konfigurasi model autoglm-phone untuk pengontrol UI dan alihkan toolkit AutoGLM dengan satu klik</string>
-    <string name="tool_autoglm_tool">Eksekusi AutoGLM</string>
-    <string name="tool_autoglm_tool_desc">Gunakan agen autoglm-phone untuk menjalankan tugas otomatisasi ponsel langkah demi langkah</string>
-    <string name="autoglm_config_name">Konfigurasi AutoGLM</string>
-    <string name="autoglm_one_click_title">Konfigurasi Satu Klik AutoGLM</string>
-    <string name="autoglm_one_click_subtitle">Buat konfigurasi model autoglm-phone Zhipu untuk pengontrol UI secara otomatis, dan alihkan toolkit AutoGLM.</string>
-    <string name="autoglm_open_apikey_center">Buka Halaman API Key Zhipu</string>
-    <string name="autoglm_open_apikey_tip">Setelah login, buat dan salin API Key di platform Zhipu</string>
-    <string name="autoglm_api_key_placeholder">Tempel API Key Zhipu Anda di sini</string>
-    <string name="autoglm_one_click_button">Konfigurasi AutoGLM Satu Klik</string>
     <string name="process_limit_title">Hapus Batas Proses Phantom</string>
     <string name="process_limit_subtitle">Kelola batas jumlah proses phantom di Android 12+</string>
     <string name="process_limit_info_title">Tentang Batas Proses Phantom</string>
@@ -2119,15 +2028,6 @@
     <string name="process_limit_exit_code">Kode keluar: %d</string>
     <string name="process_limit_command">Perintah</string>
     <string name="toolbox_description">Kumpulan alat praktis yang nyaman untuk meningkatkan efisiensi kerja Anda</string>
-    <string name="autoglm_status_running">Sedang menjalankan konfigurasi satu klik, harap tunggu...</string>
-    <string name="autoglm_status_success">Konfigurasi satu klik AutoGLM telah selesai:
-- Konfigurasi model pengontrol UI AutoGLM telah dibuat atau diperbarui (autoglm-phone, Zhipu)
-- Fitur "Pengontrol UI" telah dialihkan ke konfigurasi ini
-- Automatic_ui_base telah dimatikan, Automatic_ui_subagent telah diaktifkan
-
-Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
-    <string name="autoglm_status_error">Konfigurasi satu klik gagal: %1$s</string>
-    <string name="autoglm_error_empty_api_key">Harap isi Kunci API Zhipu terlebih dahulu.</string>
     <string name="import_or_connect_mcp_service">Impor atau hubungkan layanan MCP</string>
     <string name="select_mcp_plugin_zip">Pilih paket terkompresi plugin MCP</string>
     <string name="plugin_zip_package">Paket terkompresi plugin</string>
@@ -2165,8 +2065,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="battery_settings_failed">Tidak dapat membuka pengaturan optimasi baterai</string>
     <string name="accessibility_settings_failed">Tidak dapat membuka pengaturan layanan aksesibilitas</string>
     <string name="provider_installed">Penyedia layanan telah diinstal</string>
-    <string name="shizuku_not_found">Tidak dapat menemukan aplikasi Shizuku</string>
-    <string name="shizuku_start_failed">Tidak dapat memulai aplikasi Shizuku</string>
     <string name="doc_link_failed">Tidak dapat membuka tautan dokumen</string>
     <string name="root_tutorial_failed">Tidak dapat membuka tautan tutorial Root</string>
     <string name="file_open_failed">Tidak dapat membuka file: %1$s</string>
@@ -2532,7 +2430,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="loading_app_state">Memuat status aplikasi...</string>
     <string name="setup_wizard">Panduan pengaturan</string>
     <string name="setup_wizard_icon_desc">Ikon panduan pengaturan</string>
-    <string name="cannot_start_shizuku_app">Tidak dapat memulai aplikasi Shizuku</string>
     <string name="cannot_open_doc_link">Tidak dapat membuka tautan dokumen</string>
     <string name="welcome_termux_config">Selamat datang di alat konfigurasi Termux\nKlik tombol yang sesuai untuk memulai konfigurasi</string>
     <string name="executing_task">Menjalankan: %1$s...</string>
@@ -3361,8 +3258,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="screen_title_text_to_speech">Teks ke Ucapan</string>
     <string name="screen_title_speech_to_text">Pengenalan Ucapan</string>
     <string name="screen_title_process_limit_remover">Hapus Batasan Proses Ilusi</string>
-    <string name="screen_title_autoglm_one_click">Konfigurasi Satu Klik AutoGLM</string>
-    <string name="screen_title_autoglm_tool">Eksekusi autoglm</string>
     <string name="screen_title_default_assistant_guide">Pengaturan Asisten Default</string>
     <string name="screen_title_mcp_market">Pasar MCP</string>
     <string name="screen_title_skill_market">Pasar Skill</string>
@@ -3958,7 +3853,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="mcp_market_config_import_failed_with_error">Gagal mengimpor konfigurasi: %1$s</string>
     <string name="mcp_market_config_import_success_with_count">Berhasil mengimpor %1$s konfigurasi, menggabungkan %2$d server</string>
     <string name="mcp_market_install_success">Berhasil menginstal %1$s</string>
-    <string name="mcp_market_install_failed_with_error">Gagal menginstal: %1$s</string>
     <string name="mcp_market_parse_install_info_failed">Tidak dapat mengurai informasi instalasi, harap periksa detail Issue untuk instalasi manual</string>
     <string name="mcp_market_github_logout_success">Berhasil keluar</string>
     <string name="mcp_market_github_logout_failed_with_error">Gagal keluar: %1$s</string>
@@ -4641,8 +4535,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="reset_all_display_settings">Atur Ulang Semua Pengaturan Tampilan</string>
     <string name="ui_accessibility_mode">Mode Adaptasi Aksesibilitas UI</string>
     <string name="ui_accessibility_mode_description">Mengoptimalkan perilaku otomatisasi UI untuk pengguna aksesibilitas seperti TalkBack, memprioritaskan langkah-langkah operasi yang dapat dibacakan, dan berhati-hati dalam mengeksekusi klik otomatis.</string>
-    <string name="experimental_virtual_display">Layar Virtual Eksperimental</string>
-    <string name="experimental_virtual_display_description">Menggunakan otomatisasi ADB+Shizuku berbasis layar virtual, fitur masih dalam tahap eksperimen dan mungkin tidak stabil.</string>
     <string name="hide_runtime_task_view">Sembunyikan Tampilan Tugas Runtime</string>
 
     <string name="deleted_selected_chats_with_skipped_locked">Telah menghapus %1$d catatan percakapan, melewati %2$d percakapan terkunci</string>
@@ -4700,64 +4592,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="ffmpeg_command_label">Perintah: %1$s</string>
     <string name="ffmpeg_return_code">Kode kembali: %1$s</string>
     <string name="ffmpeg_processing_time">Waktu pemrosesan: %1$sms</string>
-    <string name="uidebugger_current_interface">Antarmuka analisis saat ini</string>
-    <string name="uidebugger_package_name">Nama paket: %1$s</string>
-    <string name="uidebugger_close_ui_analysis">Tutup analisis UI</string>
-    <string name="uidebugger_ui_analysis">Analisis UI</string>
-    <string name="uidebugger_collapse_panel">Tutup panel</string>
-    <string name="uidebugger_activity_monitor">Pemantau Activity</string>
-    <string name="uidebugger_activity_monitor_listening">Sedang memantau peristiwa Activity</string>
-    <string name="uidebugger_activity_monitor_stopped">Pemantauan dihentikan</string>
-    <string name="uidebugger_activity_monitor_current_activity">Aktivitas saat ini</string>
-    <string name="uidebugger_activity_monitor_waiting">Memantau, menunggu peristiwa Activity...</string>
-    <string name="uidebugger_activity_monitor_click_to_start">Klik tombol mulai untuk memulai pemantauan peristiwa Activity</string>
-    <string name="uidebugger_activity_monitor_event_log">Catatan peristiwa (%1$d)</string>
-    <string name="uidebugger_activity_monitor_item_activity">Aktivitas: %1$s</string>
-    <string name="uidebugger_activity_monitor_item_text">Teks: %1$s</string>
-    <string name="uidebugger_activity_monitor_item_package">Paket: %1$s</string>
-    <string name="uidebugger_activity_monitor_item_click">Klik</string>
-    <string name="uidebugger_activity_monitor_item_long_click">Tekan lama</string>
-    <string name="uidebugger_activity_monitor_item_swipe">Geser</string>
-    <string name="uidebugger_activity_monitor_item_text_input">Input</string>
-    <string name="uidebugger_activity_monitor_item_key_press">Tekan tombol</string>
-    <string name="uidebugger_activity_monitor_item_scroll">Gulir</string>
-    <string name="uidebugger_activity_monitor_item_gesture">Gestur</string>
-    <string name="uidebugger_activity_monitor_item_app_switch">Beralih aplikasi</string>
-    <string name="uidebugger_activity_monitor_item_screen_change">Perubahan halaman</string>
-    <string name="uidebugger_activity_monitor_item_system_event">Peristiwa sistem</string>
-    <string name="uidebugger_action_click_success">Klik berhasil</string>
-
-    <string name="uidebugger_action_click_failed">Klik gagal</string>
-    <string name="uidebugger_action_highlighted">Elemen telah disorot</string>
-    <string name="uidebugger_action_selected">Elemen telah dipilih</string>
-    <string name="uidebugger_action_failed">Operasi gagal</string>
-    <string name="uidebugger_error_wrong_result_type">Tipe data hasil pengembalian salah</string>
-    <string name="uidebugger_error_fetch_ui_failed">Gagal mengambil informasi UI</string>
-    <string name="uidebugger_error_refresh_failed">Penyegaran gagal</string>
-    <string name="uidebugger_activity_monitor_already_running">Pemantauan sudah berjalan</string>
-    <string name="uidebugger_activity_monitor_permission_insufficient">Izin tidak cukup: %1$s</string>
-    <string name="uidebugger_activity_monitor_started">Pemantauan Activity telah dimulai</string>
-    <string name="uidebugger_activity_monitor_start_failed_with_reason">Gagal memulai pemantauan: %1$s</string>
-    <string name="uidebugger_activity_monitor_stop_failed">Gagal menghentikan pemantauan</string>
-    <string name="uidebugger_activity_monitor_stop_failed_with_reason">Gagal menghentikan pemantauan: %1$s</string>
-    <string name="uidebugger_element_type_button">Tombol</string>
-    <string name="uidebugger_element_type_text">Teks</string>
-    <string name="uidebugger_element_type_input">Kotak input</string>
-    <string name="uidebugger_element_type_image">Gambar</string>
-    <string name="uidebugger_element_type_view">Tampilan</string>
-    <string name="uidebugger_element_type_generic">Elemen UI</string>
-    <string name="uidebugger_element_detail_class_name">Nama kelas: %1$s</string>
-    <string name="uidebugger_element_detail_package_name">Nama paket: %1$s</string>
-    <string name="uidebugger_element_detail_activity_name">Activity: %1$s</string>
-    <string name="uidebugger_element_detail_resource_id">ID sumber daya: %1$s</string>
-    <string name="uidebugger_element_detail_content_desc">Deskripsi konten: %1$s</string>
-    <string name="uidebugger_element_detail_text">Teks: %1$s</string>
-    <string name="uidebugger_element_detail_bounds">Batas: [%1$d, %2$d, %3$d, %4$d]</string>
-    <string name="uidebugger_element_detail_clickable">Dapat diklik: %1$s</string>
-    <string name="uidebugger_element_info_title">Informasi kontrol</string>
-    <string name="uidebugger_element_info_current_activity">Activity saat ini</string>
-    <string name="uidebugger_element_info_package_name">Nama paket: %1$s</string>
-    <string name="uidebugger_element_info_size_px">Ukuran: %1$d×%2$dpx</string>
     <string name="logcat_no_logs_to_save">Tidak ada log yang dapat disimpan</string>
     <string name="logcat_header">=== Log Operit ===</string>
     <string name="logcat_date">Tanggal: %1$s</string>
@@ -5033,7 +4867,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="toolreg_env_info"> (Lingkungan: %1$s)</string>
     <string name="toolreg_env_arrow_info"> (%1$s → %2$s)</string>
     <string name="toolreg_execute_shell_desc">Jalankan ADB Shell: %1$s</string>
-    <string name="toolreg_close_all_virtual_displays_desc">Tutup semua layar virtual</string>
     <string name="toolreg_unnamed">Tanpa Nama</string>
     <string name="toolreg_create_terminal_session_desc">Buat atau dapatkan sesi terminal: %1$s</string>
     <string name="toolreg_execute_in_terminal_session_desc">Jalankan di sesi terminal "%1$s": %2$s</string>
@@ -5285,7 +5118,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="apk_editor_change_app_name_failed">Gagal mengubah nama aplikasi</string>
     <string name="apk_editor_change_version_failed">Gagal mengubah versi</string>
     <string name="apk_editor_change_icon_failed">Gagal mengganti ikon aplikasi</string>
-    <string name="common_phone_agent">Phone Agent</string>
     <string name="common_resume_agent">Lanjutkan Agen</string>
     <string name="common_take_over">Ambil Alih</string>
     <string name="common_cancel">Batal</string>
@@ -5316,10 +5148,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="memory_tags">Tag</string>
     <string name="memory_add_tag_hint">Tambahkan tag baru...</string>
     <string name="memory_search_hint2">Cari memori</string>
-    <string name="uidebugger_stop_monitoring">Hentikan pemantauan</string>
-    <string name="uidebugger_start_monitoring">Mulai pemantauan</string>
-    <string name="uidebugger_clear">Hapus</string>
-    <string name="autoglm_virtual_screen">Menggunakan layar virtual untuk sesi ini</string>
     <string name="htmlpackager_step1_title">Langkah 1: Pilih folder proyek</string>
     <string name="htmlpackager_select_folder">Pilih folder</string>
     <string name="htmlpackager_selected">Dipilih: %1$s</string>
@@ -5329,19 +5157,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="common_expand">Bentangkan</string>
     <string name="document_no_content_found">Tidak ada konten yang ditemukan.</string>
     <string name="document_block_label">Blok %1$d</string>
-    <string name="autoglm_go_to_model_config">Pergi ke konfigurasi model</string>
-    <string name="autoglm_custom_endpoint">Endpoint Kustom (kompatibel OpenAI)</string>
-    <string name="autoglm_model_name">Nama model</string>
-    <string name="autoglm_restore_original">Pulihkan logika otomatisasi asli</string>
-    <string name="autoglm_step1_title">step1 Konfigurasi model percakapan dasar</string>
-    <string name="autoglm_step1_warning">Jangan gunakan model autoglm sebagai model percakapan utama</string>
-    <string name="autoglm_step1_note">Catatan: Jika sudah dikonfigurasi, tidak perlu diubah, jangan ubah ke model kecil seperti autoglm di sini.</string>
-    <string name="autoglm_step2_title">step2 Kunjungi situs web resmi Zhipu, dapatkan API Key</string>
-    <string name="autoglm_step3_title">step3 Masukkan API Key, klik konfigurasi satu klik</string>
-    <string name="autoglm_hide_advanced">Sembunyikan pengaturan lanjutan</string>
-    <string name="autoglm_show_advanced">Tampilkan pengaturan lanjutan (Endpoint Kustom / Nama model)</string>
-    <string name="autoglm_step4_title">step4 Pulihkan otomatisasi non-AutoGLM (opsional)</string>
-
     <string name="memory_search_simulation_scope_count">Memori dalam cakupan: %1$d</string>
     <string name="memory_search_simulation_match_count">Jumlah kecocokan Kata kunci:%1$d Tag:%2$d Inklusi terbalik:%3$d Semantik:%4$d</string>
     <string name="memory_search_simulation_result_count">Kandidat skor:%1$d Melewati ambang batas:%2$d Ambang batas:%3$.4f</string>
@@ -5424,13 +5239,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="headers_preset_us_la">Simulasi Los Angeles, AS (perlu dikombinasikan)</string>
     <string name="context_validation_failed">Validasi gagal</string>
 
-    <string name="autoglm_step4_description">Jika Anda merasa operasi otomatis menjadi sulit setelah menggunakan konfigurasi satu klik AutoGLM, Anda dapat menekan tombol di bawah untuk mengembalikan ke logika otomatisasi asli perangkat lunak (mengaktifkan paket base, menonaktifkan paket subagent, pengaturan lainnya tetap tidak berubah). Jika Anda ingin mengaktifkan AutoGLM lagi, cukup masukkan kunci sesuai step3 dan tekan konfigurasi satu klik lagi.</string>
-    <string name="autoglm_restore_success">Telah dikembalikan ke logika otomatisasi asli perangkat lunak</string>
-    <string name="uidebugger_create_new_package">Buat paket konfigurasi baru</string>
-    <string name="uidebugger_app_name">Nama aplikasi</string>
-    <string name="uidebugger_description_optional">Deskripsi (opsional)</string>
-    <string name="uidebugger_create">Buat</string>
-    <string name="uidebugger_cancel2">Batal</string>
     <string name="stream_markdown_pause">Jeda</string>
     <string name="stream_markdown_resume">Lanjutkan</string>
     <string name="stream_markdown_start">Mulai</string>
@@ -5560,9 +5368,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="foldernav_refresh_folders">Segarkan daftar folder</string>
     <string name="foldernav_new_folder">Buat folder baru</string>
     <string name="foldernav_folder">Folder</string>
-    <string name="uidebugger_copy_activity_name">Salin nama Activity</string>
-    <string name="uidebugger_close_panel">Tutup panel</string>
-    <string name="uidebugger_minimize">Minimalkan</string>
     <string name="activity_monitor_close">Tutup</string>
     <string name="theme_background_preview">Pratinjau gambar latar belakang</string>
     <string name="theme_recrop">Potong ulang</string>
@@ -5592,12 +5397,8 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="emoticon_shyness">Malu</string>
     <string name="emoticon_blush">Muka memerah</string>
     <string name="emoticon_embarrassed">Salah tingkah</string>
-    <string name="autoglm_task_complete">✅ Tugas selesai: %1$s</string>
-    <string name="autoglm_thinking_process">💭 Proses berpikir:</string>
-    <string name="autoglm_execute_action">🎯 Eksekusi aksi:</string>
     <string name="version_update">Pembaruan versi</string>
     <string name="mcp_no_zip_selected">File ZIP belum dipilih</string>
-    <string name="mcp_uninstall_failed">Gagal mencopot pemasangan</string>
     <string name="chatgpt_parse_error">Gagal memparsing format ChatGPT: %1$s</string>
     <string name="chatgpt_import_from">Impor dari ChatGPT</string>
     <string name="uiautomation_execute">Eksekusi</string>
@@ -5612,7 +5413,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="stream_data_required">Aliran data harus diatur</string>
     <string name="deepseek_request_body">Badan permintaan mode inferensi DeepSeek akhir: </string>
     <string name="admin_shell_permission">Diperlukan izin administrator perangkat untuk menjalankan operasi sistem</string>
-    <string name="virtual_display_not_ready">Layar virtual Shower belum siap</string>
     <string name="xml_content">Konten XML</string>
     <string name="browser_preview">Pratinjau browser</string>
     <string name="edittext_empty">EditText tidak boleh kosong</string>
@@ -5841,7 +5641,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="skillmarket_load_comments_failed">Gagal memuat komentar: %1$s</string>
     <string name="skillmarket_post_comment_failed">Gagal memposting komentar: %1$s</string>
     <string name="skillmarket_invalid_repo_url">URL repositori tidak valid</string>
-    <string name="skillmarket_install_failed">Gagal menginstal: %1$s</string>
     <string name="skillmarket_like_failed">Gagal menyukai: %1$s</string>
     <string name="skillmarket_like_error">Terjadi kesalahan saat menyukai: %1$s</string>
     <string name="charactercard_import_file_empty">File impor kosong</string>
@@ -5982,16 +5781,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="openai_error_parse_response_failed">Gagal mem-parsing respons: %1$s</string>
     <string name="openai_connection_success">Koneksi berhasil!</string>
     <string name="openai_connection_test_failed">Tes koneksi gagal: %1$s</string>
-    <string name="phone_agent_need_debug_permission">Diperlukan izin debug/admin/Root dan mengaktifkan layar virtual eksperimental untuk menggunakan otomatisasi layar virtual.</string>
-    <string name="phone_agent_shizuku_unavailable">Shizuku tidak tersedia, tidak dapat memulai layar virtual.</string>
-    <string name="phone_agent_virtual_screen_service_start_failed">Gagal memulai layanan layar virtual.</string>
-    <string name="phone_agent_virtual_screen_create_failed">Gagal membuat layar virtual.</string>
-    <string name="phone_agent_virtual_screen_prewarm_failed">Gagal memanaskan layar virtual: %1$s</string>
-    <string name="phone_agent_virtual_screen_not_started">Layar virtual gagal dimulai, dibatalkan untuk menghindari operasi di layar utama.</string>
-    <string name="phone_agent_thinking">Sedang berpikir...</string>
-    <string name="phone_agent_completed">Selesai</string>
-    <string name="phone_agent_executing_action">Sedang mengeksekusi %1$s...</string>
-    <string name="phone_agent_executing">Sedang mengeksekusi operasi...</string>
     <string name="workflow_skip">Lewati</string>
     <string name="workflow_condition_type_mismatch">Jenis perbandingan kondisi tidak konsisten: left=\'%1$s\', right=\'%2$s\'</string>
     <string name="workflow_condition_not_met">Kondisi tidak terpenuhi</string>
@@ -6067,13 +5856,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="model_config_expand">Buka</string>
     <string name="model_config_unit_items">item</string>
     <string name="global_display_automation_behavior">Tampilan dan perilaku otomatisasi</string>
-    <string name="root_execution_mode_title">Mode Eksekusi Root</string>
-    <string name="root_execution_mode_description">Mode otomatis akan dipilih berdasarkan lingkungan; mode manual dapat menimpa hasil otomatis.</string>
-    <string name="root_execution_mode_auto">Pilih otomatis</string>
-    <string name="root_execution_mode_force_libsu">Magisk SU manual</string>
-    <string name="root_execution_mode_force_exec">KernelSU manual</string>
-    <string name="root_custom_su_command">Perintah su kustom (mode KernelSU)</string>
-    <string name="root_custom_su_command_description">Hanya berlaku dalam mode KernelSU, dapat diisi dengan perintah seperti su atau su --mount-master.</string>
     <string name="global_display_virtual_screen_bitrate">Bitrate layar virtual</string>
     <string name="global_display_status_indicator_style">Gaya indikator status otomatisasi</string>
     <string name="global_display_screenshot_settings">Pengaturan screenshot otomatisasi</string>
@@ -6512,7 +6294,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
 
     <string name="ocr_cannot_decode_bitmap_from_uri">Tidak dapat mendekode Bitmap dari URI</string>
     <string name="ocr_cannot_open_uri_stream">Tidak dapat membuka aliran input URI</string>
-    <string name="debugger_ui_listener_started">Pemantauan aksi UI debugger telah dimulai</string>
     <string name="model_config_default_name">Konfigurasi default</string>
     <string name="model_config_config_id">Konfigurasi %1$s</string>
     <string name="model_config_import_failed">Gagal mengimpor: %1$s</string>
@@ -6614,14 +6395,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="pathfinder_start_equals_target">Status awal sudah merupakan status target</string>
     <string name="pathfinder_found_path">Menemukan jalur menggunakan algoritma %1$s</string>
     <string name="pathfinder_cannot_find_path">Tidak dapat menemukan jalur status yang valid dari \'%1$s\' ke \'%2$s\'</string>
-    <string name="shizuku_start_service_intro">Untuk memulai layanan Shizuku:\n</string>
-    <string name="shizuku_step1_ensure_installed">1. Pastikan aplikasi Shizuku sudah terinstal\n</string>
-    <string name="shizuku_step2_adb_command">2. Gunakan perintah ADB untuk memulai Shizuku:\n</string>
-    <string name="shizuku_or">atau\n\n</string>
-    <string name="shizuku_step2_follow_instructions">2. Buka aplikasi Shizuku dan ikuti petunjuk di layar</string>
-    <string name="shizuku_install_update">Perbarui</string>
-    <string name="shizuku_install_install">Instal</string>
-    <string name="shizuku_install_unknown">Tidak diketahui</string>
     <string name="root_no_root_permission">Tidak ada izin Root di perangkat</string>
     <string name="root_check_permission_error">Kesalahan saat memeriksa izin Root: %1$s</string>
     <string name="root_ui_listener_started">Pemantauan operasi UI Root telah dimulai</string>
@@ -6666,7 +6439,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_userscript_status_success">Telah Dijalankan</string>
     <string name="web_session_userscript_status_error">Kesalahan</string>
     <string name="web_session_userscript_invalid_url">URL skrip tidak valid</string>
-    <string name="web_session_userscript_install_failed">Instalasi skrip gagal</string>
     <string name="web_session_userscript_installed">Skrip terinstal: %1$s</string>
     <string name="web_session_userscript_deleted">Skrip telah dihapus</string>
     <string name="web_session_userscript_no_update">Tidak ada versi baru yang dapat diperbarui</string>

@@ -18,25 +18,31 @@ Each question has an owner, a target resolution date when set, and a placeholder
 
 **Question.** Every `.toolpkg`, MCP server, and Skill bundle carries a publisher signature. What is the trust anchor — who is allowed to be a publisher, and how is "this is a real publisher" verified on-device?
 
-**Considerations.**
-- Self-signed publisher keys with a TOFU (trust-on-first-use) prompt on install — minimal infrastructure, places the trust decision on the user.
-- A project-maintained allowlist of known publishers — heavier governance, smaller risk of impersonation.
-- Hybrid: well-known publishers come pre-trusted; unknown publishers go through TOFU with a louder prompt.
+**Decision.** Self-signed publisher keys with trust-on-first-use (TOFU). No project-maintained allowlist of "blessed" publishers — that's governance debt the project does not take on.
 
-**Decision.** (pending)
+Concretely:
+- A plugin package carries `manifest.json` and `manifest.sig`. The signature is an Ed25519 detached signature over `manifest.json` under the publisher's private key. `manifest.json` carries the publisher's public key inline (X.509 SubjectPublicKeyInfo, PEM-wrapped) and a publisher-chosen `publisherName` string.
+- On first install, the device records `(pluginId, publisherKeyFingerprint)` in a TOFU map (SharedPreferences). The install dialog surfaces the publisher name and key fingerprint; the user confirms.
+- Subsequent updates must verify against the same `publisherKeyFingerprint`. A mismatch refuses the update outright — the user is told this looks like a different publisher claiming the same plugin id, and given no auto-promote path.
+- The signature gating is independent of the per-call capability gate (`JsPluginGate`, § 4.2). Signature verification proves "this update is the same publisher you trusted"; the capability gate decides "what this plugin is allowed to do." A signature pass does not auto-grant capabilities; a fresh install starts with zero grants regardless of signature.
 
-**Affected sections.** `THREAT_MODEL.md § 4.3` (Plugin marketplaces).
+What the trust anchor is *not*: a CA hierarchy, a notary, an in-app marketplace registry. The user is the anchor, the device-local TOFU map is the record. This matches the project's broader "user authority is sovereign" posture (`SECURITY.md` principle 7) and the no-telemetry stance (`§ 4.12`).
+
+**Affected sections.** `THREAT_MODEL.md § 4.3` (Plugin marketplaces). § 4.2 (the JS plugin gate) is unaffected — its `pluginId` field is what TOFU keys on; signature verification is a separate gate layered above it.
 
 ### 1.2 MCP server identity
 
 **Question.** MCP servers are network endpoints (often `npx` / `uvx` runners). What binds a server name (e.g. `mcp-server-filesystem`) to a specific publisher? Today the MCP ecosystem relies on package-manager identity (`npm`, `PyPI`); both have known supply-chain risk.
 
-**Considerations.**
-- Per-server publisher pinning — first install fixes the publisher; subsequent updates verify against it.
-- Operator-defined MCP allowlist — explicit user-curated list of acceptable server packages.
-- Hash pinning of installed bundles — version updates require explicit re-approval.
+**Decision.** Per-server publisher pinning + an operator-curated allowlist. The two work together — the allowlist gates which packages can run at all; the pin makes sure the package can't silently change publishers between updates. No hash-pinning at the version level: MCP packages update frequently and forcing a hash pin per release would either degrade to "auto-approve" or make the feature unusable.
 
-**Decision.** (pending)
+Concretely:
+- The user maintains an MCP package allowlist (mirroring [`BroadcastSenderAllowlist`](../app/src/main/java/com/ai/assistance/operit/integrations/intent/BroadcastSenderAllowlist.kt) in shape, but for MCP runtimes). Default empty — no MCP server runs unless its `(runtime, packageName)` pair is on the allowlist. Surfaced through the same kind of settings screen.
+- On first run of an allowlisted package, the device captures the publisher identity available from the runtime: for npm, the package's published author + the SHA-256 of the installed tarball; for uvx / PyPI, the wheel's author + tarball SHA-256. The pair `(packageName, publisherFingerprint)` is recorded in a TOFU map keyed parallel to the § 1.1 plugin TOFU.
+- Subsequent runs of the same `packageName` verify the publisher fingerprint matches. A mismatch refuses to launch the server until the user re-approves (treated as a fresh trust-on-first-use, not an auto-update). The audit log records every fingerprint change.
+- Tool calls *from* an allowlisted, pinned MCP server still cross the per-call capability gate (§ 4.2). Allowlist + pin gate "this server can run"; the capability gate decides "what its tool calls are allowed to do." Defense in depth.
+
+What the v1 explicitly does not do: full reproducible builds, deterministic hash chains, certificate-pinning into the npm / PyPI registries. The npm + PyPI registries' own attestation features (`npm provenance`, PyPI `[provenance]` PEPs) are best-effort signals — we record them when present, refuse to make them required.
 
 **Affected sections.** `THREAT_MODEL.md § 4.3`.
 
@@ -44,42 +50,57 @@ Each question has an owner, a target resolution date when set, and a placeholder
 
 **Question.** Each plugin tool declares its capability class. What's the final list of classes?
 
-**Current proposed taxonomy.** (subject to revision once we walk the existing tool registry)
+**Decision.** The shipped enum is [`JsCapabilityClass`](../app/src/main/java/com/ai/assistance/operit/core/tools/javascript/JsCapabilityClassifier.kt). Eleven classes, each consumed by the JS plugin gate, the AI tool gate, and the IPC protocol's capability claim:
 
-| Class | Examples | Default approval scope |
+| Class | What it covers | Examples |
 |---|---|---|
-| `read.local` | Read project files in current workspace | Per-workspace, durable |
-| `read.user-data` | Read photos, contacts, location, SMS | Per-call |
-| `write.local` | Modify workspace files | Per-workspace, durable |
-| `write.user-data` | Modify contacts, calendar | Per-call |
-| `shell.proot` | Execute in proot environment | Per-session |
-| `network.outbound` | Make HTTP / WebSocket calls | Per-domain, durable |
-| `network.listen` | Bind a port on device | Per-session |
-| `telephony` | SMS, place call | Per-call |
-| `accessibility` | UI tree read, gesture inject — the only privileged UI control channel | Per-session, with always-on indicator |
-| `screen` | MediaProjection screenshot / record | Per-call, with prompt |
-| `screen_perception` | (v2-reserved) vision-language grounding on a screenshot | Per-call |
-| `install` | Install another package | Per-call, with system prompt |
-| `apk.read` | Decompile / inspect an APK (apktool read paths) | Per-call |
-| `apk.write` | Repack / re-sign an APK (apktool write paths). Install of the result still routes through `install` and the system `PackageInstaller`. | Per-call |
+| `METADATA` | Pure compute and reads of static resources owned by the app itself | `calculator`, `string` ops, listing imported plugin packages |
+| `FILE_READ` | Reading files in user-visible storage | `read_file`, `list_dir`, `file_info`, `read_lines` |
+| `FILE_WRITE` | Creating, editing, or deleting files | `create_file`, `edit_file`, `delete_file`, `move_file`, `unzip_files` |
+| `SHELL` | Shell commands or terminal sessions, including proot dispatch | `execute_shell`, `execute_terminal_command`, `create_terminal_session` |
+| `NETWORK` | Outbound HTTP, WebSocket, web searches, browser sessions | `visit_web`, `http_request`, `various_search`, `browser_open` |
+| `SYSTEM_READ` | Reads of device / system state | `device_info`, `list_apps` |
+| `SYSTEM_WRITE` | Writes to device / system state (settings, broadcasts, SMS, intents) | `modify_software_settings`, `send_broadcast`, `send_sms`, `execute_intent` |
+| `UI_AUTOMATION` | Drives the UI through AccessibilityService or input simulation | `tap`, `long_press`, `swipe`, `press_key`, `set_input_text`, `capture_screenshot`, `get_page_info`, `ui_dump` |
+| `CHAT_READ` | Reads of the chat / memory / conversation state | `memory_query`, `chat_history_read` |
+| `CHAT_WRITE` | Mutates chat / memory state | `memory_write`, `chat_send` |
+| `UNCLASSIFIED` | Tools the classifier doesn't recognize | The most-restrictive class. Default-deny. Adding a new tool means adding its `(toolName → class)` row in `JsCapabilityClassifier.toolNameToClass`; a forgotten row falls through to `UNCLASSIFIED` and the gate refuses. |
 
-Note on the absence of `shell.privileged`: there is no `shell.privileged` class. libsu, Shizuku, and Shower are removed (`THREAT_MODEL.md § 4.4`); the only privileged path that remains is `accessibility`. If a legitimate use case appears that AccessibilityService cannot serve, it's a decision-question moment, not a slot to fill.
+What's *not* a class:
+- No `shell.privileged` — libsu, Shizuku, and Shower are removed (`THREAT_MODEL.md § 4.4`). UI automation goes through `UI_AUTOMATION` over AccessibilityService; shell execution goes through `SHELL` either as Android-side shell or as proot dispatch.
+- No `accessibility` as a separate class — accessibility is the substrate for `UI_AUTOMATION`, not an orthogonal axis.
+- No `apk.read` / `apk.write` — APK introspection is a `FILE_READ` / `FILE_WRITE` instance with the system `PackageInstaller` mediating installs as its own confirmation surface.
+- No `telephony` separate from `SYSTEM_WRITE` — SMS / call placement live under `SYSTEM_WRITE` because they're one-shot device-state mutations the user sees in the per-call confirmation dialog regardless of finer subclassification.
 
-**Decision.** (pending — the table above is the working set; final list lives in the implementation PR for the dispatcher)
+Default-deny applies uniformly across all classes. The per-call confirmation overlay (`ToolGateConfirmationOverlay`, § 4.2) is the user's grant surface; once a `(caller × class)` pair is GRANTED, future calls in the same class pass silently. The "per-workspace durable" / "per-domain durable" granularities the working table contemplated are not in v1 — the grant is the same regardless of which file or which domain. A finer-grained future refinement can split a class on a sub-key, but that's a deliberate extension of the gate, not a re-spelling of the class list.
 
-**Affected sections.** `THREAT_MODEL.md § 4.3`, § 4.4, § 4.7.
+**Affected sections.** `THREAT_MODEL.md § 4.2` (gate), § 4.3 (plugin manifests will reference these class names), § 4.4 (no privileged-shell class), § 4.7 (`UI_AUTOMATION` is the actuator surface).
 
 ### 1.4 Audit log scope and sync
 
 **Question.** The audit log is local and tamper-evident. Is it ever syncable to the cloud (for forensic review across devices) or strictly local-only?
 
-**Considerations.**
-- Local-only is simpler and matches the "no third-party backend in cleartext" red line.
-- Syncable-with-explicit-consent allows forensic review after device loss but introduces a cloud surface.
+**Decision.** Strictly local. Audit material lives in the device-local stores the in-app surfaces already read:
 
-**Decision.** (pending — leaning local-only by default; sync is a future opt-in feature, not in v1)
+- `JsPluginGate.recentAudit()` — bounded ring (256 events) of every gated tool call's decision. Visible in the Plugin & AI gate screen.
+- `HaltController.audit` — bounded ring (64 events) of every halt request with who / why / when.
+- `DeclineRegistry.recent` — bounded ring (32 events) of AI declines and the user's response.
+- `BroadcastSenderAllowlist` — long-lived per-receiver allowlists; the audit trail is implicit (current state + Android system logs).
 
-**Affected sections.** `THREAT_MODEL.md § 4.12`.
+Sync is **not** a v1 feature and is not contemplated for v2. Adding a sync endpoint would mean:
+1. Adding a third-party backend the app talks to without an immediate user-visible reason — exactly the "no aggregated background telemetry" red line (`THREAT_MODEL.md § 4.12`, `SECURITY.md`).
+2. Building a cryptographic envelope so the sync stream itself can't be the audit log's adversary.
+3. A revoke-after-the-fact story for users who change their minds.
+
+None of those have a v1 use case strong enough to justify the surface area. Forensic review after device loss is a real use case, but the answer in v1 is "the user exports the log to a file they manage" — same shape as the existing logcat export and crash report flows from `§ 4.12`. The export path is on the user's terms, on their schedule, to a destination they pick.
+
+If a future change ever introduces a sync path, it must:
+- be off by default,
+- show the user the exact bytes that will leave the device before each push,
+- be reversible with a "wipe the cloud copy" action,
+- be documented in this row before any code lands.
+
+**Affected sections.** `THREAT_MODEL.md § 4.12` (telemetry — confirms the no-sync stance). `SECURITY.md` red line about no aggregated background telemetry applies.
 
 ### 1.5 proot ↔ Android IPC protocol
 
@@ -93,14 +114,29 @@ Note on the absence of `shell.privileged`: there is no `shell.privileged` class.
 
 **Question.** `THREAT_MODEL.md § 4.5` permits read-only, scoped, audit-logged reads of proot-held subscription state from the Android side. What does the API look like? What scopes exist?
 
-**Considerations.**
-- Read profile metadata (account email, subscription tier) — low sensitivity.
-- Read session liveness (is the CLI logged in?) — low sensitivity.
-- Read token material itself — high sensitivity; should this be permitted at all?
+**Decision.** Metadata-and-liveness only. Raw token material never crosses the proot boundary into Android-side memory.
 
-**Decision.** (pending — leaning toward metadata-and-liveness only; raw token never crosses)
+Three scopes the Android side can request through the IPC bridge; each maps to a specific `command` on the `METADATA` capability claim:
 
-**Affected sections.** `THREAT_MODEL.md § 4.5`.
+| Command | What it returns | Where it reads |
+|---|---|---|
+| `subscription_account` | `{cliName, accountEmail}` (account email may be null if the provider doesn't expose it) | The CLI's own metadata files (e.g. `~/.config/claude/config.json`'s `account.email`) — no token bytes |
+| `subscription_tier` | `{cliName, tier}` (free / pro / team / null) | Same metadata files, tier field only |
+| `subscription_alive` | `{cliName, isLoggedIn, lastActiveAtMillis}` | Best-effort check that the CLI's session is current. May `stat` a session file or run the CLI's own `whoami`-style command — but the output passes through a strict allowlisted parser before crossing the wire (no raw stdout) |
+
+What does *not* cross:
+
+- The raw access token, refresh token, or any signed JWT.
+- The OAuth client secret.
+- The full session config blob (could contain other secrets).
+
+If a tool needs to call the subscription provider's API on the user's behalf, that tool runs *inside* proot and the token never leaves. The Android side hands the *task* across (e.g. "ask claude-code to summarize this file"); the *credential* stays put.
+
+The IPC dispatcher (`operit-dispatcher.py`) rejects any command outside this allowlist when the capability claim is `METADATA`, and rejects any attempt to claim `FILE_READ` against a session-file path. Defense in depth: the Android-side `JsPluginGate` / `AiToolGate` also classifies these tool names into `METADATA` (already in `JsCapabilityClassifier`).
+
+Audit: every cross-boundary read is recorded in `JsPluginGate.recentAudit()` with origin (`User` / `AiAgent` / `Plugin:<id>`) and capability claim. A user can review every time their session metadata was read by an AI run.
+
+**Affected sections.** `THREAT_MODEL.md § 4.5` (the subscription-OAuth row). § 4.2 (the gate's `METADATA` class is the entry point on the Android side).
 
 ### 1.7 AI decline as first-class outcome
 

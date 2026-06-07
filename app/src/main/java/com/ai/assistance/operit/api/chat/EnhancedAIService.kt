@@ -3,6 +3,7 @@ package com.ai.assistance.operit.api.chat
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.ai.assistance.operit.core.agent.reasoning.AgentReasoningTrace
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.ChatMarkupRegex
 import com.ai.assistance.operit.api.chat.enhance.ConversationMarkupManager
@@ -859,6 +860,13 @@ class EnhancedAIService private constructor(private val context: Context) {
         currentRequestOutputTokenCount = 0
         currentRequestCachedInputTokenCount = 0
 
+        // § 4.7 + § 4.13 — clear the AI reasoning trace at turn boundaries. Subagent
+        // sub-tasks (isSubTask=true) keep the parent turn's trace so a halt during a
+        // sub-task still surfaces the relevant context.
+        if (!isSubTask) {
+            AgentReasoningTrace.clear()
+        }
+
         val eventChannel = MutableSharedStream<TextStreamEvent>(replay = Int.MAX_VALUE)
         val wrappedStream = stream {
             val execContext =
@@ -1092,6 +1100,13 @@ class EnhancedAIService private constructor(private val context: Context) {
                                 // 累计统计
                                 chunkCount++
                                 totalChars += content.length
+
+                                // § 4.7 + § 4.13 — feed every streamed chunk into the
+                                // reasoning trace so HaltController and DeclineRegistry
+                                // can snapshot the in-flight content at the moment they
+                                // fire. AgentReasoningTrace tail-keeps at 16 KiB so the
+                                // trace stays bounded regardless of stream length.
+                                AgentReasoningTrace.append(content)
 
                                 // 周期性日志
                                 val currentTime = messageTimingNow()

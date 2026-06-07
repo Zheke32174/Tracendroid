@@ -57,6 +57,16 @@ class JsEngine(private val context: Context) {
     private val externalJavaCodeLoader = JsExternalJavaCodeLoader(context)
 
     private val toolHandler = AIToolHandler.getInstance(context)
+
+    /**
+     * Plugin id of the script currently executing on the QuickJS thread. Set by
+     * [launchQuickJsFunctionCall] before invoking the JS function and cleared after.
+     * Read by the @JavascriptInterface bridge to attribute tool calls per § 4.2.
+     * Single-threaded executor (quickJsExecutor) makes ThreadLocal safe here.
+     */
+    private val activePluginIdHolder = ThreadLocal<String?>()
+
+    internal fun activePluginId(): String? = activePluginIdHolder.get()
     private val packageManager by lazy { PackageManager.getInstance(context, toolHandler) }
     private val toolCallInterface = JsToolCallInterface()
 
@@ -249,6 +259,7 @@ class JsEngine(private val context: Context) {
     private fun launchQuickJsFunctionCall(
         functionName: String,
         argsJson: String,
+        pluginId: String? = null,
         callSite: String = "<call:$functionName>",
         onError: ((Exception) -> Unit)? = null
     ) {
@@ -262,7 +273,13 @@ class JsEngine(private val context: Context) {
                     if (!canScheduleQuickJsWork()) {
                         return@launch
                     }
-                    engine.callFunction<Any?>(functionName, argsJson, callSite)
+                    val previousPluginId = activePluginIdHolder.get()
+                    activePluginIdHolder.set(pluginId)
+                    try {
+                        engine.callFunction<Any?>(functionName, argsJson, callSite)
+                    } finally {
+                        activePluginIdHolder.set(previousPluginId)
+                    }
                 } catch (e: Exception) {
                     if (onError != null) {
                         onError(e)
@@ -781,6 +798,7 @@ class JsEngine(private val context: Context) {
         launchQuickJsFunctionCall(
             functionName = TOOLPKG_EXECUTION_ENTRY_FUNCTION,
             argsJson = executionArgsJson,
+            pluginId = timingPluginId.takeUnless { it == "none" },
             callSite = "quickjs/runtime/execute-script.call",
             onError = { e ->
                 AppLogger.e(
@@ -2798,6 +2816,7 @@ class JsEngine(private val context: Context) {
         fun callTool(toolType: String, toolName: String, paramsJson: String): String {
             return JsNativeInterfaceDelegates.callToolSync(
                 toolHandler = toolHandler,
+                pluginId = activePluginId(),
                 toolType = toolType,
                 toolName = toolName,
                 paramsJson = paramsJson,
@@ -2817,6 +2836,7 @@ class JsEngine(private val context: Context) {
         ) {
             JsNativeInterfaceDelegates.callToolAsync(
                 toolHandler = toolHandler,
+                pluginId = activePluginId(),
                 callbackId = callbackId,
                 toolType = toolType,
                 toolName = toolName,
@@ -2840,6 +2860,7 @@ class JsEngine(private val context: Context) {
         ) {
             JsNativeInterfaceDelegates.callToolAsyncStreaming(
                 toolHandler = toolHandler,
+                pluginId = activePluginId(),
                 callbackId = callbackId,
                 intermediateCallbackId = intermediateCallbackId,
                 toolType = toolType,

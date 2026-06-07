@@ -26,6 +26,12 @@ build
 /app/libs/*
 !/app/libs/.keep
 
+# Private signing material per signing/README.md and docs/ROTATION_RUNBOOK.md.
+# A private key in this repo is always a bug — never `git add -f` to override.
+/signing/*.pem
+/signing/*.key
+!/signing/README.md
+
 .env
 .env.*
 !.env.*.example

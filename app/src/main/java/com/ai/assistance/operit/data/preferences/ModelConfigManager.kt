@@ -18,6 +18,7 @@ import com.ai.assistance.operit.data.model.ParameterValueType
 import com.ai.assistance.operit.data.model.StandardModelParameters
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.ApiKeyInfo
+import com.ai.assistance.operit.data.preferences.credentials.CredentialVault
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -51,12 +52,71 @@ class ModelConfigManager(private val context: Context) {
 
         // Default API provider type
         private val DEFAULT_API_PROVIDER_TYPE = ApiProviderType.DEEPSEEK
+
+        /** § 4.9 vault store name. Per-config keys live under cfg:<id>:apiKey etc. */
+        private const val VAULT_STORE = "model_config_credentials"
     }
 
     // Json解析器，支持宽松模式
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
+    }
+
+    // § 4.9 — API keys (single + pool) live in CredentialVault, not in the DataStore
+    // blob. The blob on disk carries blank apiKey + blank pool[*].key; the vault is
+    // keyed on (configId, slot). Migration of legacy blobs happens lazily at first
+    // read; subsequent reads see blanks on disk and pull from the vault.
+    private val credentialVault = CredentialVault(context, VAULT_STORE)
+
+    private fun vkApiKey(configId: String): String = "cfg:${configId}:apiKey"
+    private fun vkPoolKey(configId: String, keyInfoId: String): String =
+        "cfg:${configId}:pool:${keyInfoId}"
+
+    /**
+     * Returns a copy of [config] with every secret field blanked. The result is what
+     * lands in DataStore JSON. The matching [persistSecrets] writes the originals to
+     * the vault.
+     */
+    private fun stripSecrets(config: ModelConfigData): ModelConfigData {
+        return config.copy(
+            apiKey = "",
+            apiKeyPool = config.apiKeyPool.map { it.copy(key = "") },
+        )
+    }
+
+    /** Persist the single + pool secrets for [config] to the vault. */
+    private fun persistSecrets(config: ModelConfigData) {
+        credentialVault.put(vkApiKey(config.id), config.apiKey.ifBlank { null })
+        for (info in config.apiKeyPool) {
+            credentialVault.put(vkPoolKey(config.id, info.id), info.key.ifBlank { null })
+        }
+    }
+
+    /**
+     * Reverse of [stripSecrets] + [persistSecrets]. If the on-disk blob still has
+     * secrets (an older app version wrote them), we treat that as the legacy source:
+     * the secrets we read from the blob go to the vault and the blob is rewritten
+     * blank on the next save. Idempotent.
+     */
+    private fun hydrateSecrets(configId: String, blob: ModelConfigData): ModelConfigData {
+        val singleFromVault = credentialVault.get(vkApiKey(configId))
+        val resolvedSingle = if (!blob.apiKey.isBlank()) {
+            // Legacy: blob still has the secret — copy to vault.
+            credentialVault.put(vkApiKey(configId), blob.apiKey)
+            blob.apiKey
+        } else {
+            singleFromVault.orEmpty()
+        }
+        val resolvedPool = blob.apiKeyPool.map { info ->
+            if (!info.key.isBlank()) {
+                credentialVault.put(vkPoolKey(configId, info.id), info.key)
+                info
+            } else {
+                info.copy(key = credentialVault.get(vkPoolKey(configId, info.id)).orEmpty())
+            }
+        }
+        return blob.copy(apiKey = resolvedSingle, apiKeyPool = resolvedPool)
     }
 
     // 获取所有配置ID列表
@@ -116,24 +176,24 @@ class ModelConfigManager(private val context: Context) {
         )
     }
 
-    // 保存配置
+    // 保存配置 — secrets to vault, rest of blob (with blanks where secrets were) to DataStore.
     suspend fun saveModelConfig(config: ModelConfigData) {
+        persistSecrets(config)
         val configKey = stringPreferencesKey("config_${config.id}")
         context.modelConfigDataStore.edit { preferences ->
-            preferences[configKey] = json.encodeToString(config)
+            preferences[configKey] = json.encodeToString(stripSecrets(config))
         }
     }
 
-    // 从DataStore加载配置
+    // 从DataStore加载配置 — hydrate secrets from vault on the way back.
     private suspend fun loadConfigFromDataStore(configId: String): ModelConfigData? {
         val configKey = stringPreferencesKey("config_${configId}")
         return context.modelConfigDataStore.data.first().let { preferences ->
             val configJson = preferences[configKey]
-            if (configJson != null) {
+            val parsed = if (configJson != null) {
                 try {
                     json.decodeFromString<ModelConfigData>(configJson)
                 } catch (e: Exception) {
-                    // 如果解析失败，回退到创建一个新配置
                     if (configId == DEFAULT_CONFIG_ID) {
                         createFreshDefaultConfig()
                     } else {
@@ -147,14 +207,16 @@ class ModelConfigManager(private val context: Context) {
                     ModelConfigData(id = configId, name = context.getString(R.string.model_config_config_id, configId))
                 }
             }
+            hydrateSecrets(configId, parsed)
         }
     }
 
     // 将配置保存到DataStore
     private suspend fun saveConfigToDataStore(config: ModelConfigData) {
+        persistSecrets(config)
         val configKey = stringPreferencesKey("config_${config.id}")
         context.modelConfigDataStore.edit { preferences ->
-            preferences[configKey] = json.encodeToString(config)
+            preferences[configKey] = json.encodeToString(stripSecrets(config))
         }
     }
 
@@ -168,7 +230,7 @@ class ModelConfigManager(private val context: Context) {
             val current =
                     run {
                         val configJson = preferences[configKey]
-                        if (configJson != null) {
+                        val parsed = if (configJson != null) {
                             try {
                                 json.decodeFromString<ModelConfigData>(configJson)
                             } catch (e: Exception) {
@@ -185,10 +247,12 @@ class ModelConfigManager(private val context: Context) {
                                 ModelConfigData(id = configId, name = context.getString(R.string.model_config_config_id, configId))
                             }
                         }
+                        hydrateSecrets(configId, parsed)
                     }
 
             val newConfig = transform(current)
-            preferences[configKey] = json.encodeToString(newConfig)
+            persistSecrets(newConfig)
+            preferences[configKey] = json.encodeToString(stripSecrets(newConfig))
             updated = newConfig
         }
         return updated ?: ModelConfigData(id = configId, name = context.getString(R.string.model_config_config_id, configId))
@@ -265,16 +329,20 @@ class ModelConfigManager(private val context: Context) {
             return
         }
 
-        val configList = configListFlow.first().toMutableList()
+        // § 4.9 — also drop vault entries (single key + every pool slot we know about).
+        // Load the config first so we have the pool key IDs.
+        val configForCleanup = loadConfigFromDataStore(configId)
+        credentialVault.remove(vkApiKey(configId))
+        configForCleanup?.apiKeyPool?.forEach { info ->
+            credentialVault.remove(vkPoolKey(configId, info.id))
+        }
 
-        // 从列表中移除
+        val configList = configListFlow.first().toMutableList()
         configList.remove(configId)
         context.modelConfigDataStore.edit { preferences ->
-            // 删除配置记录 - 修复null赋值问题
             preferences.remove(stringPreferencesKey("config_${configId}"))
-            // 更新配置列表
             preferences[CONFIG_LIST_KEY] = json.encodeToString(configList)
-                                }
+        }
     }
 
     // 更新配置基本信息（名称等）

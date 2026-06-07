@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.media.projection.MediaProjection
 import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.core.config.FunctionalPrompts
-import com.ai.assistance.operit.core.tools.AutomationExecutionResult
 import com.ai.assistance.operit.core.tools.SimplifiedUINode
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.UIPageResultData
@@ -23,24 +22,15 @@ import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.services.FloatingChatService
 import com.ai.assistance.operit.ui.common.displays.UIOperationOverlay
-import com.ai.assistance.operit.ui.common.displays.UIAutomationProgressOverlay
-import com.ai.assistance.operit.ui.common.displays.VirtualDisplayOverlay
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.LocaleUtils
 import com.ai.assistance.operit.util.OperitPaths
-import com.ai.assistance.operit.core.tools.agent.ActionHandler
-import com.ai.assistance.operit.core.tools.agent.AgentConfig
-import com.ai.assistance.operit.core.tools.agent.PhoneAgent
-import com.ai.assistance.operit.core.tools.agent.ShowerController
-import com.ai.assistance.operit.core.tools.agent.ToolImplementations
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import java.io.File
@@ -50,7 +40,7 @@ import java.util.Date
 import java.util.Locale
 
 /** Base class for UI automation tools - standard version does not support UI operations */
-open class StandardUITools(protected val context: Context) : ToolImplementations {
+open class StandardUITools(protected val context: Context) {
 
     companion object {
         private const val TAG = "UITools"
@@ -340,7 +330,7 @@ open class StandardUITools(protected val context: Context) : ToolImplementations
     )
 
     /** Simulates a tap/click at specific coordinates */
-    override suspend fun tap(tool: AITool): ToolResult {
+    open suspend fun tap(tool: AITool): ToolResult {
             return ToolResult(
                     toolName = tool.name,
                     success = false,
@@ -350,7 +340,7 @@ open class StandardUITools(protected val context: Context) : ToolImplementations
     }
 
     /** Simulates a long press at specific coordinates */
-    override suspend fun longPress(tool: AITool): ToolResult {
+    open suspend fun longPress(tool: AITool): ToolResult {
             return ToolResult(
                     toolName = tool.name,
                     success = false,
@@ -370,7 +360,7 @@ open class StandardUITools(protected val context: Context) : ToolImplementations
     }
 
     /** Sets text in an input field */
-    override suspend fun setInputText(tool: AITool): ToolResult {
+    open suspend fun setInputText(tool: AITool): ToolResult {
                 return ToolResult(
                         toolName = tool.name,
                         success = false,
@@ -380,7 +370,7 @@ open class StandardUITools(protected val context: Context) : ToolImplementations
     }
 
     /** Simulates pressing a specific key */
-    override suspend fun pressKey(tool: AITool): ToolResult {
+    open suspend fun pressKey(tool: AITool): ToolResult {
             return ToolResult(
                     toolName = tool.name,
                     success = false,
@@ -390,7 +380,7 @@ open class StandardUITools(protected val context: Context) : ToolImplementations
     }
 
     /** Performs a swipe gesture */
-    override suspend fun swipe(tool: AITool): ToolResult {
+    open suspend fun swipe(tool: AITool): ToolResult {
             return ToolResult(
                     toolName = tool.name,
                     success = false,
@@ -400,130 +390,18 @@ open class StandardUITools(protected val context: Context) : ToolImplementations
     }
 
     /**
-     * Executes a lightweight UI automation subagent loop using the UI_CONTROLLER function type.
-     * This subagent uses the UI_AUTOMATION_AGENT_PROMPT and returns an AutomationExecutionResult
-     * that contains a log of all <think>/<answer> pairs and parsed actions.
+     * UI automation subagent loop. The previous implementation drove PhoneAgent over
+     * the Shower display + ADB transport, both removed per docs/SECURITY.md § 8.
+     * Replacement landing as part of docs/AGENT_CORE.md and docs/SHELL_REBUILD.md.
+     * Until then, the tool is unavailable.
      */
     open suspend fun runUiSubAgent(tool: AITool): ToolResult {
-        val intent = tool.parameters.find { it.name == "intent" }?.value
-        val maxSteps = tool.parameters.find { it.name == "max_steps" }?.value?.toIntOrNull() ?: 20
-        val requestedAgentId = tool.parameters.find { it.name == "agent_id" }?.value
-        val targetApp = tool.parameters.find { it.name == "target_app" }?.value
-
-        if (intent.isNullOrBlank()) {
-            return ToolResult(
-                toolName = tool.name,
-                success = false,
-                result = StringResultData(""),
-                error = "Missing required parameter: intent"
-            )
-        }
-
-        val uiConfig = EnhancedAIService.getModelConfigForFunction(context, FunctionType.UI_CONTROLLER)
-        if (!uiConfig.enableDirectImageProcessing) {
-            return ToolResult(
-                toolName = tool.name,
-                success = false,
-                result = StringResultData(""),
-                error = "当前 UI 控制器模型未启用识图能力，请在设置-功能模型中为 UI 控制器功能选择支持图片理解的模型后再试。"
-            )
-        }
-
-        return try {
-            // 获取专用于 UI_CONTROLLER 的 AIService 实例
-            val uiService = EnhancedAIService.getAIServiceForFunction(context, FunctionType.UI_CONTROLLER)
-            val systemPrompt = buildUiAutomationSystemPrompt()
-
-            val metrics = context.resources.displayMetrics
-            val screenWidth = metrics.widthPixels
-            val screenHeight = metrics.heightPixels
-
-            val agentConfig = AgentConfig(maxSteps = maxSteps)
-            val actionHandler = ActionHandler(
-                context = context,
-                screenWidth = screenWidth,
-                screenHeight = screenHeight,
-                toolImplementations = this
-            )
-
-            val agentId = if (!requestedAgentId.isNullOrBlank()) requestedAgentId else "default"
-            val agent = PhoneAgent(
-                context = context,
-                config = agentConfig,
-                uiService = uiService, // 传递专用的 AIService
-                actionHandler = actionHandler,
-                agentId = agentId,
-                cleanupOnFinish = false
-            )
-
-            val pausedState = MutableStateFlow(false)
-
-            val finalMessage = agent.run(
-                task = intent,
-                systemPrompt = systemPrompt,
-                isPausedFlow = pausedState,
-                targetApp = targetApp
-            )
-
-            val displayId = try {
-                ShowerController.getDisplayId(agentId)
-            } catch (_: Exception) {
-                null
-            }
-
-            val success = !finalMessage.contains("Max steps reached") && !finalMessage.contains("Error")
-            val executionMessage = buildString {
-                appendLine("UI automation subagent run summary:")
-                appendLine("Intent: $intent")
-                appendLine("Steps executed: ${agent.stepCount} / ${agentConfig.maxSteps}")
-                appendLine("Finished: $success")
-                appendLine("Final message: $finalMessage")
-                appendLine()
-                appendLine("Full conversation history:")
-                agent.contextHistory.forEach { (role, content) ->
-                    appendLine("[$role]: ${content.take(200)}")
-                }
-            }
-
-            val resultData = AutomationExecutionResult(
-                functionName = "UIAutomationSubAgent",
-                providedParameters = buildMap {
-                    put("intent", intent)
-                    put("max_steps", maxSteps.toString())
-                    if (!targetApp.isNullOrBlank()) {
-                        put("target_app", targetApp)
-                    }
-                    if (!requestedAgentId.isNullOrBlank()) {
-                        put("agent_id", requestedAgentId)
-                    }
-                },
-                agentId = agentId,
-                displayId = displayId,
-                executionSuccess = success,
-                executionMessage = executionMessage,
-                executionError = if (!success) finalMessage else null,
-                finalState = null,
-                executionSteps = agent.stepCount
-            )
-
-            ToolResult(toolName = tool.name, success = true, result = resultData, error = "")
-        } catch (e: CancellationException) {
-            AppLogger.e(TAG, "UI subagent cancelled", e)
-            ToolResult(
-                toolName = tool.name,
-                success = false,
-                result = StringResultData(""),
-                error = "Error running UI subagent: ${e.message}"
-            )
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Error running UI subagent", e)
-            ToolResult(
-                toolName = tool.name,
-                success = false,
-                result = StringResultData(""),
-                error = "Error running UI subagent: ${e.message}"
-            )
-        }
+        return ToolResult(
+            toolName = tool.name,
+            success = false,
+            result = StringResultData(""),
+            error = "UI automation subagent is offline: Shower/Shizuku transports have been removed (see docs/THREAT_MODEL.md § 4.4). Replacement on the Accessibility channel is tracked in docs/AGENT_CORE.md."
+        )
     }
 
     /**
@@ -649,11 +527,11 @@ open class StandardUITools(protected val context: Context) : ToolImplementations
         }
     }
 
-    override suspend fun captureScreenshot(tool: AITool): Pair<String?, Pair<Int, Int>?> {
+    open suspend fun captureScreenshot(tool: AITool): Pair<String?, Pair<Int, Int>?> {
         return captureScreenshotToFile(tool)
     }
 
-    override suspend fun captureScreenshotBitmap(tool: AITool): Pair<Bitmap?, Pair<Int, Int>?> {
+    open suspend fun captureScreenshotBitmap(tool: AITool): Pair<Bitmap?, Pair<Int, Int>?> {
         return try {
             val manager = ensureMediaProjectionCaptureManager() ?: return Pair(null, null)
 

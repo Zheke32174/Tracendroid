@@ -26,10 +26,9 @@ class ActionListenerFactory {
             }
 
             // 创建新的监听器实例
+            // ROOT 与 DEBUGGER 通道已随 § 4.4 移除（参见 docs/SECURITY.md § 8）
             val listener = when (permissionLevel) {
-                AndroidPermissionLevel.ROOT -> RootActionListener(context)
                 AndroidPermissionLevel.ADMIN -> AdminActionListener(context)
-                AndroidPermissionLevel.DEBUGGER -> DebuggerActionListener(context)
                 AndroidPermissionLevel.ACCESSIBILITY -> AccessibilityActionListener(context)
                 AndroidPermissionLevel.STANDARD -> StandardActionListener(context)
             }
@@ -53,11 +52,9 @@ class ActionListenerFactory {
             context: Context
         ): Pair<ActionListener, ActionListener.PermissionStatus> {
 
-            // 按权限从高到低尝试
+            // 按权限从高到低尝试 (ROOT/DEBUGGER 已废弃 — 不再枚举)
             val levels = listOf(
-                AndroidPermissionLevel.ROOT,
                 AndroidPermissionLevel.ADMIN,
-                AndroidPermissionLevel.DEBUGGER,
                 AndroidPermissionLevel.ACCESSIBILITY,
                 AndroidPermissionLevel.STANDARD
             )

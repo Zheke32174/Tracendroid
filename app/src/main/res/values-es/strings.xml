@@ -27,7 +27,6 @@
     <string name="query_memory_test_desc">Probar la consulta de la biblioteca de memorias.</string>
 
     <!-- 用于NavItem类的标识符 -->
-    <string name="shizuku_commands">Concesión de permisos</string>
     <string name="tool_permissions">Configuración de permisos de herramientas</string>
     <string name="about">Acerca de</string>
     <string name="terminal">Terminal</string>
@@ -76,7 +75,6 @@
     <string name="install_termux_title">Instalar Termux</string>
     <string name="install_termux_from_store">Instalar Termux desde la tienda de aplicaciones</string>
     <string name="install_bundled_termux">Instalar versión integrada</string>
-    <string name="installing_bundled_termux">Instalando Termux integrado, por favor conceda permiso de instalación</string>
     <string name="install_termux_failed">Error al instalar Termux</string>
     <string name="open_termux">Abrir Termux</string>
     <string name="termux_setup_guide">Guía de configuración de Termux</string>
@@ -139,11 +137,9 @@
     <string name="fps_counter_description">Mostrar FPS en tiempo real en la esquina superior derecha de la pantalla</string>
 
     <!-- Shizuku Command Screen -->
-    <string name="shizuku_command_executor">Ejecutor de comandos ADB Shizuku</string>
     <string name="device_info">Información del dispositivo</string>
     <string name="android_version">Versión de Android: %1$s (API %2$d)</string>
     <string name="device_model">Modelo de dispositivo: %1$s %2$s</string>
-    <string name="shizuku_status">Estado de Shizuku</string>
     <string name="refresh">Actualizar</string>
     <string name="installed">Instalado</string>
     <string name="service_running">Servicio en ejecución: %1$s</string>
@@ -152,8 +148,6 @@
     <string name="no">No</string>
     <string name="authorized">Autorizado</string>
     <string name="unauthorized">No autorizado</string>
-    <string name="install_shizuku">Instalar Shizuku</string>
-    <string name="open_shizuku">Abrir aplicación Shizuku</string>
     <string name="show_help">Mostrar ayuda</string>
     <string name="hide_help">Ocultar ayuda</string>
     <string name="request_permission">Solicitar permiso de Shizuku</string>
@@ -167,17 +161,12 @@
     <string name="executing">Ejecutando...</string>
     <string name="command_success">Comando ejecutado con éxito:\n%1$s</string>
     <string name="command_failure">Error al ejecutar el comando (código de salida: %1$d):\n%2$s</string>
-    <string name="start_shizuku_first">Por favor, inicie primero el servicio Shizuku</string>
     <string name="grant_permission_first">Por favor, conceda primero el permiso de Shizuku</string>
     <string name="feature_unavailable">No se puede usar la función de comandos ADB</string>
     <string name="thinking_process">Proceso de pensamiento</string>
 
     <!-- 内置Shizuku -->
-    <string name="install_from_store">Instalar Shizuku desde la tienda de aplicaciones</string>
     <string name="install_bundled">Instalar versión integrada (v%1$s)</string>
-    <string name="installing_bundled">Instalando Shizuku integrado, por favor conceda permiso de instalación</string>
-    <string name="install_failed">Error al instalar Shizuku integrado, intente instalar desde la tienda de aplicaciones</string>
-
     <!-- 用户偏好 -->
     <string name="user_preferences_guide">Configuración personalizada</string>
     <string name="user_preferences">Preferencias de usuario</string>
@@ -350,7 +339,6 @@
 
     <!-- Toast Messages -->
     <string name="pip_package_install_success">Instalación de paquete PIP exitosa</string>
-    <string name="pip_package_install_failed">Error en la instalación del paquete PIP</string>
     <string name="please_press_back_to_return">Por favor presione el botón atrás para regresar</string>
     <string name="please_input_command">Por favor ingrese comando</string>
     <string name="background_image_migrated">Imagen de fondo migrada al almacenamiento interno</string>
@@ -611,7 +599,6 @@
     <string name="tool_terminal_auto_config">Configuración automática de terminal</string>
     <string name="tool_terminal_auto_config_desc">Instalar y configurar automáticamente Python, PIP y otras herramientas de desarrollo</string>
     <string name="tool_ui_debugger">Herramienta de depuración de UI</string>
-    <string name="tool_ui_debugger_desc">Depurar y analizar elementos de interfaz con búsqueda de elementos y soporte de interacción</string>
     <string name="tool_ffmpeg_toolbox">Caja de herramientas FFmpeg</string>
     <string name="tool_ffmpeg_toolbox_desc">Herramienta potente de procesamiento de audio/video con soporte para conversión, recorte, fusión y más</string>
     <string name="tool_stream_markdown_demo">Demo de Markdown en streaming</string>
@@ -764,10 +751,6 @@
     <string name="permission_guide_standard_desc">Permisos básicos de operación de aplicación, no se requieren permisos especiales</string>
     <string name="permission_guide_accessibility_title">Permisos de Accesibilidad</string>
     <string name="permission_guide_accessibility_desc">Habilita análisis de contenido de pantalla y simulación de operaciones a través del servicio de accesibilidad</string>
-    <string name="permission_guide_debugger_title">Permisos de Depuración</string>
-    <string name="permission_guide_debugger_desc">Proporciona acceso al sistema a nivel ADB a través de Shizuku</string>
-    <string name="permission_guide_root_title">Permisos Root</string>
-    <string name="permission_guide_root_desc">Permisos de superusuario, puede realizar cualquier operación del sistema</string>
     <string name="permission_guide_confirm">Confirmar Selección</string>
     <string name="permission_guide_change_anytime">Puede cambiar el nivel de permisos en configuración en cualquier momento</string>
     
@@ -1895,27 +1878,6 @@
     <string name="termux_wizard_success_title">¡Felicidades! El entorno Termux está completamente configurado</string>
     <string name="termux_wizard_success_message">Ahora puede usar Termux para diversas operaciones de línea de comandos</string>
     <string name="termux_wizard_open">Abrir Termux</string>
-    <string name="shizuku_demo_loading">Cargando estado de la aplicación...</string>
-    <string name="shizuku_demo_permission_failed">No se puede abrir la configuración de permisos</string>
-    <string name="shizuku_demo_overlay_failed">No se puede abrir la configuración de superposición</string>
-    <string name="shizuku_demo_battery_failed">No se puede abrir la configuración de optimización de batería</string>
-    <string name="shizuku_demo_accessibility_failed">No se puede abrir la configuración del servicio de accesibilidad</string>
-    <string name="shizuku_demo_title">Asistente de configuración</string>
-    <string name="shizuku_demo_download_failed">No se puede abrir el enlace de descarga</string>
-    <string name="shizuku_demo_extract_failed">Error al extraer el APK, intente de nuevo más tarde</string>
-    <string name="shizuku_demo_install_notify">Se ha iniciado la instalación de Shizuku, siga las indicaciones del sistema para completarla</string>
-    <string name="shizuku_demo_update_notify">Se ha iniciado la actualización de Shizuku, siga las indicaciones del sistema para completarla</string>
-    <string name="shizuku_demo_install_failed">Error de instalación: %1$s</string>
-    <string name="shizuku_demo_update_failed">Error de actualización: %1$s</string>
-    <string name="shizuku_demo_shizuku_not_found">No se puede encontrar la aplicación Shizuku</string>
-    <string name="shizuku_demo_shizuku_launch_failed">No se puede iniciar la aplicación Shizuku</string>
-    <string name="shizuku_demo_root_tutorial_failed">No se puede abrir el enlace del tutorial de Root</string>
-    <string name="shizuku_demo_shizuku_permission_granted">Permiso de Shizuku concedido</string>
-    <string name="shizuku_demo_shizuku_permission_denied">Solicitud de permiso de Shizuku rechazada</string>
-    <string name="shizuku_demo_termux_install_success">Se ha iniciado la instalación de Termux, siga las indicaciones del sistema para completarla</string>
-    <string name="shizuku_demo_termux_install_failed_store">Error al instalar el APK integrado, abriendo página de descarga</string>
-    <string name="shizuku_demo_termux_download_failed">No se puede abrir el enlace de descarga, descargue e instale Termux manualmente</string>
-    <string name="shizuku_demo_termux_tuna_skipped">Se ha omitido la configuración del espejo de Tsinghua, puede configurarlo más tarde en Termux</string>
     <string name="permission_level">Nivel de permiso</string>
     <string name="permission_level_icon">Icono de nivel de permiso</string>
     <string name="set_as_current_level">Establecer como nivel actual</string>
@@ -1930,7 +1892,6 @@
     <string name="accessibility_service">Servicio de accesibilidad</string>
     <string name="admin_permission">Permiso de administrador</string>
     <string name="debug_permission">Permiso de depuración</string>
-    <string name="shizuku_service">Servicio Shizuku</string>
     <string name="root_permission">Permiso Root</string>
     <string name="root_access_permission">Permiso de acceso Root</string>
     <string name="status_not_installed">No instalado</string>
@@ -1949,12 +1910,10 @@
     <string name="permission_level_standard_desc">Permiso básico de ejecución de la aplicación, sin autorización especial del sistema</string>
     <string name="permission_level_accessibility_desc">Añade soporte de servicio de accesibilidad, puede simular operaciones en pantalla</string>
     <string name="permission_level_admin_desc">Agrega permiso de administrador de dispositivo, puede acceder a más funciones del sistema</string>
-    <string name="permission_level_debugger_desc">Proporciona acceso a nivel de sistema ADB a través de Shizuku</string>
     <string name="permission_level_root_desc">Permiso de superusuario, puede ejecutar cualquier operación del sistema</string>
     <string name="permission_level_standard_full_desc">Permiso estándar: permiso básico de ejecución de la aplicación, sin permisos especiales</string>
     <string name="permission_level_accessibility_full_desc">Permiso de accesibilidad: permite a la aplicación simular operaciones del usuario, requiere activar el servicio de accesibilidad</string>
     <string name="permission_level_admin_full_desc">Permiso de administrador: permite a la aplicación acceder a más funciones del sistema, como servicios de ubicación, etc.</string>
-    <string name="permission_level_debugger_full_desc">Permiso de depuración: permite operaciones avanzadas mediante la función de depuración ADB, requiere el servicio Shizuku</string>
     <string name="permission_level_root_full_desc">Permiso Root: permite a la aplicación ejecutarse como superusuario, requiere que el dispositivo esté rooteado</string>
     <string name="root_access_granted">La aplicación ha obtenido permisos Root, puede ejecutar comandos privilegiados</string>
     <string name="device_rooted_request_permission">El dispositivo está rooteado, haga clic para solicitar permisos de la aplicación</string>
@@ -2011,8 +1970,6 @@
     <string name="permission_guide_intro_3_title">Libere su creatividad, siempre disponible</string>
     <string name="permission_guide_intro_3_desc">Ya sea diseñando páginas web, procesando archivos multimedia o despertando a la IA en cualquier momento a través de una ventana flotante, Operit le ofrece un entorno de creación y asistencia potente, flexible y seguro. Sus datos, bajo su control.</string>
     <string name="permission_guide_intro_page_indicator">Introducción de funciones %1$d/%2$d</string>
-    <string name="debugger_accessibility_fallback_title">Plan de aceleración de accesibilidad (alto riesgo)</string>
-    <string name="debugger_accessibility_fallback_description">El modo de depuración ejecuta operaciones de UI a través de Shell de forma predeterminada. Habilitar el servicio de accesibilidad puede acelerar significativamente la automatización de la UI, pero aumenta considerablemente el riesgo de ser detectado por algunas aplicaciones y de que la cuenta sea suspendida. A menos que busque la máxima velocidad de operación, no se recomienda activarlo.</string>
     <string name="message_info_title">Información del mensaje</string>
     <string name="message_info_sender">Remitente</string>
     <string name="message_info_role_name">Nombre del rol</string>
@@ -2232,30 +2189,6 @@
     <string name="root_wizard_device_not_rooted">No se detectó que su dispositivo esté rooteado. Rootear requiere modificaciones específicas del sistema y puede anular la garantía del dispositivo. Para usar funciones root, primero complete el rooteo del dispositivo.</string>
     <string name="root_wizard_risk_notice">Aviso: Riesgos de la operación root</string>
     <string name="root_wizard_risk_details">1. Rootear conlleva ciertos riesgos y puede anular la garantía del dispositivo\n2. Algunas aplicaciones pueden negarse a ejecutarse en dispositivos rooteados\n3. Un rooteo inadecuado puede causar inestabilidad del sistema</string>
-    <string name="shizuku_wizard_title">Asistente de configuración de Shizuku</string>
-    <string name="shizuku_wizard_update_title">Asistente de actualización de Shizuku</string>
-    <string name="shizuku_wizard_step1">Paso 1: Instalar la aplicación Shizuku</string>
-    <string name="shizuku_wizard_step2">Paso 2: Iniciar el servicio Shizuku</string>
-    <string name="shizuku_wizard_step3">Paso 3: Conceder permisos a Shizuku</string>
-    <string name="shizuku_wizard_completed">Shizuku completamente configurado</string>
-    <string name="shizuku_wizard_install_message">Shizuku es una herramienta que otorga permisos avanzados a las aplicaciones sin necesidad de root. Primero debemos instalar esta aplicación.</string>
-    <string name="shizuku_wizard_install_bundled">Instalar versión integrada</string>
-    <string name="shizuku_wizard_start_message">Shizuku está instalado, ahora debe iniciar el servicio Shizuku. Siga uno de los siguientes métodos:</string>
-    <string name="shizuku_wizard_method1_title">Método 1: Iniciar desde la aplicación (recomendado)</string>
-    <string name="shizuku_wizard_method1_steps">1. Haga clic en el botón \"Abrir Shizuku\" a continuación\n2. En la aplicación Shizuku, seleccione \"Iniciar mediante depuración inalámbrica\"\n3. Active \"Opciones de desarrollador\" y \"Depuración inalámbrica\" según las indicaciones\n4. Permita que Shizuku obtenga permisos de depuración inalámbrica</string>
-    <string name="shizuku_wizard_method2_title">Método 2: Iniciar mediante USB</string>
-    <string name="shizuku_wizard_method2_steps">1. Instale las herramientas ADB en su computadora\n2. Conecte el teléfono y la computadora mediante USB\n3. En la línea de comandos de la computadora, ejecute:\n   adb shell sh /sdcard/Android/data/moe.shizuku.privileged.api/files/start.sh</string>
-    <string name="shizuku_wizard_open_shizuku">Abrir Shizuku</string>
-    <string name="shizuku_wizard_permission_message">El servicio Shizuku se ha iniciado, ahora debe conceder permisos a esta aplicación. Haga clic en el botón a continuación y seleccione \"Permitir\" en el cuadro de diálogo que aparece.</string>
-    <string name="shizuku_wizard_permission_notice">Nota: Si no ve la ventana de autorización, verifique:</string>
-    <string name="shizuku_wizard_permission_notice_details">1. Que el servicio Shizuku esté en ejecución\n2. Reinicie el servicio Shizuku e intente de nuevo\n3. Asegúrese de permitir el permiso de superposición de ventanas</string>
-    <string name="shizuku_wizard_grant_permission">Conceder permisos a Shizuku</string>
-    <string name="shizuku_wizard_success_message">¡Felicidades! Shizuku está completamente configurado. Ahora puede usar las funciones de permisos de depuración.</string>
-    <string name="shizuku_wizard_update_available">Nueva versión disponible</string>
-    <string name="shizuku_wizard_update_message">La aplicación incluye una versión actualizada de Shizuku. Se recomienda actualizar para obtener mejor compatibilidad y funcionalidad.</string>
-    <string name="shizuku_wizard_current_version">Versión actual: %1$s</string>
-    <string name="shizuku_wizard_latest_version">Última versión: %1$s</string>
-    <string name="shizuku_wizard_update">Actualizar Shizuku</string>
     <string name="termux_wizard_step1">Paso 1: Instalar Termux</string>
     <string name="termux_wizard_step2">Paso 2: Autorizar Termux</string>
     <string name="termux_wizard_step3">Paso 3: Iniciar Termux</string>
@@ -2457,8 +2390,6 @@
     <string name="battery_settings_failed">No se pudo abrir la configuración de optimización de batería</string>
     <string name="accessibility_settings_failed">No se pudo abrir la configuración de accesibilidad</string>
     <string name="provider_installed">Proveedor de servicios instalado</string>
-    <string name="shizuku_not_found">No se encuentra la aplicación Shizuku</string>
-    <string name="shizuku_start_failed">No se pudo iniciar la aplicación Shizuku</string>
     <string name="doc_link_failed">No se pudo abrir el enlace de documentación</string>
     <string name="root_tutorial_failed">No se pudo abrir el enlace del tutorial de root</string>
     <string name="file_open_failed">No se pudo abrir el archivo: %1$s</string>
@@ -2536,13 +2467,10 @@
     <string name="tuna_source_setup_failed">Error al configurar la fuente TUNA</string>
     <string name="tuna_source_setup_error">Error al configurar la fuente TUNA</string>
     <string name="python_install_success">Python instalado correctamente</string>
-    <string name="python_install_failed">Error al instalar Python</string>
     <string name="python_install_error">Error al instalar el entorno Python</string>
     <string name="uv_install_success">UV instalado correctamente</string>
-    <string name="uv_install_failed">Error al instalar UV</string>
     <string name="uv_install_error">Error al instalar el gestor de paquetes UV</string>
     <string name="nodejs_install_success">Node.js instalado correctamente</string>
-    <string name="nodejs_install_failed">Error al instalar Node.js</string>
     <string name="nodejs_install_error">Error al instalar el entorno Node.js</string>
     <string name="battery_optimization_reminder">Permita la exención de optimización de batería para Termux en la configuración del sistema</string>
     <string name="cannot_open_termux_battery_settings">No se puede abrir la configuración de optimización de batería de Termux</string>
@@ -2553,8 +2481,6 @@
     <string name="cannot_open_accessibility_settings">No se puede abrir la configuración de accesibilidad</string>
     <string name="accessibility_provider_installed">Proveedor de servicios instalado</string>
     <string name="cannot_open_root_tutorial">No se puede abrir el enlace del tutorial de Root</string>
-    <string name="cannot_find_shizuku_app">No se puede encontrar la aplicación Shizuku</string>
-    <string name="cannot_launch_shizuku_app">No se puede iniciar la aplicación Shizuku</string>
     <string name="cannot_open_docs_link">No se puede abrir el enlace de documentación</string>
     <string name="cannot_find_termux_app">No se puede encontrar la aplicación Termux</string>
     <string name="cannot_launch_termux_app">No se puede iniciar la aplicación Termux</string>
@@ -2656,10 +2582,6 @@
     <string name="tool_default_assistant_guide">Configuración del asistente predeterminado</string>
     <string name="tool_default_assistant_guide_desc">Establecer el flotante de voz de Operit como asistente predeterminado del sistema</string>
     <string name="tool_terminal_auto_config_under_construction">La función de configuración automática del terminal está siendo reestructurada...</string>
-    <string name="ui_debugger_title">Herramienta de depuración de UI</string>
-    <string name="ui_debugger_description">Haga clic en el botón en la esquina inferior derecha para iniciar la ventana flotante y depurar la UI</string>
-    <string name="ui_debugger_launch_floating">Iniciar ventana flotante</string>
-    <string name="ui_debugger_start_float">Iniciar ventana flotante</string>
     <string name="shell_executor_input_hint">Ingrese un comando de Shell</string>
     <string name="shell_executor_command">Comando</string>
     <string name="shell_executor_clear">Limpiar</string>
@@ -2871,17 +2793,6 @@
     <string name="tool_process_limit_remover_desc">Gestionar el límite de procesos fantasma en Android 12+, permitiendo más procesos secundarios en segundo plano</string>
     <string name="tool_html_packager">Empaquetador HTML</string>
     <string name="tool_html_packager_desc">Empaqueta archivos HTML y sus dependencias en un solo archivo HTML, fácil de compartir e implementar</string>
-    <string name="tool_autoglm_one_click">Configuración con un clic de AutoGLM</string>
-    <string name="tool_autoglm_one_click_desc">Configura el modelo autoglm-phone para el controlador de UI con un clic y cambia al paquete de herramientas AutoGLM</string>
-    <string name="tool_autoglm_tool">Ejecución de AutoGLM</string>
-    <string name="tool_autoglm_tool_desc">Usa el agente autoglm-phone para ejecutar tareas de automatización del teléfono paso a paso</string>
-    <string name="autoglm_config_name">Configuración de AutoGLM</string>
-    <string name="autoglm_one_click_title">Configuración con un clic de AutoGLM</string>
-    <string name="autoglm_one_click_subtitle">Crea automáticamente la configuración del modelo autoglm-phone de Zhipu para el controlador de UI y cambia al paquete de herramientas AutoGLM.</string>
-    <string name="autoglm_open_apikey_center">Ir a la página de API Key de Zhipu</string>
-    <string name="autoglm_open_apikey_tip">Después de iniciar sesión, crea y copia la API Key en la plataforma Zhipu</string>
-    <string name="autoglm_api_key_placeholder">Pega aquí tu API Key de Zhipu</string>
-    <string name="autoglm_one_click_button">Configurar AutoGLM con un clic</string>
     <string name="process_limit_title">Eliminar límite de procesos fantasma</string>
     <string name="process_limit_subtitle">Gestionar el límite de procesos fantasma en Android 12+</string>
     <string name="process_limit_info_title">Acerca del límite de procesos fantasma</string>
@@ -2913,15 +2824,6 @@
     <string name="process_limit_error_output">Salida de error</string>
     <string name="process_limit_exit_code">Código de salida: %d</string>
     <string name="process_limit_command">Comando</string>
-    <string name="autoglm_status_running">Ejecutando configuración con un clic, espere por favor...</string>
-    <string name="autoglm_status_success">Configuración con un clic de AutoGLM completada:
-- Se ha creado o actualizado la configuración del modelo del controlador de UI AutoGLM (autoglm-phone, Zhipu)
-- Se ha cambiado la función "Controlador de UI" a esta configuración
-- Se ha cerrado Automatic_ui_base y abierto Automatic_ui_subagent
-
-Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
-    <string name="autoglm_status_error">Error en la configuración con un clic: %1$s</string>
-    <string name="autoglm_error_empty_api_key">Por favor, complete la API Key de Zhipu primero.</string>
     <string name="connection_type">Tipo de conexión</string>
     <string name="mcp_remote_bearer_token">Bearer Token (opcional)</string>
     <string name="mcp_remote_bearer_token_hint">Ingrese el Bearer Token para generar el encabezado de solicitud Authorization</string>
@@ -3112,7 +3014,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="loading_app_state">Cargando estado de la aplicación...</string>
     <string name="setup_wizard">Asistente de configuración</string>
     <string name="setup_wizard_icon_desc">Icono del asistente de configuración</string>
-    <string name="cannot_start_shizuku_app">No se puede iniciar la aplicación Shizuku</string>
     <string name="cannot_open_doc_link">No se puede abrir el enlace del documento</string>
     <string name="welcome_termux_config">Bienvenido a la herramienta de configuración de Termux\nHaga clic en el botón correspondiente para comenzar la configuración</string>
     <string name="executing_task">Ejecutando: %1$s...</string>
@@ -3482,8 +3383,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="screen_title_text_to_speech">Texto a voz</string>
     <string name="screen_title_speech_to_text">Reconocimiento de voz</string>
     <string name="screen_title_process_limit_remover">Eliminar límite de procesos de ilusión</string>
-    <string name="screen_title_autoglm_one_click">Configuración con un clic de AutoGLM</string>
-    <string name="screen_title_autoglm_tool">Ejecución de autoglm</string>
     <string name="screen_title_default_assistant_guide">Configuración del asistente predeterminado</string>
     <string name="screen_title_mcp_market">Mercado MCP</string>
     <string name="screen_title_skill_market">Mercado de habilidades</string>
@@ -4459,7 +4358,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="mcp_market_config_import_failed_with_error">Error al importar la configuración: %1$s</string>
     <string name="mcp_market_config_import_success_with_count">Se importaron %1$s configuraciones con éxito, combinando %2$d servidores</string>
     <string name="mcp_market_install_success">Se instaló %1$s con éxito</string>
-    <string name="mcp_market_install_failed_with_error">Error al instalar: %1$s</string>
     <string name="mcp_market_parse_install_info_failed">No se pudo analizar la información de instalación. Consulta los detalles del Issue para instalarlo manualmente.</string>
     <string name="mcp_market_github_logout_success">Sesión cerrada</string>
     <string name="mcp_market_github_logout_failed_with_error">Error al cerrar sesión: %1$s</string>
@@ -4819,8 +4717,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="reset_all_display_settings">Restablecer toda la configuración de pantalla</string>
     <string name="ui_accessibility_mode">Modo de accesibilidad</string>
     <string name="ui_accessibility_mode_description">Optimizar el comportamiento de automatización de la interfaz de usuario para usuarios de accesibilidad como TalkBack, priorizando pasos legibles y evitando clics automáticos.</string>
-    <string name="experimental_virtual_display">Pantalla virtual experimental</string>
-    <string name="experimental_virtual_display_description">Usar automatización ADB+Shizuku basada en pantalla virtual, aún en fase experimental, puede ser inestable.</string>
     <string name="hide_runtime_task_view">Ocultar vista de tarea en tiempo de ejecución</string>
     <string name="hide_runtime_task_view_description">Ocultar la tarjeta de tarea de la aplicación de las tareas recientes del sistema mientras la IA procesa mensajes o ejecuta herramientas, para evitar que se cierre accidentalmente.</string>
     <string name="default_profile_name">Perfil predeterminado</string>
@@ -5018,64 +4914,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="ffmpeg_command_label">Comando: %1$s</string>
     <string name="ffmpeg_return_code">Código de retorno: %1$s</string>
     <string name="ffmpeg_processing_time">Tiempo de procesamiento: %1$sms</string>
-    <string name="uidebugger_current_interface">Interfaz actual analizada</string>
-    <string name="uidebugger_package_name">Nombre del paquete: %1$s</string>
-    <string name="uidebugger_close_ui_analysis">Cerrar análisis de UI</string>
-    <string name="uidebugger_ui_analysis">Análisis de UI</string>
-    <string name="uidebugger_collapse_panel">Contraer panel</string>
-    <string name="uidebugger_activity_monitor">Monitor de Activity</string>
-    <string name="uidebugger_activity_monitor_listening">Escuchando eventos de Activity</string>
-    <string name="uidebugger_activity_monitor_stopped">Monitoreo detenido</string>
-    <string name="uidebugger_activity_monitor_current_activity">Actividad actual</string>
-    <string name="uidebugger_activity_monitor_waiting">Monitoreando, esperando eventos de Activity...</string>
-    <string name="uidebugger_activity_monitor_click_to_start">Haga clic en el botón de inicio para comenzar a monitorear eventos de Activity.</string>
-    <string name="uidebugger_activity_monitor_event_log">Registro de eventos (%1$d)</string>
-    <string name="uidebugger_activity_monitor_item_activity">Actividad: %1$s</string>
-    <string name="uidebugger_activity_monitor_item_text">Texto: %1$s</string>
-    <string name="uidebugger_activity_monitor_item_package">Paquete: %1$s</string>
-
-    <string name="uidebugger_activity_monitor_item_click">clic</string>
-    <string name="uidebugger_activity_monitor_item_long_click">clic largo</string>
-    <string name="uidebugger_activity_monitor_item_swipe">deslizar</string>
-    <string name="uidebugger_activity_monitor_item_text_input">entrada de texto</string>
-    <string name="uidebugger_activity_monitor_item_key_press">pulsación de tecla</string>
-    <string name="uidebugger_activity_monitor_item_scroll">desplazamiento</string>
-    <string name="uidebugger_activity_monitor_item_gesture">gesto</string>
-    <string name="uidebugger_activity_monitor_item_app_switch">cambio de aplicación</string>
-    <string name="uidebugger_activity_monitor_item_screen_change">cambio de pantalla</string>
-    <string name="uidebugger_activity_monitor_item_system_event">evento del sistema</string>
-    <string name="uidebugger_action_click_success">clic exitoso</string>
-    <string name="uidebugger_action_click_failed">clic fallido</string>
-    <string name="uidebugger_action_highlighted">elemento resaltado</string>
-    <string name="uidebugger_action_selected">elemento seleccionado</string>
-    <string name="uidebugger_action_failed">operación fallida</string>
-    <string name="uidebugger_error_wrong_result_type">tipo de datos de retorno incorrecto</string>
-    <string name="uidebugger_error_fetch_ui_failed">error al obtener información de la interfaz</string>
-    <string name="uidebugger_error_refresh_failed">error al actualizar</string>
-    <string name="uidebugger_activity_monitor_already_running">la monitorización ya está en ejecución</string>
-    <string name="uidebugger_activity_monitor_permission_insufficient">permisos insuficientes: %1$s</string>
-    <string name="uidebugger_activity_monitor_started">monitorización de actividad iniciada</string>
-    <string name="uidebugger_activity_monitor_start_failed_with_reason">error al iniciar la monitorización: %1$s</string>
-    <string name="uidebugger_activity_monitor_stop_failed">error al detener la monitorización</string>
-    <string name="uidebugger_activity_monitor_stop_failed_with_reason">error al detener la monitorización: %1$s</string>
-    <string name="uidebugger_element_type_button">botón</string>
-    <string name="uidebugger_element_type_text">texto</string>
-    <string name="uidebugger_element_type_input">campo de entrada</string>
-    <string name="uidebugger_element_type_image">imagen</string>
-    <string name="uidebugger_element_type_view">vista</string>
-    <string name="uidebugger_element_type_generic">elemento de interfaz</string>
-    <string name="uidebugger_element_detail_class_name">nombre de clase: %1$s</string>
-    <string name="uidebugger_element_detail_package_name">nombre del paquete: %1$s</string>
-    <string name="uidebugger_element_detail_activity_name">actividad: %1$s</string>
-    <string name="uidebugger_element_detail_resource_id">ID de recurso: %1$s</string>
-    <string name="uidebugger_element_detail_content_desc">descripción de contenido: %1$s</string>
-    <string name="uidebugger_element_detail_text">texto: %1$s</string>
-    <string name="uidebugger_element_detail_bounds">límites: [%1$d, %2$d, %3$d, %4$d]</string>
-    <string name="uidebugger_element_detail_clickable">clicable: %1$s</string>
-    <string name="uidebugger_element_info_title">información del control</string>
-    <string name="uidebugger_element_info_current_activity">actividad actual</string>
-    <string name="uidebugger_element_info_package_name">nombre del paquete: %1$s</string>
-    <string name="uidebugger_element_info_size_px">tamaño: %1$d×%2$dpx</string>
     <string name="logcat_no_logs_to_save">no hay registros para guardar</string>
     <string name="logcat_header">=== Registros de Operit ===</string>
     <string name="logcat_date">fecha: %1$s</string>
@@ -5224,7 +5062,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="toolreg_env_info"> (Entorno: %1$s)</string>
     <string name="toolreg_env_arrow_info"> (%1$s → %2$s)</string>
     <string name="toolreg_execute_shell_desc">Ejecutar ADB Shell: %1$s</string>
-    <string name="toolreg_close_all_virtual_displays_desc">Cerrar todas las pantallas virtuales</string>
     <string name="toolreg_unnamed">Sin nombre</string>
     <string name="toolreg_create_terminal_session_desc">Crear u obtener sesión de terminal: %1$s</string>
     <string name="toolreg_execute_in_terminal_session_desc">Ejecutar en sesión de terminal «%1$s»: %2$s</string>
@@ -5432,7 +5269,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="apk_editor_change_app_name_failed">Error al cambiar el nombre de la aplicación</string>
     <string name="apk_editor_change_version_failed">Error al cambiar la versión</string>
     <string name="apk_editor_change_icon_failed">Error al cambiar el icono de la aplicación</string>
-    <string name="common_phone_agent">Phone Agent</string>
     <string name="common_resume_agent">Reanudar agente</string>
     <string name="common_take_over">Tomar control</string>
     <string name="common_cancel">Cancelar</string>
@@ -5501,9 +5337,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="foldernav_refresh_folders">Actualizar lista de carpetas</string>
     <string name="foldernav_new_folder">Nueva carpeta</string>
     <string name="foldernav_folder">Carpeta</string>
-    <string name="uidebugger_copy_activity_name">Copiar nombre de Activity</string>
-    <string name="uidebugger_close_panel">Cerrar panel</string>
-    <string name="uidebugger_minimize">Minimizar</string>
     <string name="activity_monitor_close">Cerrar</string>
     <string name="theme_background_preview">Vista previa de imagen de fondo</string>
     <string name="theme_recrop">Recortar de nuevo</string>
@@ -5573,12 +5406,8 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="emoticon_shyness">Vergüenza</string>
     <string name="emoticon_blush">Sonrojo</string>
     <string name="emoticon_embarrassed">Avergonzado</string>
-    <string name="autoglm_task_complete">✅ Tarea completada: %1$s</string>
-    <string name="autoglm_thinking_process">💭 Proceso de pensamiento:</string>
-    <string name="autoglm_execute_action">🎯 Ejecutar acción:</string>
     <string name="version_update">Actualización de versión</string>
     <string name="mcp_no_zip_selected">No se seleccionó ningún archivo ZIP</string>
-    <string name="mcp_uninstall_failed">Error al desinstalar</string>
     <string name="chatgpt_parse_error">Error al analizar el formato de ChatGPT: %1$s</string>
     <string name="chatgpt_import_from">Importar desde ChatGPT</string>
     <string name="uiautomation_execute">Ejecutar</string>
@@ -5593,7 +5422,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="stream_data_required">El flujo de datos debe estar configurado</string>
     <string name="deepseek_request_body">Cuerpo de la solicitud final del modo de razonamiento DeepSeek: </string>
     <string name="admin_shell_permission">Se requiere permiso de administrador del dispositivo para ejecutar operaciones del sistema</string>
-    <string name="virtual_display_not_ready">La pantalla virtual de Shower aún no está lista</string>
     <string name="xml_content">Contenido XML</string>
     <string name="browser_preview">Vista previa del navegador</string>
     <string name="edittext_empty">EditText no puede estar vacío</string>
@@ -5625,10 +5453,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="memory_tags">Etiquetas</string>
     <string name="memory_add_tag_hint">Agregar nueva etiqueta...</string>
     <string name="memory_search_hint2">Buscar recuerdos</string>
-    <string name="uidebugger_stop_monitoring">Detener monitoreo</string>
-    <string name="uidebugger_start_monitoring">Iniciar monitoreo</string>
-    <string name="uidebugger_clear">Limpiar</string>
-    <string name="autoglm_virtual_screen">Usar pantalla virtual esta vez</string>
     <string name="htmlpackager_step1_title">Paso 1: Seleccionar carpeta del proyecto</string>
     <string name="htmlpackager_select_folder">Seleccionar carpeta</string>
     <string name="htmlpackager_selected">Seleccionado: %1$s</string>
@@ -5638,25 +5462,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="common_expand">Expandir</string>
     <string name="document_no_content_found">No se encontró contenido relevante.</string>
     <string name="document_block_label">Bloque %1$d</string>
-    <string name="autoglm_go_to_model_config">Ir a configuración del modelo</string>
-    <string name="autoglm_custom_endpoint">Endpoint personalizado (compatible con OpenAI)</string>
-    <string name="autoglm_model_name">Nombre del modelo</string>
-    <string name="autoglm_restore_original">Restaurar lógica de automatización original</string>
-    <string name="autoglm_step1_title">Paso 1: Configurar modelo de diálogo básico</string>
-    <string name="autoglm_step1_warning">No usar el modelo autoglm como modelo principal de diálogo</string>
-    <string name="autoglm_step1_note">Nota: Si ya está configurado, no es necesario modificarlo. Aquí no se debe cambiar a modelos pequeños como autoglm.</string>
-    <string name="autoglm_step2_title">Paso 2: Visitar el sitio web de ZhiPu para obtener la clave API</string>
-    <string name="autoglm_step3_title">Paso 3: Ingresar la clave API y hacer clic en configuración con un solo clic</string>
-    <string name="autoglm_hide_advanced">Ocultar configuración avanzada</string>
-    <string name="autoglm_show_advanced">Mostrar configuración avanzada (Endpoint personalizado / Nombre del modelo)</string>
-    <string name="autoglm_step4_title">Paso 4: Restaurar automatización no AutoGLM (opcional)</string>
-    <string name="autoglm_step4_description">Si sientes que la automatización se ha vuelto difícil después de usar la configuración con un solo clic de AutoGLM, puedes hacer clic en el botón de abajo para restaurar la lógica de automatización original del software (habilitar el paquete base, deshabilitar el paquete subagent, el resto de configuraciones permanecen igual). Si deseas volver a habilitar AutoGLM, solo sigue el paso 3 e ingresa la clave y haz clic en configuración con un solo clic nuevamente.</string>
-    <string name="autoglm_restore_success">Se ha restaurado la lógica de automatización original del software</string>
-    <string name="uidebugger_create_new_package">Crear nuevo paquete de configuración</string>
-    <string name="uidebugger_app_name">Nombre de la aplicación</string>
-    <string name="uidebugger_description_optional">Descripción (opcional)</string>
-    <string name="uidebugger_create">Crear</string>
-    <string name="uidebugger_cancel2">Cancelar</string>
     <string name="stream_markdown_pause">Pausar</string>
     <string name="stream_markdown_resume">Reanudar</string>
     <string name="stream_markdown_start">Iniciar</string>
@@ -5900,7 +5705,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="skillmarket_load_comments_failed">Error al cargar comentarios: %1$s</string>
     <string name="skillmarket_post_comment_failed">Error al publicar comentario: %1$s</string>
     <string name="skillmarket_invalid_repo_url">URL de repositorio no válida</string>
-    <string name="skillmarket_install_failed">Error de instalación: %1$s</string>
     <string name="skillmarket_like_failed">Error al dar me gusta: %1$s</string>
     <string name="skillmarket_like_error">Error al dar me gusta: %1$s</string>
     <string name="charactercard_import_file_empty">El archivo importado está vacío</string>
@@ -6087,7 +5891,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="siliconflow_error_voice_id_not_set">ID de voz no configurado, seleccione una voz válida.</string>
     <string name="siliconflow_error_init_failed">Error inesperado al inicializar el servicio TTS de SiliconFlow</string>
 
-    <string name="web_session_userscript_install_failed">Error al instalar el script</string>
     <string name="web_session_userscript_installed">Script instalado: %1$s</string>
     <string name="web_session_userscript_deleted">Script eliminado</string>
     <string name="web_session_userscript_no_update">No hay nuevas versiones disponibles</string>
@@ -6392,16 +6195,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="openai_error_parse_response_failed">Error al analizar la respuesta: %1$s</string>
     <string name="openai_connection_success">¡Conexión exitosa!</string>
     <string name="openai_connection_test_failed">Prueba de conexión fallida: %1$s</string>
-    <string name="phone_agent_need_debug_permission">Se requieren permisos de depuración/administrador/Root y una pantalla virtual experimental habilitada para usar la automatización de pantalla virtual.</string>
-    <string name="phone_agent_shizuku_unavailable">Shizuku no está disponible. No se puede iniciar la pantalla virtual.</string>
-    <string name="phone_agent_virtual_screen_service_start_failed">Error al iniciar el servicio de pantalla virtual.</string>
-    <string name="phone_agent_virtual_screen_create_failed">Error al crear la pantalla virtual.</string>
-    <string name="phone_agent_virtual_screen_prewarm_failed">Error al precalentar la pantalla virtual: %1$s</string>
-    <string name="phone_agent_virtual_screen_not_started">La pantalla virtual no se pudo iniciar. Se ha cancelado para evitar ejecutar acciones en la pantalla principal.</string>
-    <string name="phone_agent_thinking">Pensando...</string>
-    <string name="phone_agent_completed">Completado</string>
-    <string name="phone_agent_executing_action">Ejecutando %1$s...</string>
-    <string name="phone_agent_executing">Ejecutando acción...</string>
     <string name="workflow_skip">Saltar</string>
     <string name="workflow_condition_type_mismatch">Los tipos de comparación de condición no coinciden: left=\'%1$s\', right=\'%2$s\'</string>
     <string name="workflow_condition_not_met">La condición no se cumple.</string>
@@ -6557,13 +6350,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="model_config_expand">Expandir</string>
     <string name="model_config_unit_items">elementos</string>
     <string name="global_display_automation_behavior">Visualización y comportamiento de la automatización</string>
-    <string name="root_execution_mode_title">Modo de ejecución Root</string>
-    <string name="root_execution_mode_description">El modo automático selecciona según el entorno; el modo manual puede anular el resultado automático.</string>
-    <string name="root_execution_mode_auto">Selección automática</string>
-    <string name="root_execution_mode_force_libsu">Magisk SU manual</string>
-    <string name="root_execution_mode_force_exec">KernelSU manual</string>
-    <string name="root_custom_su_command">Comando su personalizado (modo KernelSU)</string>
-    <string name="root_custom_su_command_description">Solo tiene efecto en modo KernelSU. Puede introducir comandos como su o su --mount-master.</string>
     <string name="global_display_virtual_screen_bitrate">Tasa de bits de la pantalla virtual</string>
     <string name="global_display_status_indicator_style">Estilo del indicador de estado de automatización</string>
     <string name="global_display_screenshot_settings">Ajustes de captura de pantalla de automatización</string>
@@ -6599,8 +6385,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="anr_android_version">Versión de Android: %1$d\n</string>
     <string name="anr_device">Dispositivo: %1$s %2$s\n</string>
 
-    <string name="shizuku_install_install">Instalar</string>
-    <string name="shizuku_install_unknown">Desconocido</string>
     <string name="root_no_root_permission">No hay permisos de root en el dispositivo</string>
     <string name="root_check_permission_error">Error al verificar permisos de root: %1$s</string>
     <string name="root_ui_listener_started">Monitor de operaciones de UI Root iniciado</string>
@@ -6653,7 +6437,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="ocr_cannot_read_image">No se puede leer el archivo de imagen: %1$s</string>
     <string name="ocr_cannot_decode_bitmap_from_uri">No se puede decodificar Bitmap desde la URI</string>
     <string name="ocr_cannot_open_uri_stream">No se puede abrir el flujo de entrada de la URI</string>
-    <string name="debugger_ui_listener_started">Monitor de operaciones de UI del depurador iniciado</string>
     <string name="model_config_default_name">Configuración predeterminada</string>
     <string name="model_config_config_id">Configuración %1$s</string>
     <string name="model_config_import_failed">Error al importar: %1$s</string>
@@ -6835,13 +6618,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="pathfinder_start_equals_target">El estado inicial es igual al estado objetivo</string>
     <string name="pathfinder_found_path">Se encontró una ruta usando el algoritmo %1$s</string>
     <string name="pathfinder_cannot_find_path">No se puede encontrar una ruta de estado válida desde \'%1$s\' hasta \'%2$s\'</string>
-    <string name="shizuku_start_service_intro">Para iniciar el servicio Shizuku:\n</string>
-    <string name="shizuku_step1_ensure_installed">1. Asegúrese de tener instalada la aplicación Shizuku\n</string>
-    <string name="shizuku_step2_adb_command">2. Use el comando ADB para iniciar Shizuku:\n</string>
-    <string name="shizuku_or">o\n\n</string>
-    <string name="shizuku_step2_follow_instructions">2. Abra la aplicación Shizuku y siga las instrucciones en pantalla</string>
-    <string name="shizuku_install_update">Actualizar</string>
-
     <string name="mcp_tools_total">Total: %1$d</string>
     <string name="mcp_result">Resultado</string>
     <string name="mcp_error">Error</string>

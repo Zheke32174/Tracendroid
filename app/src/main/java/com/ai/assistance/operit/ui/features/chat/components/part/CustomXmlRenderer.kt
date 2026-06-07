@@ -1057,20 +1057,53 @@ class CustomXmlRenderer(
             val webView = remember(context) {
                 WebView(context).apply {
                     settings.apply {
-                        javaScriptEnabled = true
-                        javaScriptCanOpenWindowsAutomatically = true
-                        domStorageEnabled = true
-                        databaseEnabled = true
-                        allowFileAccess = true
-                        allowContentAccess = true
-                        allowFileAccessFromFileURLs = true
-                        allowUniversalAccessFromFileURLs = true
+                        // § 4.6 — AI output rendering is a validated channel. The AI's
+                        // text reaches us via channels an adversary can poison (prompt
+                        // injection, malicious tool result fed back). Every dangerous
+                        // WebView setting is OFF here: no JS, no file access, no
+                        // cross-origin escape, no mixed content. The text/html payload
+                        // can structure layout but cannot execute or exfiltrate.
+                        javaScriptEnabled = false
+                        javaScriptCanOpenWindowsAutomatically = false
+                        domStorageEnabled = false
+                        databaseEnabled = false
+                        allowFileAccess = false
+                        allowContentAccess = false
+                        allowFileAccessFromFileURLs = false
+                        allowUniversalAccessFromFileURLs = false
                         loadWithOverviewMode = true
                         useWideViewPort = true
                         builtInZoomControls = false
                         displayZoomControls = false
-                        cacheMode = WebSettings.LOAD_DEFAULT
-                        mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                        cacheMode = WebSettings.LOAD_NO_CACHE
+                        mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                        blockNetworkLoads = true
+                        blockNetworkImage = true
+                    }
+                    // Refuse every navigation and every cross-origin resource load. The
+                    // AI's HTML is layout-only; nothing in it should be reaching out.
+                    webViewClient = object : android.webkit.WebViewClient() {
+                        override fun shouldOverrideUrlLoading(
+                            view: android.webkit.WebView?,
+                            request: android.webkit.WebResourceRequest?
+                        ): Boolean = true
+
+                        override fun shouldInterceptRequest(
+                            view: android.webkit.WebView?,
+                            request: android.webkit.WebResourceRequest?
+                        ): android.webkit.WebResourceResponse? {
+                            // Allow the data: load itself; refuse everything else.
+                            val url = request?.url?.toString().orEmpty()
+                            return if (url.startsWith("data:") || url == "about:blank") {
+                                null
+                            } else {
+                                android.webkit.WebResourceResponse(
+                                    "text/plain",
+                                    "utf-8",
+                                    java.io.ByteArrayInputStream(ByteArray(0))
+                                )
+                            }
+                        }
                     }
                     setBackgroundColor(android.graphics.Color.TRANSPARENT)
                 }

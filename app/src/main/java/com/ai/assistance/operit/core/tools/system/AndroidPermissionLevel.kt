@@ -1,35 +1,30 @@
 package com.ai.assistance.operit.core.tools.system
 
 /**
- * 定义工具权限的五个层级
+ * 工具权限层级。
+ *
+ * ROOT 与 DEBUGGER 通道随 § 4.4 一并移除（见 docs/THREAT_MODEL.md）。
+ * 当前仅保留三档：
  * - STANDARD: 基础权限，不需要特殊权限
- * - ACCESSIBILITY: 需要无障碍服务的权限
- * - ROOT: 需要root权限
+ * - ACCESSIBILITY: 需要无障碍服务的权限（唯一特权自动化通道）
  * - ADMIN: 需要设备管理员权限
- * - DEBUGGER: 调试和开发用途的权限
  */
 enum class AndroidPermissionLevel {
-    STANDARD,      // 普通应用权限
-    ACCESSIBILITY, // 无障碍服务权限
-    DEBUGGER,      // 调试权限
-    ADMIN,         // 管理员权限  
-    ROOT;          // Root权限
+    STANDARD,
+    ACCESSIBILITY,
+    ADMIN;
 
     companion object {
         /**
-         * 从字符串转换为权限等级
-         * @param value 权限等级字符串
-         * @return 对应的权限等级，如果无法识别则默认为STANDARD
+         * 从字符串转换为权限等级。
+         * 历史持久化值 "ROOT" 与 "DEBUGGER" 静默降级为 STANDARD —— 它们的特权通道已删除。
          */
         fun fromString(value: String?): AndroidPermissionLevel {
-            return when(value?.uppercase()) {
-                "STANDARD" -> STANDARD
+            return when (value?.uppercase()) {
                 "ACCESSIBILITY" -> ACCESSIBILITY
-                "DEBUGGER" -> DEBUGGER
                 "ADMIN" -> ADMIN
-                "ROOT" -> ROOT
-                else -> STANDARD // 默认为最低权限
+                else -> STANDARD
             }
         }
     }
-} 
+}

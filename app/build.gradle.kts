@@ -188,7 +188,6 @@ dependencies {
     implementation(project(":llama"))
     implementation(project(":mmd"))
     implementation(project(":fbx"))
-    implementation(project(":showerclient"))
     implementation(project(":quickjs"))
 
     // glTF runtime rendering (Filament)
@@ -229,17 +228,13 @@ dependencies {
     // ZIP处理库 - 用于APK解压和重打包
     implementation(libs.commons.compress)
     implementation(libs.commons.io) // 添加Apache Commons IO
+    implementation(libs.zstd.jni) // zstd codec backing commons-compress for the shell rootfs (.tar.zst)
     
     // 图片处理库
     implementation(libs.glide) // 用于处理图像
     
     // XML处理
     implementation(libs.androidx.core.ktx)
-    
-    // libsu - root access library
-    implementation("com.github.topjohnwu.libsu:core:6.0.0")
-    implementation("com.github.topjohnwu.libsu:service:6.0.0")
-    implementation("com.github.topjohnwu.libsu:nio:6.0.0")
     
     // Add missing SVG support
     implementation(libs.androidsvg)
@@ -334,10 +329,6 @@ dependencies {
 
     // Navigation Compose
     implementation(libs.navigation.compose)
-
-    // Shizuku dependencies
-    implementation(libs.shizuku.api)
-    implementation(libs.shizuku.provider)
 
     // Tasker Plugin Library
     implementation("com.joaomgcd:taskerpluginlibrary:0.4.10")

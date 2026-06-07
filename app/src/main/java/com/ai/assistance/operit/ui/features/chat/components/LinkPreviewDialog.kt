@@ -111,6 +111,17 @@ fun LinkPreviewDialog(
                     // 访问按钮
                     Button(
                         onClick = {
+                            // § 4.6 — refuse non-allowlisted schemes (javascript:, intent:,
+                            // content:, file:, etc.) before handing the URL to ACTION_VIEW.
+                            if (!com.ai.assistance.operit.core.aioutput.AiOutputLinkPolicy.isAllowed(url)) {
+                                Toast.makeText(
+                                    context,
+                                    com.ai.assistance.operit.core.aioutput.AiOutputLinkPolicy.refusalMessage(url),
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                                onDismiss()
+                                return@Button
+                            }
                             try {
                                 val intent = Intent(Intent.ACTION_VIEW).apply {
                                     data = Uri.parse(url)

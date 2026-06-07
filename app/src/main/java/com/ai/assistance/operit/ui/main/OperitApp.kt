@@ -296,7 +296,6 @@ fun OperitApp(
         NavItem.Packages,
         NavItem.MemoryBase,
         NavItem.Toolbox,
-        NavItem.ShizukuCommands,
         NavItem.Workflow,
         NavItem.Settings,
         NavItem.Help,
@@ -480,5 +479,19 @@ fun OperitApp(
                 onAcknowledge = { dismissRemoteAnnouncement() }
             )
         }
+
+        // § 4.2 per-call confirmation overlay. Sits on top of every screen so the user
+        // can grant / deny / defer pending tool-gate decisions without navigating away.
+        com.ai.assistance.operit.ui.features.plugingate.ToolGateConfirmationOverlay()
+
+        // § 4.7 sovereign halt overlay — always-reachable halt control + halted banner.
+        com.ai.assistance.operit.ui.features.halt.HaltControlOverlay()
+
+        // § 4.13 first-class AI decline surface — modal dialog when the agent declines.
+        com.ai.assistance.operit.ui.features.decline.AgentDeclineOverlay()
+
+        // § 4.3 plugin install TOFU prompt — modal dialog on first-install of a new
+        // publisher key. Install flow suspends until the user picks Trust / Refuse.
+        com.ai.assistance.operit.ui.features.plugintrust.PluginTofuPromptOverlay()
     }
 }

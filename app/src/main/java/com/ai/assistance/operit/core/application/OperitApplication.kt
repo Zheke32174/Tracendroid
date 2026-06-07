@@ -41,7 +41,13 @@ import com.ai.assistance.operit.data.preferences.CharacterCardManager
 import com.ai.assistance.operit.data.preferences.ExternalHttpApiPreferences
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.data.preferences.WakeWordPreferences
+import com.ai.assistance.operit.core.tools.javascript.JsPluginGate
+import com.ai.assistance.operit.core.tools.javascript.JsPluginGatePersistence
+import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
 import com.ai.assistance.operit.data.preferences.initAndroidPermissionPreferences
+import com.ai.assistance.operit.integrations.intent.BroadcastSenderAllowlist
+import com.ai.assistance.operit.integrations.tasker.WorkflowTaskerReceiver
+import com.ai.assistance.operit.shell.ShellRootfsKeyProvisioner
 import com.ai.assistance.operit.data.preferences.initUserPreferencesManager
 import com.ai.assistance.operit.data.preferences.preferencesManager
 import com.ai.assistance.operit.data.repository.CustomEmojiRepository
@@ -58,12 +64,7 @@ import com.ai.assistance.operit.util.SkillRepoZipPoolManager
 import com.ai.assistance.operit.util.SerializationSetup
 import com.ai.assistance.operit.util.TextSegmenter
 import com.ai.assistance.operit.util.WaifuMessageProcessor
-import com.ai.assistance.operit.core.tools.agent.ShowerController
-import com.ai.assistance.operit.ui.common.displays.VirtualDisplayOverlay
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
-import com.ai.assistance.operit.core.tools.system.shower.OperitShowerShellRunner
-import com.ai.assistance.showerclient.ShowerEnvironment
-import com.ai.assistance.showerclient.ShowerLogSink
 import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
@@ -194,9 +195,43 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
             .also { it.start() }
         AppLogger.d(TAG, "【启动计时】长期记忆自动保存轮询器启动完成 - ${System.currentTimeMillis() - startTime}ms")
 
+        // § 4.2 JS 插件门控持久化器 —— 在 JsEngine 首次被调用前安装。
+        runCatching {
+            JsPluginGate.installPersister(JsPluginGatePersistence(applicationContext))
+        }.onFailure { e ->
+            AppLogger.w(TAG, "JsPluginGate persister install failed: ${e.message}")
+        }
+
+        // Shell rebuild PR 4/N: copy the bundled rootfs verification public key
+        // out of assets into app-private storage. The bootstrap signature
+        // verifier reads it from there.
+        runCatching {
+            ShellRootfsKeyProvisioner(applicationContext).provision()
+        }.onFailure { e ->
+            AppLogger.w(TAG, "ShellRootfsKeyProvisioner failed: ${e.message}")
+        }
+
+        // § 4.1 — pre-seed the Tasker allowlist so the legitimate integration works out
+        // of the box. The user can remove entries from the settings screen if desired.
+        runCatching {
+            val allowlist = BroadcastSenderAllowlist(applicationContext)
+            val label = WorkflowTaskerReceiver.ALLOWLIST_LABEL
+            val existing = allowlist.current(label)
+            for (taskerPkg in WorkflowTaskerReceiver.DEFAULT_TASKER_SENDERS) {
+                if (taskerPkg !in existing) allowlist.add(label, taskerPkg)
+            }
+        }.onFailure { e ->
+            AppLogger.w(TAG, "Tasker allowlist seed failed: ${e.message}")
+        }
+
         // 初始化Android权限偏好管理器
         initAndroidPermissionPreferences(applicationContext)
         AppLogger.d(TAG, "【启动计时】Android权限偏好管理器初始化完成 - ${System.currentTimeMillis() - startTime}ms")
+        // § 4.4 ROOT 通道随移除带走了相关 DataStore 键 —— 这里清理任何遗留值。
+        applicationScope.launch {
+            runCatching { androidPermissionPreferences.purgeLegacyRootKeys() }
+                .onFailure { e -> AppLogger.w(TAG, "purgeLegacyRootKeys failed: ${e.message}") }
+        }
 
         // 初始化功能提示词管理器
         applicationScope.launch {
@@ -215,36 +250,6 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
         // 初始化AndroidShellExecutor上下文
         AndroidShellExecutor.setContext(applicationContext)
         AppLogger.d(TAG, "【启动计时】AndroidShellExecutor初始化完成 - ${System.currentTimeMillis() - startTime}ms")
-
-        // 初始化 Shower 虚拟屏客户端的 ShellRunner 环境
-        ShowerEnvironment.shellRunner = OperitShowerShellRunner
-        ShowerEnvironment.logSink =
-            ShowerLogSink { priority, tag, message, throwable ->
-                when (priority) {
-                    AppLogger.VERBOSE ->
-                        if (throwable != null) AppLogger.v(tag, message, throwable) else AppLogger.v(tag, message)
-                    AppLogger.DEBUG ->
-                        if (throwable != null) AppLogger.d(tag, message, throwable) else AppLogger.d(tag, message)
-                    AppLogger.INFO ->
-                        if (throwable != null) AppLogger.i(tag, message, throwable) else AppLogger.i(tag, message)
-                    AppLogger.WARN ->
-                        if (throwable != null) AppLogger.w(tag, message, throwable) else AppLogger.w(tag, message)
-                    AppLogger.ERROR ->
-                        if (throwable != null) AppLogger.e(tag, message, throwable) else AppLogger.e(tag, message)
-                    AppLogger.ASSERT ->
-                        if (throwable != null) AppLogger.wtf(tag, message, throwable) else AppLogger.wtf(tag, message)
-                    else ->
-                        if (throwable != null) {
-                            AppLogger.println(priority, tag, "$message\n${AppLogger.getStackTraceString(throwable)}")
-                        } else {
-                            AppLogger.println(priority, tag, message)
-                        }
-                }
-            }
-        // Shower logs are already mirrored to AppLogger; avoid duplicate system log entries.
-        ShowerEnvironment.emitToSystemLog = false
-        AppLogger.d(TAG, "【启动计时】ShowerEnvironment.shellRunner 已配置 - ${System.currentTimeMillis() - startTime}ms")
-        AppLogger.d(TAG, "【启动计时】ShowerEnvironment.logSink 已配置 - ${System.currentTimeMillis() - startTime}ms")
 
         // 初始化PDFBox资源加载器
         PDFBoxResourceLoader.init(getApplicationContext());
@@ -615,17 +620,7 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
             AppLogger.e(TAG, "关闭本地Web服务器失败: ${e.message}", e)
         }
 
-        // 在应用终止时，关闭虚拟屏幕 Overlay 并断开 Shower WebSocket 连接
-        try {
-            VirtualDisplayOverlay.hideAll()
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "终止时隐藏 VirtualDisplayOverlay 失败: ${e.message}", e)
-        }
-        try {
-            ShowerController.shutdown()
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "终止时关闭 ShowerController 失败: ${e.message}", e)
-        }
+        // VirtualDisplayOverlay 已随 § 4.4 Shower 移除一并删除 — 无 onTerminate 清理动作。
     }
 
     override fun onLowMemory() {

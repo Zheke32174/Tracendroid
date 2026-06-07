@@ -29,11 +29,10 @@ class ShellExecutorFactory {
             }
 
             // 创建新的执行器实例
+            // ROOT 与 DEBUGGER 通道已随 § 4.4 移除 (参见 docs/SECURITY.md § 8)
             val executor =
                     when (permissionLevel) {
-                        AndroidPermissionLevel.ROOT -> RootShellExecutor(context)
                         AndroidPermissionLevel.ADMIN -> AdminShellExecutor(context)
-                        AndroidPermissionLevel.DEBUGGER -> DebuggerShellExecutor(context)
                         AndroidPermissionLevel.ACCESSIBILITY -> AccessibilityShellExecutor(context)
                         AndroidPermissionLevel.STANDARD -> StandardShellExecutor(context)
                     }
@@ -56,12 +55,10 @@ class ShellExecutorFactory {
                 context: Context
         ): Pair<ShellExecutor, ShellExecutor.PermissionStatus> {
 
-            // 按权限从高到低尝试
+            // 按权限从高到低尝试 (ROOT/DEBUGGER 已废弃 — 不再枚举)
             val levels =
                     listOf(
-                            AndroidPermissionLevel.ROOT,
                             AndroidPermissionLevel.ADMIN,
-                            AndroidPermissionLevel.DEBUGGER,
                             AndroidPermissionLevel.ACCESSIBILITY,
                             AndroidPermissionLevel.STANDARD
                     )

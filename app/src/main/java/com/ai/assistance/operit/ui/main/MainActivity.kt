@@ -49,7 +49,6 @@ import com.ai.assistance.operit.ui.features.startup.screens.PluginLoadingState
 import com.ai.assistance.operit.ui.features.startup.screens.LocalPluginLoadingState
 import com.ai.assistance.operit.ui.features.startup.screens.PluginLoadingStateRegistry
 import com.ai.assistance.operit.ui.theme.OperitTheme
-import com.ai.assistance.operit.ui.common.displays.VirtualDisplayOverlay
 import com.ai.assistance.operit.util.AnrMonitor
 import com.ai.assistance.operit.util.LocaleUtils
 import java.util.*
@@ -527,12 +526,7 @@ class MainActivity : ComponentActivity() {
         // 确保隐藏加载界面
         pluginLoadingState.hide()
 
-        // 主界面销毁时，确保关闭虚拟屏幕 Overlay 并断开 Shower WebSocket 连接
-        try {
-            VirtualDisplayOverlay.hideAll()
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Error hiding VirtualDisplayOverlay in MainActivity.onDestroy", e)
-        }
+        // VirtualDisplayOverlay 已随 § 4.4 Shower 移除一并删除 — 此处无 onDestroy 清理动作。
 
         anrMonitor.stop()
     }

@@ -1,0 +1,75 @@
+name: app-build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/operit-fork-optimization-WWapH"
+    paths-ignore:
+      - "debian/**"
+      - "docs/**"
+      - "**.md"
+      - ".github/workflows/rootfs.yml"
+  pull_request:
+    branches:
+      - "main"
+
+permissions:
+  contents: read
+
+# Skip the heavy build when the only changes are docs or the rootfs pipeline.
+# The pattern matches the threat-model commits ("docs:" prefix) and any
+# debian/ pipeline-only changes — those land outside the app source.
+
+jobs:
+  compile:
+    name: Compile + lint (debug)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          # Cache the Gradle home + the wrapper across runs of the same branch.
+          # Kotlin compilation is the heaviest single phase; warm caches drop
+          # this job from ~20 minutes to ~6.
+          cache-read-only: false
+
+      - name: Show toolchain
+        run: |
+          java -version
+          ./gradlew --version
+
+      # compileDebugKotlin proves the codebase parses + types — that's the
+      # minimum we need to know the threat-model changes didn't break the
+      # build. Full assembleDebug runs lint + dexing which roughly doubles
+      # the runtime; switch to it when the team is OK paying that cost.
+      - name: Compile (debug Kotlin)
+        run: ./gradlew :app:compileDebugKotlin --no-daemon --stacktrace
+
+      - name: Lint (debug)
+        run: ./gradlew :app:lintDebug --no-daemon --stacktrace || true
+        # Lint findings don't fail the job in v1 — the project has decades
+        # of pre-existing warnings the threat-model work didn't introduce.
+        # Switch this to a real failure once the warnings are triaged.
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+          retention-days: 14

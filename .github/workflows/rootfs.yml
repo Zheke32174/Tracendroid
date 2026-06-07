@@ -28,7 +28,7 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y debootstrap zstd
+          sudo apt-get install -y debootstrap zstd openssl
 
       - name: Build rootfs
         env:
@@ -37,6 +37,36 @@ jobs:
           DEBIAN_SUITE: bookworm
         run: |
           sudo -E bash debian/build.sh
+
+      # The signing step runs only when ROOTFS_SIGNING_KEY is configured as a
+      # repository secret. Devs running the workflow without the secret get
+      # an unsigned artifact; on-device verification will then refuse it,
+      # which is the correct v1 behavior. See docs/SHELL_REBUILD.md.
+      - name: Materialize signing key
+        if: ${{ env.ROOTFS_SIGNING_KEY != '' }}
+        env:
+          ROOTFS_SIGNING_KEY: ${{ secrets.ROOTFS_SIGNING_KEY }}
+        run: |
+          install -m 600 /dev/null /tmp/rootfs-signing.pem
+          printf '%s' "$ROOTFS_SIGNING_KEY" > /tmp/rootfs-signing.pem
+          # Derive the matching public key from the private key — never trust
+          # an externally-supplied "matched public key" pair; the signing
+          # job is the single source of truth.
+          openssl pkey -in /tmp/rootfs-signing.pem -pubout \
+              -out /tmp/rootfs-pubkey.pem
+
+      - name: Sign rootfs
+        if: ${{ env.ROOTFS_SIGNING_KEY != '' }}
+        env:
+          ROOTFS_SIGNING_KEY: ${{ secrets.ROOTFS_SIGNING_KEY }}
+        run: |
+          ARTIFACT="$(ls debian/out/*.tar.zst | head -n1)"
+          SIGNING_KEY=/tmp/rootfs-signing.pem \
+          PUBLIC_KEY=/tmp/rootfs-pubkey.pem \
+          ARTIFACT="$ARTIFACT" \
+              bash debian/sign.sh
+          # Scrub the private key from the runner as soon as we're done.
+          shred -u /tmp/rootfs-signing.pem || rm -f /tmp/rootfs-signing.pem
 
       - name: Show artifact metadata
         run: |
@@ -49,6 +79,8 @@ jobs:
           name: tracendroid-rootfs-${{ inputs.rootfs_version || '2026.05.0-dev' }}-arm64
           path: |
             debian/out/*.tar.zst
+            debian/out/*.tar.zst.sig
+            debian/out/*.tar.zst.pubkey.pem
             debian/out/*.sha256
           retention-days: 90
           if-no-files-found: error

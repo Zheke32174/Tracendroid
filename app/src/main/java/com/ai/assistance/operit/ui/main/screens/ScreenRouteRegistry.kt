@@ -134,20 +134,60 @@ object ScreenRouteRegistry {
                 order = 10
             ),
             hostEntryDefinition(
-                entryId = "main.shizuku_commands",
-                screen = Screen.ShizukuCommands,
-                surface = NavigationSurface.MAIN_SIDEBAR_TOOLS,
-                launchNavItem = NavItem.ShizukuCommands,
-                icon = NavItem.ShizukuCommands.icon,
-                order = 20
-            ),
-            hostEntryDefinition(
                 entryId = "main.workflow",
                 screen = Screen.Workflow,
                 surface = NavigationSurface.MAIN_SIDEBAR_TOOLS,
                 launchNavItem = NavItem.Workflow,
                 icon = NavItem.Workflow.icon,
                 order = 30
+            ),
+            hostEntryDefinition(
+                entryId = "main.accessibility_onboarding",
+                screen = Screen.AccessibilityOnboarding,
+                surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,
+                launchNavItem = NavItem.AccessibilityOnboarding,
+                icon = NavItem.AccessibilityOnboarding.icon,
+                order = 5
+            ),
+            hostEntryDefinition(
+                entryId = "main.shell_bootstrap",
+                screen = Screen.ShellBootstrap,
+                surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,
+                launchNavItem = NavItem.ShellBootstrap,
+                icon = NavItem.ShellBootstrap.icon,
+                order = 6
+            ),
+            hostEntryDefinition(
+                entryId = "main.plugin_gate",
+                screen = Screen.PluginGate,
+                surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,
+                launchNavItem = NavItem.PluginGate,
+                icon = NavItem.PluginGate.icon,
+                order = 7
+            ),
+            hostEntryDefinition(
+                entryId = "main.broadcast_allowlist",
+                screen = Screen.BroadcastAllowlist,
+                surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,
+                launchNavItem = NavItem.BroadcastAllowlist,
+                icon = NavItem.BroadcastAllowlist.icon,
+                order = 8
+            ),
+            hostEntryDefinition(
+                entryId = "main.telemetry_policy",
+                screen = Screen.TelemetryPolicy,
+                surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,
+                launchNavItem = NavItem.TelemetryPolicy,
+                icon = NavItem.TelemetryPolicy.icon,
+                order = 9
+            ),
+            hostEntryDefinition(
+                entryId = "main.plugin_trust",
+                screen = Screen.PluginTrust,
+                surface = NavigationSurface.MAIN_SIDEBAR_SYSTEM,
+                launchNavItem = NavItem.PluginTrust,
+                icon = NavItem.PluginTrust.icon,
+                order = 10
             ),
             hostEntryDefinition(
                 entryId = "main.settings",
@@ -319,24 +359,6 @@ object ScreenRouteRegistry {
                 descriptionResId = R.string.tool_html_packager_desc,
                 icon = Icons.Default.Html,
                 order = 160
-            ),
-            hostEntryDefinition(
-                entryId = "toolbox.auto_glm_one_click",
-                screen = Screen.AutoGlmOneClick,
-                surface = NavigationSurface.TOOLBOX,
-                titleResId = R.string.tool_autoglm_one_click,
-                descriptionResId = R.string.tool_autoglm_one_click_desc,
-                icon = Icons.Default.AutoMode,
-                order = 170
-            ),
-            hostEntryDefinition(
-                entryId = "toolbox.auto_glm_tool",
-                screen = Screen.AutoGlmTool,
-                surface = NavigationSurface.TOOLBOX,
-                titleResId = R.string.tool_autoglm_tool,
-                descriptionResId = R.string.tool_autoglm_tool_desc,
-                icon = Icons.Default.AutoMode,
-                order = 180
             ),
             hostEntryDefinition(
                 entryId = "hidden.toolbox",

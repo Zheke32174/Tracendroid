@@ -25,9 +25,14 @@ import androidx.navigation.NavController
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.common.NavItem
 import com.ai.assistance.operit.ui.features.about.screens.AboutScreen
+import com.ai.assistance.operit.ui.features.accessibilityonboarding.AccessibilityOnboardingScreen
+import com.ai.assistance.operit.ui.features.broadcastallowlist.BroadcastAllowlistScreen
+import com.ai.assistance.operit.ui.features.telemetry.TelemetryPolicyScreen
+import com.ai.assistance.operit.ui.features.plugingate.PluginGateScreen
+import com.ai.assistance.operit.ui.features.plugintrust.PluginTrustScreen
+import com.ai.assistance.operit.ui.features.shellbootstrap.ShellBootstrapScreen
 import com.ai.assistance.operit.ui.features.assistant.screens.AssistantConfigScreen
 import com.ai.assistance.operit.ui.features.chat.screens.AIChatScreen
-import com.ai.assistance.operit.ui.features.demo.screens.ShizukuDemoScreen
 import com.ai.assistance.operit.ui.features.help.screens.HelpScreen
 import com.ai.assistance.operit.ui.features.memory.screens.MemoryScreen
 import com.ai.assistance.operit.ui.features.packages.screens.MarketHomeTab
@@ -84,8 +89,6 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.htmlpackager.HtmlPac
 import com.ai.assistance.operit.ui.features.toolbox.screens.speechtotext.SpeechToTextToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.texttospeech.TextToSpeechToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.tooltester.ToolTesterScreen
-import com.ai.assistance.operit.ui.features.toolbox.screens.autoglm.AutoGlmOneClickToolScreen
-import com.ai.assistance.operit.ui.features.toolbox.screens.autoglm.AutoGlmToolScreen
 import com.ai.assistance.operit.ui.features.update.screens.UpdateScreen
 import com.ai.assistance.operit.ui.features.workflow.screens.WorkflowListScreen
 import com.ai.assistance.operit.ui.features.workflow.screens.WorkflowDetailScreen
@@ -514,7 +517,7 @@ sealed class Screen(
     }
 
 
-    data object ShizukuCommands : Screen(navItem = NavItem.ShizukuCommands) {
+    data object AccessibilityOnboarding : Screen(navItem = NavItem.AccessibilityOnboarding) {
         @Composable
         override fun Content(
                 navController: NavController,
@@ -525,7 +528,82 @@ sealed class Screen(
                 onError: (String) -> Unit,
                 onGestureConsumed: (Boolean) -> Unit
         ) {
-            ShizukuDemoScreen(navigateTo = navigateTo)
+            AccessibilityOnboardingScreen(onNavigateBack = onGoBack)
+        }
+    }
+
+    data object ShellBootstrap : Screen(navItem = NavItem.ShellBootstrap) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            ShellBootstrapScreen(onClose = onGoBack)
+        }
+    }
+
+    data object PluginGate : Screen(navItem = NavItem.PluginGate) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            PluginGateScreen()
+        }
+    }
+
+    data object BroadcastAllowlist : Screen(navItem = NavItem.BroadcastAllowlist) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            BroadcastAllowlistScreen()
+        }
+    }
+
+    data object TelemetryPolicy : Screen(navItem = NavItem.TelemetryPolicy) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            TelemetryPolicyScreen()
+        }
+    }
+
+    data object PluginTrust : Screen(navItem = NavItem.PluginTrust) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            PluginTrustScreen()
         }
     }
 
@@ -752,7 +830,7 @@ sealed class Screen(
                     profileName = profileName,
                     profileId = profileId,
                     onComplete = onGoBack,
-                    navigateToPermissions = { navigateTo(ShizukuCommands) }
+                    navigateToPermissions = { navigateTo(AppPermissions) }
             )
         }
     }
@@ -1436,38 +1514,6 @@ sealed class Screen(
         }
     }
 
-    data object AutoGlmOneClick : Screen(navItem = NavItem.Toolbox, titleRes = R.string.screen_title_autoglm_one_click) {
-        @Composable
-        override fun Content(
-                navController: NavController,
-                navigateTo: ScreenNavigationHandler,
-                onGoBack: () -> Unit,
-                hasBackgroundImage: Boolean,
-                onLoading: (Boolean) -> Unit,
-                onError: (String) -> Unit,
-                onGestureConsumed: (Boolean) -> Unit
-        ) {
-            AutoGlmOneClickToolScreen(
-                navController = navController,
-                onNavigateToModelConfig = { navigateTo(ModelConfig) }
-            )
-        }
-    }
-    
-    data object AutoGlmTool : Screen(navItem = NavItem.Toolbox, titleRes = R.string.screen_title_autoglm_tool) {
-        @Composable
-        override fun Content(
-                navController: NavController,
-                navigateTo: ScreenNavigationHandler,
-                onGoBack: () -> Unit,
-                hasBackgroundImage: Boolean,
-                onLoading: (Boolean) -> Unit,
-                onError: (String) -> Unit,
-                onGestureConsumed: (Boolean) -> Unit
-        ) {
-            AutoGlmToolScreen()
-        }
-    }
 
     // MCP 插件详情页面
     data class MCPPluginDetail(val issue: com.ai.assistance.operit.data.api.GitHubIssue) :
