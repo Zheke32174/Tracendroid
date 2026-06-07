@@ -164,28 +164,10 @@ class MCPDeployer(private val context: Context) {
                         statusCallback(DeploymentStatus.InProgress(context.getString(R.string.mcp_deployment_using_market_config)))
                         mcpConfig = marketConfig
                     } else {
-                        // 没有市场配置，分析项目并生成配置
-                        AppLogger.d(TAG, "没有市场配置，分析项目生成配置: $pluginId")
-                        
-                        // 创建项目分析器（仅用于分析项目类型和生成配置）
-                        val projectAnalyzer = MCPProjectAnalyzer()
-                        val readmeFile = projectAnalyzer.findReadmeFile(pluginDir)
-                        val readmeContent = readmeFile?.readText() ?: ""
-
-                        // 分析项目结构以便生成配置
-                        statusCallback(DeploymentStatus.InProgress(context.getString(R.string.mcp_deployment_analyzing_structure)))
-                        val projectStructure = projectAnalyzer.analyzeProjectStructure(pluginDir, readmeContent)
-
-                        // 定义插件在 proot 环境中的目录路径
-                        val pluginDirPath = mcpLocalServer.getPluginRuntimeDirectory(pluginId)
-
-                        // 生成MCP配置，包含环境变量和插件目录路径
-                        mcpConfig = configGenerator.generateMcpConfig(
-                            pluginId,
-                            projectStructure,
-                            environmentVariables,
-                            pluginDirPath
-                        )
+                        // §4.3 Drop legacy unsigned plugin path
+                        AppLogger.e(TAG, "拒绝部署未签名插件: $pluginId")
+                        statusCallback(DeploymentStatus.Error(context.getString(R.string.mcp_deployment_signed_only_mandatory)))
+                        return@withContext false
                     }
 
                     // 保存MCP配置

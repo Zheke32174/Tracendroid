@@ -2234,11 +2234,11 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
 
             val lowerPath = filePath.lowercase()
             val isToolPkg = lowerPath.endsWith(TOOLPKG_EXTENSION)
-            val isJsLike = lowerPath.endsWith(".js") || lowerPath.endsWith(".ts")
-            val isHjson = lowerPath.endsWith(".hjson")
+            val isJsLike = false
+            val isHjson = false
 
-            if (!isToolPkg && !isJsLike && !isHjson) {
-                return "Only .toolpkg, HJSON, JavaScript (.js) and TypeScript (.ts) package files are supported"
+            if (!isToolPkg) {
+                return "Only .toolpkg package files are supported"
             }
 
             if (isToolPkg) {
@@ -2272,37 +2272,6 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
 
                 return "Successfully imported toolpkg: $containerName\nStored at: ${destinationFile.absolutePath}"
             }
-
-            val packageMetadata =
-                if (isHjson) {
-                    val hjsonContent = file.readText()
-                    val metadataJson = org.json.JSONObject(JsonValue.readHjson(hjsonContent).toString())
-                    normalizeJsPackageMetadata(metadataJson)
-                    val jsonString = metadataJson.toString()
-                    val jsonConfig = Json { ignoreUnknownKeys = true }
-                    jsonConfig.decodeFromString<ToolPackage>(jsonString)
-                } else {
-                    loadPackageFromJsFile(file)
-                        ?: return "Failed to parse ${if (lowerPath.endsWith(".ts")) "TypeScript" else "JavaScript"} package file"
-                }
-
-            if (availablePackages.containsKey(packageMetadata.name)) {
-                return "A package with name '${packageMetadata.name}' already exists in available packages"
-            }
-
-            val destinationFile = File(externalPackagesDir, file.name)
-            if (file.absolutePath != destinationFile.absolutePath) {
-                file.inputStream().use { input ->
-                    destinationFile.outputStream().use { output -> input.copyTo(output) }
-                }
-            }
-
-            availablePackages[packageMetadata.name] = packageMetadata.copy(isBuiltIn = false)
-
-            AppLogger.d(TAG, "Successfully imported external package to: ${destinationFile.absolutePath}")
-            return "Successfully imported package: ${packageMetadata.name}\nStored at: ${destinationFile.absolutePath}"
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Error importing package from external storage", e)
             return "Error importing package: ${e.message}"
         }
     }

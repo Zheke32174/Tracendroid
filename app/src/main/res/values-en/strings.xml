@@ -6053,6 +6053,7 @@
     <string name="mcp_deployment_analyzing_structure">Analyzing project structure...</string>
     <string name="mcp_deployment_saving_config">Saving MCP config...</string>
     <string name="mcp_deployment_save_config_failed">Failed to save MCP config</string>
+    <string name="mcp_deployment_signed_only_mandatory">Only signed plugin deployment is supported. Please install via the market.</string>
     <string name="mcp_deployment_error">Deployment error: %1$s</string>
     <string name="mcp_deployment_cannot_determine">Cannot determine how to deploy this plugin: %1$s</string>
     <string name="mcp_deployment_copying_files">Copying plugin files to target directory...</string>

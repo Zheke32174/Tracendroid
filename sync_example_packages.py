@@ -185,7 +185,7 @@ def _prebuild_examples(
             print(f"SKIP-PREBUILD(ROOT): {examples_dir}")
         else:
             _run_checked_command(
-                ["pnpm", "exec", "tsc", "-p", str(root_tsconfig)],
+                ["tsc", "-p", str(root_tsconfig)],
                 cwd=repo_root,
                 dry_run=dry_run,
             )
@@ -217,7 +217,7 @@ def _prebuild_examples(
 
         if should_run_tsc:
             _run_checked_command(
-                ["pnpm", "exec", "tsc", "-p", str(tsconfig)],
+                ["tsc", "-p", str(tsconfig)],
                 cwd=repo_root,
                 dry_run=dry_run,
             )
@@ -236,7 +236,7 @@ def _prebuild_examples(
         should_run_build = should_run_tsc or prebuild_state.get(build_key) != child_signature
         if package_json.is_file() and should_run_build:
             _run_checked_command(
-                ["pnpm", "build"],
+                ["npm", "run", "build"],
                 cwd=child_dir,
                 dry_run=dry_run,
             )

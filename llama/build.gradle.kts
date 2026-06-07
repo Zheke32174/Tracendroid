@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "com.ai.assistance.llama"
     compileSdk = 36
+    ndkVersion = "29.0.14206865"
 
     defaultConfig {
         minSdk = 26

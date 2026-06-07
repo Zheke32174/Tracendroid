@@ -6283,6 +6283,7 @@
     <string name="mcp_deployment_analyzing_structure">分析项目结构...</string>
     <string name="mcp_deployment_saving_config">保存MCP配置...</string>
     <string name="mcp_deployment_save_config_failed">保存MCP配置失败</string>
+    <string name="mcp_deployment_signed_only_mandatory">只支持已签名的插件部署，请通过市场安装。</string>
     <string name="mcp_deployment_error">部署出错: %1$s</string>
     <string name="mcp_deployment_cannot_determine">无法确定如何部署此插件: %1$s</string>
     <string name="mcp_deployment_copying_files">复制插件文件到目标目录...</string>

@@ -23,6 +23,7 @@ if (localPropertiesFile.exists()) {
 android {
     namespace = "com.ai.assistance.operit"
     compileSdk = 36
+    ndkVersion = "29.0.14206865"
 
     signingConfigs {
         val releaseKeystorePath = localProperties.getProperty("RELEASE_STORE_FILE")

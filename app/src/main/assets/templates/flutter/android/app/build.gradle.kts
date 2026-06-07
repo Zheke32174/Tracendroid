@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "com.example.operit_flutter_project"
     compileSdk = flutter.compileSdkVersion
+    ndkVersion = "29.0.14206865"
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
