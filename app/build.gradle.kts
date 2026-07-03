@@ -421,6 +421,17 @@ dependencies {
     
     // BouncyCastle - explicitly include jdk18on version to avoid conflicts
     implementation("org.bouncycastle:bcprov-jdk18on:1.78")
+    // Apache MINA sshd needs bcpkix + bcutil (PEM / OpenSSH key loading). Pin to the SAME
+    // 1.78 as bcprov above so the BC modules never skew across each other.
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.78")
+    implementation("org.bouncycastle:bcutil-jdk18on:1.78")
+
+    // Ryznix SSH backend: Apache MINA sshd client for RyznixTransport (loopback SSH into
+    // the phone's Termux/Ubuntu userland). sshd-core transitively pulls sshd-common.
+    // TODO(offbox-verify): confirm latest stable org.apache.sshd:sshd-core that resolves
+    // AND runs on Android (pure-JVM lib; NIO/ServiceLoader/security-provider paths differ
+    // on Android). This whole backend cannot be compiled/run here — verify off-box.
+    implementation("org.apache.sshd:sshd-core:2.12.1")
 
     // Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
