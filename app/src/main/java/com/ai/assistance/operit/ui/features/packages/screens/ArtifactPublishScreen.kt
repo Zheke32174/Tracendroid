@@ -98,9 +98,8 @@ fun ArtifactPublishScreen(
     val lockedRuntimePackageId = initialInfo?.runtimePackageId?.ifBlank { initialInfo.normalizedId }.orEmpty()
     val lockedDisplayName = activePublishContext?.lockedDisplayName?.trim().orEmpty()
     val isDisplayNameLocked = !isEditMode && lockedDisplayName.isNotBlank()
-    val continuationSelectionTitle = "选中${parentCount}个版本"
-    val continuationDescription =
-        "在基础上发布，将会为一个或者多个版本创建更新。选中一个时，将会视为某个版本的下一个版本，选中多个时，将会视为多个功能的整合的下一个版本。"
+    val continuationSelectionTitle = stringResource(R.string.artifact_publish_continuation_selection_title, parentCount)
+    val continuationDescription = stringResource(R.string.artifact_publish_continuation_description)
 
     val filteredArtifacts =
         remember(artifacts, activePublishContext, isEditMode, lockedRuntimePackageId) {
@@ -205,7 +204,7 @@ fun ArtifactPublishScreen(
                     showSelectionDialog = true
                 },
                 onFailure = { error ->
-                    selectionLoadError = error.message ?: "加载版本选择失败"
+                    selectionLoadError = error.message ?: context.getString(R.string.artifact_publish_selection_load_failed)
                 }
             )
         }
@@ -231,8 +230,8 @@ fun ArtifactPublishScreen(
                 Text(
                     text =
                         when {
-                            isEditMode -> "编辑作品"
-                            isContinuationMode -> "在此版本上发布"
+                            isEditMode -> stringResource(R.string.artifact_publish_header_edit)
+                            isContinuationMode -> stringResource(R.string.artifact_publish_header_continuation)
                             else -> stringResource(R.string.publish_description)
                         },
                     style = MaterialTheme.typography.titleSmall,
@@ -241,7 +240,7 @@ fun ArtifactPublishScreen(
                 Text(
                     text =
                         when {
-                            isEditMode -> "编辑作品不可修改文件、版本号和命名。如果为更新插件，请在插件详情界面点击发布新版本。你也可以为他人插件制作新版本。"
+                            isEditMode -> stringResource(R.string.artifact_publish_edit_info_description)
                             isContinuationMode -> continuationDescription
                             else -> stringResource(R.string.artifact_publish_info_description)
                         },
@@ -264,6 +263,8 @@ fun ArtifactPublishScreen(
                             PublishArtifactType.SCRIPT -> stringResource(R.string.artifact_type_script)
                             null -> ""
                         }
+                    val fileLockedLabel = stringResource(R.string.artifact_publish_file_locked)
+                    val editOnlyHint = stringResource(R.string.artifact_publish_edit_only_hint)
                     val summaryText =
                         buildString {
                             if (artifactTypeLabel.isNotBlank()) {
@@ -271,11 +272,11 @@ fun ArtifactPublishScreen(
                             }
                             initialInfo.sourceFileName.takeIf { it.isNotBlank() }?.let {
                                 if (isNotBlank()) append(" · ")
-                                append("文件已锁定")
+                                append(fileLockedLabel)
                             }
-                        }.ifBlank { "当前只可修改简介和适配版本" }
+                        }.ifBlank { editOnlyHint }
                     Text(
-                        text = "当前作品",
+                        text = stringResource(R.string.artifact_publish_current_work),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -311,18 +312,21 @@ fun ArtifactPublishScreen(
                             onClick = ::openSelectionEditor,
                             enabled = !isSelectionProjectLoading
                         ) {
-                            Text(if (isSelectionProjectLoading) "加载中" else "更改")
+                            Text(
+                                if (isSelectionProjectLoading) stringResource(R.string.artifact_publish_loading_short)
+                                else stringResource(R.string.artifact_publish_change_action)
+                            )
                         }
                     }
                     if (lockedDisplayName.isNotBlank()) {
                         Text(
-                            text = "插件名字将沿用 $lockedDisplayName",
+                            text = stringResource(R.string.artifact_publish_name_inherited, lockedDisplayName),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Text(
-                        text = "包名和发布名称会自动沿用。",
+                        text = stringResource(R.string.artifact_publish_id_inherited),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -350,7 +354,7 @@ fun ArtifactPublishScreen(
         if (!isEditMode && activePublishContext != null && filteredArtifacts.isEmpty()) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                 Text(
-                    text = "当前是基于版本发布，但本地还没有找到可发布的对应插件，请先确认本地已经有这个包。",
+                    text = stringResource(R.string.artifact_publish_continuation_no_local_package),
                     modifier = Modifier.padding(16.dp),
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
@@ -459,9 +463,9 @@ fun ArtifactPublishScreen(
             readOnly = isEditMode || isDisplayNameLocked,
             supportingText = {
                 if (isEditMode) {
-                    Text("已发布作品的命名不可修改")
+                    Text(stringResource(R.string.artifact_publish_name_locked_published))
                 } else if (isDisplayNameLocked) {
-                    Text("基于版本发布时，插件名字必须和来源版本保持一致")
+                    Text(stringResource(R.string.artifact_publish_name_locked_continuation))
                 }
             }
         )
@@ -485,7 +489,7 @@ fun ArtifactPublishScreen(
             readOnly = isEditMode,
             supportingText = {
                 if (isEditMode) {
-                    Text("已发布节点的版本号不可修改")
+                    Text(stringResource(R.string.artifact_publish_version_locked))
                 }
             }
         )
@@ -574,8 +578,8 @@ fun ArtifactPublishScreen(
             }
             Text(
                 when {
-                    isEditMode -> "保存作品信息"
-                    isContinuationMode -> "发布更新版本"
+                    isEditMode -> stringResource(R.string.artifact_publish_button_save_edit)
+                    isContinuationMode -> stringResource(R.string.artifact_publish_button_publish_update)
                     else -> stringResource(R.string.publish_to_market)
                 }
             )
@@ -637,8 +641,8 @@ fun ArtifactPublishScreen(
             title = {
                 Text(
                     when {
-                        isEditMode -> "确认保存作品信息"
-                        isContinuationMode -> "确认发布更新版本"
+                        isEditMode -> stringResource(R.string.artifact_publish_confirm_save_edit)
+                        isContinuationMode -> stringResource(R.string.artifact_publish_confirm_publish_update)
                         else -> stringResource(R.string.confirm_publish)
                     }
                 )
@@ -646,7 +650,7 @@ fun ArtifactPublishScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (isEditMode) {
-                        Text("将更新当前作品的简介和适配版本信息。")
+                        Text(stringResource(R.string.artifact_publish_edit_update_note))
                         Text(stringResource(R.string.description_colon, description))
                         Text(
                             stringResource(
@@ -716,8 +720,8 @@ fun ArtifactPublishScreen(
                 ) {
                     Text(
                         when {
-                            isEditMode -> "确认保存作品信息"
-                            isContinuationMode -> "确认发布更新版本"
+                            isEditMode -> stringResource(R.string.artifact_publish_confirm_save_edit)
+                            isContinuationMode -> stringResource(R.string.artifact_publish_confirm_publish_update)
                             else -> stringResource(R.string.confirm_publish)
                         }
                     )
@@ -794,8 +798,8 @@ fun ArtifactPublishScreen(
             title = {
                 Text(
                     when {
-                        isEditMode -> "作品信息更新成功"
-                        isContinuationMode -> "更新版本发布成功"
+                        isEditMode -> stringResource(R.string.artifact_publish_success_edit)
+                        isContinuationMode -> stringResource(R.string.artifact_publish_success_continuation)
                         else -> stringResource(R.string.publish_success)
                     }
                 )
