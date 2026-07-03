@@ -15,7 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Top-level orchestrator for a proot session (Shell rebuild PR 3/N).
+ * Top-level orchestrator for a shell session — proot by default, ryznix or another
+ * backend as a peer (Shell rebuild PR 3/N).
  *
  * Holds:
  *  - the [ShellTransport] backend (proot by default; ryznix/others are peers)
@@ -47,7 +48,7 @@ class ShellSessionManager(
     private val _state = MutableStateFlow<State>(State.Idle)
     val state: StateFlow<State> = _state.asStateFlow()
 
-    private val activeProcess = AtomicReference<Process?>(null)
+    private val activeChannel = AtomicReference<ShellChannel?>(null)
     private val activeServer = AtomicReference<ShellIpcServer?>(null)
 
     /**
@@ -55,7 +56,7 @@ class ShellSessionManager(
      * actual phase and any failure reason verbatim.
      */
     fun start(handler: ShellIpcServer.RequestHandler = defaultHandler()): Boolean {
-        if (activeProcess.get() != null) {
+        if (activeChannel.get() != null) {
             AppLogger.d(TAG, "start: session already running")
             return true
         }
@@ -87,8 +88,8 @@ class ShellSessionManager(
         _state.value = State.Starting("spawning ${transport.name}")
         return when (val r = transport.spawn()) {
             is ShellTransportResult.Started -> {
-                activeProcess.set(r.process)
-                _state.value = State.Running(extractPid(r.process))
+                activeChannel.set(r.channel)
+                _state.value = State.Running(r.channel.pid)
                 AppLogger.d(TAG, "session started via ${transport.name}")
                 true
             }
@@ -112,7 +113,7 @@ class ShellSessionManager(
 
     /** Stop the session if running. Halts proot and the IPC server; returns to Idle. */
     fun stop() {
-        activeProcess.getAndSet(null)?.let { proc -> transport.stop(proc) }
+        activeChannel.getAndSet(null)?.let { ch -> transport.stop(ch) }
         activeServer.getAndSet(null)?.stop()
         _state.value = State.Stopped
         AppLogger.d(TAG, "session stopped")
@@ -135,13 +136,6 @@ class ShellSessionManager(
                     "in-rootfs request dispatcher."
             )
         }
-
-    private fun extractPid(process: Process): Int? = runCatching {
-        // Reflection avoids API-level guards; pid() is API 26+ which we already require,
-        // but the call is cheap and a missing pid shouldn't fail session startup.
-        @Suppress("USELESS_ELVIS")
-        process.javaClass.getMethod("pid").invoke(process) as? Long ?: return null
-    }.getOrNull()?.toInt()
 
     /** Convenience: bind a request envelope and send. The send half lands with the client side. */
     @Suppress("unused")

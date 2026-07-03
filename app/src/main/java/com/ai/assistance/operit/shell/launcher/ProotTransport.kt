@@ -20,7 +20,7 @@ class ProotTransport(
 
     override fun spawn(): ShellTransportResult = when (val r = spawner.spawn()) {
         is ShellProcessSpawner.Result.Started ->
-            ShellTransportResult.Started(r.process)
+            ShellTransportResult.Started(ProcessShellChannel(r.process))
 
         is ShellProcessSpawner.Result.BinaryMissing ->
             ShellTransportResult.Unavailable(
