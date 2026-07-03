@@ -1125,15 +1125,19 @@ class ClaudeProvider(
 
     // 创建请求
     private suspend fun createRequest(requestBody: RequestBody): Request {
-        val currentApiKey = apiKeyProvider.getApiKey()
+        val authStrategy: AuthStrategy = HeaderKeyAuth(
+                headerName = "x-api-key",
+                credentialProvider = { apiKeyProvider.getApiKey() },
+                extraHeaders = mapOf("anthropic-version" to ANTHROPIC_VERSION),
+        )
+        val credential = authStrategy.resolveCredential()
         val completedEndpoint = EndpointCompleter.completeEndpoint(apiEndpoint, providerType)
         val builder =
                 Request.Builder()
-                        .url(completedEndpoint)
+                        .url(authStrategy.applyUrl(completedEndpoint, credential))
                         .post(requestBody)
-                        .addHeader("x-api-key", currentApiKey)
-                        .addHeader("anthropic-version", ANTHROPIC_VERSION)
                         .addHeader("Content-Type", "application/json")
+        authStrategy.applyHeaders(builder, credential)
 
         // 添加自定义请求头
         customHeaders.forEach { (key, value) ->

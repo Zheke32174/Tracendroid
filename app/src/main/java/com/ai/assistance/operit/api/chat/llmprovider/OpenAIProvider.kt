@@ -1576,7 +1576,8 @@ open class OpenAIProvider(
         stream: Boolean,
         attemptNumber: Int
     ): Request {
-        val currentApiKey = apiKeyProvider.getApiKey().trim()
+        val authStrategy: AuthStrategy = BearerAuth({ apiKeyProvider.getApiKey() }, trim = true)
+        val credential = authStrategy.resolveCredential()
         val endpointUrl = EndpointCompleter.completeEndpoint(apiEndpoint, providerType)
         val traceContext =
             LlmRequestTraceContext(
@@ -1588,13 +1589,11 @@ open class OpenAIProvider(
                 endpointLabel = endpointUrl.substringBefore('?')
             )
         val builder = Request.Builder()
-            .url(endpointUrl)
+            .url(authStrategy.applyUrl(endpointUrl, credential))
             .tag(LlmRequestTraceContext::class.java, traceContext)
             .addHeader("Content-Type", "application/json")
 
-        if (currentApiKey.isNotEmpty()) {
-            builder.addHeader("Authorization", "Bearer $currentApiKey")
-        }
+        authStrategy.applyHeaders(builder, credential)
 
         // 添加自定义请求头
         customHeaders.forEach { (key, value) ->
