@@ -48,8 +48,10 @@ import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.api.chat.llmprovider.AIServiceFactory
 import com.ai.assistance.operit.api.chat.llmprovider.LlamaProvider
 import com.ai.assistance.operit.api.chat.llmprovider.ModelListFetcher
+import com.ai.assistance.operit.api.chat.llmprovider.ModelOAuthConfigRegistry
 import com.ai.assistance.operit.data.collects.ApiProviderConfigs
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ModelAuthMode
 import com.ai.assistance.operit.data.model.ModelConfigData
 import com.ai.assistance.operit.data.model.ModelOption
 import com.ai.assistance.operit.data.preferences.ApiPreferences
@@ -59,6 +61,7 @@ import com.ai.assistance.operit.ui.common.input.bringIntoViewOnImeFocus
 import com.ai.assistance.operit.ui.features.settings.DebouncedModelConfigAutoSaveEffect
 import com.ai.assistance.operit.ui.features.settings.ModelConfigSaveCoordinator
 import com.ai.assistance.operit.ui.features.settings.RegisterModelConfigSaveAction
+import com.ai.assistance.operit.ui.features.settings.oauth.ModelOAuthLoginWebViewDialog
 import com.ai.assistance.operit.util.LocationUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -137,6 +140,10 @@ fun ModelApiSettingsSection(
     
     // Tool Call配置状态
     var enableToolCallInput by remember(config.id) { mutableStateOf(config.enableToolCall) }
+
+    // OAuth 凭证模式状态（直接持久化，不走 updateApiSettingsFull 自动保存）
+    var authModeInput by remember(config.id) { mutableStateOf(config.authMode) }
+    var showOAuthDialog by remember(config.id) { mutableStateOf(false) }
 
     data class ApiAutoSaveState(
         val apiEndpoint: String,
@@ -751,6 +758,64 @@ fun ModelApiSettingsSection(
                 onCheckedChange = { enableToolCallInput = it }
             )
 
+            // OAuth 凭证模式：切换 API Key / OAuth，并在配置可用时提供授权入口
+            val oauthConfig = remember(selectedApiProvider) {
+                selectedApiProvider?.let { ModelOAuthConfigRegistry.configFor(it) }
+            }
+            SettingsSwitchRow(
+                title = stringResource(R.string.model_oauth_mode),
+                subtitle = stringResource(R.string.model_oauth_mode_desc),
+                checked = authModeInput == ModelAuthMode.OAUTH,
+                onCheckedChange = { checked ->
+                    authModeInput = if (checked) ModelAuthMode.OAUTH else ModelAuthMode.API_KEY
+                    scope.launch {
+                        configManager.updateAuthMode(config.id, authModeInput)
+                        EnhancedAIService.refreshAllServices(configManager.appContext)
+                    }
+                }
+            )
+
+            if (authModeInput == ModelAuthMode.OAUTH) {
+                OutlinedButton(
+                    onClick = { showOAuthDialog = true },
+                    enabled = oauthConfig != null,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.model_oauth_authorize))
+                }
+                if (oauthConfig == null) {
+                    Text(
+                        text = stringResource(R.string.model_oauth_not_configured),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+        }
+    }
+
+    // OAuth 授权 WebView 对话框
+    if (showOAuthDialog) {
+        val oauthConfigForDialog = remember(selectedApiProvider) {
+            selectedApiProvider?.let { ModelOAuthConfigRegistry.configFor(it) }
+        }
+        if (oauthConfigForDialog != null) {
+            ModelOAuthLoginWebViewDialog(
+                configId = config.id,
+                oauthConfig = oauthConfigForDialog,
+                onDismissRequest = { showOAuthDialog = false },
+                onSuccess = {
+                    showOAuthDialog = false
+                    showNotification(context.getString(R.string.model_oauth_success))
+                },
+                onFailure = { message ->
+                    showOAuthDialog = false
+                    showNotification(context.getString(R.string.model_oauth_failed, message))
+                }
+            )
+        } else {
+            showOAuthDialog = false
         }
     }
 

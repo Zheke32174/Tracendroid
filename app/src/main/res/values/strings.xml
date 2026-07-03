@@ -3617,6 +3617,12 @@
     <string name="enable_google_search_desc">启用后，Gemini 将使用 Google 搜索来增强回答（可能产生额外费用）</string>
     <string name="enable_tool_call">模型支持ToolCall</string>
     <string name="enable_tool_call_desc">关闭时，会使用软件内工具调用机制，也可以完成工具调用。开启后，将会使用API的专用接口进行原生工具调用（需要模型支持）</string>
+    <string name="model_oauth_mode">使用 OAuth 授权</string>
+    <string name="model_oauth_mode_desc">开启后使用 OAuth 访问令牌（而非静态 API Key）进行认证，令牌将按需刷新</string>
+    <string name="model_oauth_authorize">授权</string>
+    <string name="model_oauth_not_configured">该提供商暂未配置 OAuth</string>
+    <string name="model_oauth_success">OAuth 授权成功</string>
+    <string name="model_oauth_failed">OAuth 授权失败：%1$s</string>
     <string name="enable_deepseek_reasoning">启用 DeepSeek 推理模式</string>
     <string name="enable_deepseek_reasoning_desc">启用后，&lt;think&gt;标签内的内容将作为reasoning_content发送给DeepSeek模型，用于支持DeepSeek-R1等推理模型的工具调用</string>
     <string name="search_sources">搜索来源</string>

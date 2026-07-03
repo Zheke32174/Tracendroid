@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.ai.assistance.operit.data.model.CustomParameterData
+import com.ai.assistance.operit.data.model.ModelAuthMode
 import com.ai.assistance.operit.data.model.ModelConfigData
 import com.ai.assistance.operit.data.model.ModelConfigSummary
 import com.ai.assistance.operit.data.model.ModelParameter
@@ -274,6 +275,11 @@ class ModelConfigManager(private val context: Context) {
     // 更新API Key池的当前索引
     suspend fun updateConfigKeyIndex(configId: String, newIndex: Int) {
         updateConfigInternal(configId) { it.copy(currentKeyIndex = newIndex) }
+    }
+
+    // 更新凭证来源模式 (静态API Key / OAuth)
+    suspend fun updateAuthMode(configId: String, authMode: ModelAuthMode) {
+        updateConfigInternal(configId) { it.copy(authMode = authMode) }
     }
 
     // 获取所有配置的摘要信息

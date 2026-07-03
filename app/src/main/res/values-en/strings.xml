@@ -3692,6 +3692,12 @@
     <string name="enable_google_search_desc">When enabled, Gemini will use Google Search to enhance responses (may incur additional charges)</string>
     <string name="enable_tool_call">Model supports ToolCall</string>
     <string name="enable_tool_call_desc">When disabled, uses the built-in tool invocation mechanism which also supports tool calls. When enabled, uses the API\'s dedicated native interface (requires model support)</string>
+    <string name="model_oauth_mode">Use OAuth authorization</string>
+    <string name="model_oauth_mode_desc">When enabled, authenticates with an OAuth access token (instead of a static API key), refreshed as needed</string>
+    <string name="model_oauth_authorize">Authorize</string>
+    <string name="model_oauth_not_configured">OAuth is not configured for this provider yet</string>
+    <string name="model_oauth_success">OAuth authorization succeeded</string>
+    <string name="model_oauth_failed">OAuth authorization failed: %1$s</string>
     <string name="enable_deepseek_reasoning">Enable DeepSeek Reasoning Mode</string>
     <string name="enable_deepseek_reasoning_desc">When enabled, content within &lt;think&gt; tags will be sent as reasoning_content to DeepSeek models, supporting tool invocation for reasoning models like DeepSeek-R1</string>
     <string name="search_sources">Search Sources</string>
