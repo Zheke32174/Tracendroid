@@ -3,8 +3,10 @@ package com.ai.assistance.operit.api.chat.llmprovider
 import android.content.Context
 import com.ai.assistance.llama.LlamaSession
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ModelAuthMode
 import com.ai.assistance.operit.data.model.ModelConfigData
 import com.ai.assistance.operit.data.preferences.ModelConfigManager
+import com.ai.assistance.operit.data.preferences.credentials.ModelOAuthTokenStore
 import com.ai.assistance.operit.plugins.toolpkg.ToolPkgAiProviderRegistry
 import com.ai.assistance.operit.util.AppLogger
 import java.io.IOException
@@ -283,11 +285,14 @@ object AIServiceFactory {
                     "AI provider type not found or not enabled: $providerTypeId"
                 )
 
-        // 根据配置决定使用单个API Key还是多API Key轮询
-        val apiKeyProvider = if (config.useMultipleApiKeys) {
-            MultiApiKeyProvider(config.id, modelConfigManager)
-        } else {
-            SingleApiKeyProvider(config.apiKey)
+        // 根据配置决定凭证来源：OAuth 访问令牌 / 多API Key轮询 / 单个API Key
+        val apiKeyProvider: ApiKeyProvider = when {
+            config.authMode == ModelAuthMode.OAUTH ->
+                OAuthCredentialProvider(config.id, ModelOAuthTokenStore(context))
+            config.useMultipleApiKeys ->
+                MultiApiKeyProvider(config.id, modelConfigManager)
+            else ->
+                SingleApiKeyProvider(config.apiKey)
         }
 
         // 图片处理支持标志

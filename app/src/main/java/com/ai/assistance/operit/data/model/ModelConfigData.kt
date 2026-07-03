@@ -63,6 +63,13 @@ object ModelConfigDefaults {
 }
 
 /** 表示完整的模型配置，包括API设置和模型参数 */
+/** How a model config authenticates: a static API key/token, or an OAuth access token. */
+@Serializable
+enum class ModelAuthMode {
+        API_KEY, // static key/token in apiKey or the key pool (default; unchanged behavior)
+        OAUTH,   // OAuth 2.0 access token from ModelOAuthTokenStore, refreshed as needed
+}
+
 @Serializable
 data class ModelConfigData(
         val id: String,
@@ -74,6 +81,9 @@ data class ModelConfigData(
         val modelName: String = "",
         val apiProviderType: ApiProviderType = ApiProviderType.DEEPSEEK,
         val apiProviderTypeId: String = apiProviderType.name,
+
+        // 凭证来源: 静态API Key 还是 OAuth 访问令牌
+        val authMode: ModelAuthMode = ModelAuthMode.API_KEY,
 
         // 多API Key支持
         val useMultipleApiKeys: Boolean = false, // 是否启用多API Key模式
