@@ -426,9 +426,15 @@ dependencies {
 
     implementation("io.modelcontextprotocol.sdk:mcp:1.1.0")
     
-    // Exclude bcprov-jdk15to18 from all configurations to avoid duplicate classes
+    // Exclude the jdk15to18 bouncycastle variants from all configurations to avoid
+    // duplicate classes with the forced jdk18on:1.78 ones. sshj (via its transitives)
+    // drags in bcutil-jdk15to18:1.72, which collides with bcutil-jdk18on:1.78 at
+    // checkDebugDuplicateClasses (only runs during a full APK assemble — hence never
+    // caught until the first assembleDebug).
     configurations.all {
         exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
+        exclude(group = "org.bouncycastle", module = "bcutil-jdk15to18")
+        exclude(group = "org.bouncycastle", module = "bcpkix-jdk15to18")
     }
 
     // Security
