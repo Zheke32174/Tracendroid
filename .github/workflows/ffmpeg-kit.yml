@@ -1,6 +1,4 @@
 name: ffmpeg-kit-build
-# Build ffmpeg-kit.aar from source on CI (arm64-only), porting tools/ffmpeg/build_ffmpeg_kit_wsl.sh
-# faithfully but without the WSL/proxy assumptions -> a REPRODUCIBLE FFmpeg build.
 on:
   workflow_dispatch:
   push:
@@ -9,67 +7,50 @@ permissions:
   contents: read
 jobs:
   build:
-    name: ffmpeg-kit android arm64
+    name: ffmpeg-kit android arm64 (via repo script)
     runs-on: ubuntu-24.04
     timeout-minutes: 350
     steps:
+      - name: Checkout fork (for build_ffmpeg_kit_wsl.sh)
+        uses: actions/checkout@v4
       - name: Install build deps
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             autoconf automake libtool pkg-config cmake ninja-build meson nasm yasm \
             gettext autopoint gperf autogen bison flex texinfo git curl \
-            build-essential ragel groff libtasn1-6-dev
+            build-essential ragel groff gtk-doc-tools
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "17" }
-      - name: Set up Android SDK + NDK
+      - name: Set up Android SDK + NDK 22
         uses: android-actions/setup-android@v3
-      - name: Install NDK r25 + cmake
-        run: |
-          yes | sdkmanager --install "ndk;25.1.8937393" "cmake;3.22.1" "platforms;android-33" "build-tools;34.0.0" >/dev/null
-          echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/25.1.8937393" >> "$GITHUB_ENV"
-      - name: Clone ffmpeg-kit
-        run: git clone --depth 1 --branch v6.0 https://github.com/arthenica/ffmpeg-kit.git "$HOME/ffmpeg-kit"
-      - name: Patch for modern distro (from build_ffmpeg_kit_wsl.sh)
-        working-directory: /home/runner/ffmpeg-kit
-        run: |
-          # cpu-features: disable test download
-          if [ -f scripts/android/cpu-features.sh ]; then
-            sed -i 's~$(android_ndk_cmake) || return 1~$(android_ndk_cmake) -DBUILD_TESTING=OFF || return 1~' scripts/android/cpu-features.sh || true
-          fi
-          # automake 1.16 name compat
-          mkdir -p .tools-compat
-          ln -sf "$(command -v aclocal)"  .tools-compat/aclocal-1.16 || true
-          ln -sf "$(command -v automake)" .tools-compat/automake-1.16 || true
-      - name: Build ffmpeg-kit (arm64 only)
-        working-directory: /home/runner/ffmpeg-kit
+      - name: Install NDK r22 + cmake
+        run: yes | sdkmanager --install "ndk;22.1.7171670" "cmake;3.22.1" "platforms;android-33" "build-tools;34.0.0" >/dev/null
+      - name: Clone ffmpeg-kit (with submodules)
+        run: git clone --recurse-submodules --depth 1 --shallow-submodules --branch v6.0 https://github.com/arthenica/ffmpeg-kit.git "$HOME/build/ffmpeg-kit"
+      - name: Run the fork's build script (proxy stripped)
         env:
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROID_SDK_ROOT_OVERRIDE: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROID_HOME_OVERRIDE: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROID_NDK_ROOT_OVERRIDE: ${{ env.ANDROID_SDK_ROOT }}/ndk/22.1.7171670
+          JAVA_HOME_OVERRIDE: ${{ env.JAVA_HOME }}
+          OPERIT_PROXY_HOST: ""
+          OPERIT_PROXY_PORT: ""
         run: |
-          export PATH="$PWD/.tools-compat:$PATH"
-          export ANDROID_NDK_ROOT="$ANDROID_NDK_ROOT"
-          export RECONF_libiconv=1 RECONF_gnutls=1
-          ./android.sh -f -s --api-level=24 \
-            --disable-arm-v7a --disable-arm-v7a-neon --disable-x86 --disable-x86-64 \
-            --enable-fontconfig --enable-freetype --enable-fribidi --enable-gmp --enable-gnutls \
-            --enable-lame --enable-libass --enable-libiconv --enable-libtheora --enable-libvorbis \
-            --enable-libvpx --enable-libwebp --enable-libxml2 --enable-opencore-amr --enable-shine \
-            --enable-speex --enable-dav1d --enable-kvazaar --enable-libilbc --enable-opus \
-            --enable-snappy --enable-soxr --enable-twolame --enable-vo-amrwbenc --enable-zimg
-      - name: Locate + upload the .aar
+          cp tools/ffmpeg/build_ffmpeg_kit_wsl.sh /tmp/build.sh
+          # strip all proxy lines (CI has direct internet; the hard-coded proxy would break downloads)
+          sed -i '/proxy/Id; /PROXY/d; /proxyHost/d; /proxyPort/d' /tmp/build.sh
+          chmod +x /tmp/build.sh
+          bash /tmp/build.sh "$HOME/build/ffmpeg-kit"
+      - name: Locate + stage the .aar
         if: always()
         run: |
-          find "$HOME/ffmpeg-kit" -name "*.aar" 2>/dev/null | head
           mkdir -p out
-          find "$HOME/ffmpeg-kit/prebuilt" -name "*.aar" -exec cp {} out/ \; 2>/dev/null || true
-          find "$HOME/ffmpeg-kit" -path "*outputs/aar*" -name "*.aar" -exec cp {} out/ \; 2>/dev/null || true
+          find "$HOME/build/ffmpeg-kit" -name "*.aar" -exec cp {} out/ \; 2>/dev/null || true
           ls -la out/ || true
+          find "$HOME/build/ffmpeg-kit" -name "*.aar" 2>/dev/null | head
       - name: Upload ffmpeg-kit aar
         if: always()
         uses: actions/upload-artifact@v4
-        with:
-          name: ffmpeg-kit-aar
-          path: out/*.aar
-          if-no-files-found: warn
+        with: { name: ffmpeg-kit-aar, path: out/*.aar, if-no-files-found: warn }
