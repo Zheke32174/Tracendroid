@@ -37,7 +37,10 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          # JDK 21: javac-17 cannot read the JDK-21-compiled backdrop dependency
+          # class files during kapt stub compilation ("bad class file"). App still
+          # targets 17 bytecode (sourceCompatibility/jvmTarget). AGP 8.13 supports 21.
+          java-version: "21"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
