@@ -80,3 +80,26 @@ unexercised in this fork's CI — expect iteration.
 - Avatar: TTS→lipsync + user-loadable model gallery (need `AvatarController` interface work).
 - Phone-pilot: form-autofill, notification-listener read tool, scheduled execution.
 - Subscription-OAuth: implement the CLI-token-recycle credential source for ChatGPT/Claude/Gemini.
+
+## Compile verification (done on GitHub CI runners)
+The branch was pushed and compiled on GitHub Actions (app-build.yml, `:app:compileDebugKotlin`,
+JDK 21 + NDK). The fork had NEVER compiled — its CI always died in <25s at Gradle
+wrapper-validation. Fixed, in order, every blocker the real compiler surfaced:
+1. Gradle wrapper-validation on a third-party submodule sample jar (validate-wrappers=false).
+2. PackageManager.kt — lost `catch` clause (syntax error).
+3. kapt→KSP migration for Room (Kotlin 2.2.0/K2).
+4. JDK 17→21 — javac couldn't read the JDK-21-compiled `backdrop` dependency during kapt.
+5. Duplicate `@Composable` on HaltedBanner.
+6. `kapt.use.k2=false` (defensive) — ObjectBox forces kapt (no KSP support).
+7. AccessibilityUITools.waitForElement — try/catch inferred to `Any`.
+8. RyznixTransport — wrong `FileKeyPairProvider` import package.
+9. BroadcastAllowlistScreen — `rememberSaveable` import (runtime.saveable).
+10. MCPMarketViewModel — PKCE `codeVerifier` arg not passed to getAccessToken.
+(Plus the static-audit fixes: 4 Admin* dangling supertypes + 78 undefined strings — the
+compiler would have hit those too.)
+
+RESULT: **the entire Kotlin codebase compiles.** The ONLY remaining unresolved references
+are FFmpegKit (StandardFFmpegTool, FFmpegUtil, StandardFileSystemTools media-info) — these
+come from the vendored `app/libs/ffmpeg-kit` jar (built via tools/ffmpeg/build_ffmpeg_kit_wsl.sh),
+which is a REQUIRED blob absent from CI (§2). Provide app/libs (+ the other blobs) and
+`compileDebugKotlin` goes green; then `assembleRelease` can produce the signed APK.
