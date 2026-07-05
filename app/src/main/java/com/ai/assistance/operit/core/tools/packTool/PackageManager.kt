@@ -2272,6 +2272,8 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
 
                 return "Successfully imported toolpkg: $containerName\nStored at: ${destinationFile.absolutePath}"
             }
+            return "Only .toolpkg package files are supported"
+        } catch (e: Exception) {
             return "Error importing package: ${e.message}"
         }
     }
