@@ -14,6 +14,16 @@ plugins {
     id("kotlin-kapt")
 }
 
+// KAPT generates Java stubs for the whole module before annotation processing.
+// Compose-heavy types (e.g. com.kyant0.backdrop.Backdrop used in LiquidGlass.kt)
+// are not resolvable in the stub-compilation classpath, which surfaced as
+// "cannot access Backdrop" + a cascading "@Composable is not a repeatable
+// annotation type". correctErrorTypes tells KAPT to tolerate those error types
+// during stubbing so the real Kotlin compile (which resolves them) proceeds.
+kapt {
+    correctErrorTypes = true
+}
+
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
