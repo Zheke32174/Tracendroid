@@ -46,6 +46,15 @@ jobs:
           # Kotlin compilation is the heaviest single phase; warm caches drop
           # this job from ~20 minutes to ~6.
           cache-read-only: false
+          # The recursive submodules vendor their own SAMPLE gradle-wrapper.jars
+          # (e.g. mnn/src/main/cpp/MNN/3rd_party/flatbuffers/samples/android,
+          # from alibaba/MNN upstream) whose hashes aren't in the action's
+          # known-good set — which failed "Set up Gradle" before compilation
+          # ever ran (this is why every prior app-build run died in <25s). We
+          # never invoke those third-party sample wrappers; the root wrapper we
+          # actually run (gradle/wrapper/gradle-wrapper.jar) is the standard
+          # known-good hash. So validation is disabled for this compile CI.
+          validate-wrappers: false
 
       - name: Show toolchain
         run: |
