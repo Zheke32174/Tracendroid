@@ -1884,6 +1884,9 @@
     <string name="tool_ryznix_launcher">ryznix Launcher</string>
     <string name="tool_ryznix_launcher_desc">Boot / stop / console the ryznix second-OS (QEMU guest) via Termux</string>
     <string name="screen_title_ryznix_launcher">ryznix Launcher</string>
+    <string name="tool_dual_surface_privilege">Dual-Surface Privilege</string>
+    <string name="tool_dual_surface_privilege_desc">One co-operator, two surfaces — device-admin ceiling on bare-metal Android (no root) + real VM-scoped root inside ryznix via ryz-ksud; the phone is never rooted</string>
+    <string name="screen_title_dual_surface_privilege">Dual-Surface Privilege</string>
     <string name="tool_terminal_auto_config">Terminal Auto Configuration</string>
     <string name="tool_terminal_auto_config_desc">Automatically install and configure Python, PIP and other development tools</string>
     <string name="tool_terminal_auto_config_under_construction">Terminal auto configuration feature is being refactored...</string>

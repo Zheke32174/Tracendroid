@@ -80,6 +80,7 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.TerminalAutoConfigTo
 import com.ai.assistance.operit.ui.features.toolbox.screens.TerminalToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.EmbeddedTerminalToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.RyznixLauncherToolScreen
+import com.ai.assistance.operit.ui.features.toolbox.screens.DualSurfacePrivilegeToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.ToolboxScreen
 import com.ai.assistance.operit.ui.common.composedsl.ToolPkgComposeDslToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.UIDebuggerToolScreen
@@ -1325,6 +1326,27 @@ sealed class Screen(
                 onGestureConsumed: (Boolean) -> Unit
         ) {
             RyznixLauncherToolScreen(navController = navController)
+        }
+    }
+
+    // Tracendroid cornerstone #3: dual-surface privilege. Surfaces BOTH privilege surfaces of the
+    // co-operator side by side — the bare-metal Android host (device-admin ceiling, no root) via
+    // the app's existing shell-executor layer, and real VM-scoped root inside the ryznix guest via
+    // the ryz-ksud broker at 127.0.0.1:8710. Honest: never claims host root; DENY/unreachable shown
+    // truthfully; a live GRANT/DENY demo proves enforced VM-scoped root.
+    data object DualSurfacePrivilege :
+            Screen(navItem = NavItem.Toolbox, titleRes = R.string.screen_title_dual_surface_privilege) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            DualSurfacePrivilegeToolScreen(navController = navController)
         }
     }
 

@@ -32,6 +32,7 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.logcat.LogcatScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.shellexecutor.ShellExecutorScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.embeddedterminal.EmbeddedTerminalScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.ryznixlauncher.RyznixLauncherScreen
+import com.ai.assistance.operit.ui.features.toolbox.screens.ryznixlauncher.DualSurfacePrivilegeScreen
 import com.ai.assistance.operit.terminal.main.TerminalScreen as TerminalViewScreen
 // import com.ai.assistance.operit.ui.features.toolbox.screens.terminalconfig.TerminalAutoConfigScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.uidebugger.UIDebuggerScreen
@@ -248,6 +249,24 @@ fun RyznixLauncherToolScreen(navController: NavController) {
         CustomScaffold() { paddingValues ->
                 Box(modifier = Modifier.padding(paddingValues)) {
                         RyznixLauncherScreen()
+                }
+        }
+}
+
+/**
+ * Dual-surface privilege (Tracendroid cornerstone #3). Status + proof panel that surfaces BOTH
+ * privilege surfaces of the co-operator: the bare-metal Android host (device-admin ceiling, no
+ * root — read from the app's existing shell-executor layer) and real VM-scoped root inside the
+ * ryznix guest (via the ryz-ksud broker at 127.0.0.1:8710). Honest throughout: never claims host
+ * root; a live GRANT/DENY su demo proves enforced container root. See DualSurfacePrivilegeScreen.kt
+ * and RyzKsudClient.kt for the scope + protocol contract.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DualSurfacePrivilegeToolScreen(navController: NavController) {
+        CustomScaffold() { paddingValues ->
+                Box(modifier = Modifier.padding(paddingValues)) {
+                        DualSurfacePrivilegeScreen()
                 }
         }
 }

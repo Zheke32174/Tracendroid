@@ -309,6 +309,17 @@ object ScreenRouteRegistry {
                 icon = Icons.Default.DeveloperBoard,
                 order = 87
             ),
+            // Dual-surface privilege (cornerstone #3): host (device-admin ceiling, no root) +
+            // real VM-scoped root inside the ryznix guest via the ryz-ksud broker. Honest panel.
+            hostEntryDefinition(
+                entryId = "toolbox.dual_surface_privilege",
+                screen = Screen.DualSurfacePrivilege,
+                surface = NavigationSurface.TOOLBOX,
+                titleResId = R.string.tool_dual_surface_privilege,
+                descriptionResId = R.string.tool_dual_surface_privilege_desc,
+                icon = Icons.Default.Security,
+                order = 88
+            ),
             hostEntryDefinition(
                 entryId = "toolbox.ui_debugger",
                 screen = Screen.UIDebugger,
