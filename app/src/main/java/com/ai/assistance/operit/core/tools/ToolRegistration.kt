@@ -1403,6 +1403,17 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             executor = { tool -> runBlocking(Dispatchers.IO) { workflowTools.triggerWorkflow(tool) } }
     )
 
+    // 通过既有工作流调度器（WorkManager）为已有工作流排期/取消排期（复用调度层，不新建闹钟/接收器）
+    handler.registerTool(
+            name = "schedule_task",
+            descriptionGenerator = { tool ->
+                val id = tool.parameters.find { it.name == "workflow_id" }?.value ?: ""
+                val action = tool.parameters.find { it.name == "action" }?.value ?: "schedule"
+                s(R.string.toolreg_schedule_task_desc, id, action)
+            },
+            executor = { tool -> runBlocking(Dispatchers.IO) { workflowTools.scheduleTask(tool) } }
+    )
+
     // 对话管理工具
     val chatManagerTool = ToolGetter.getChatManagerTool(context)
 
@@ -2270,6 +2281,20 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             executor = { tool ->
                 runBlocking(Dispatchers.IO) {
                     executeUiToolWithVisibility(tool) { uiTools.findUiElement(it) }
+                }
+            }
+    )
+
+    // 根据 字段标识->值 映射自动填充表单输入框（仅查询并写入，不点击/不提交）
+    handler.registerTool(
+            name = "fill_form",
+            descriptionGenerator = { tool ->
+                val fields = tool.parameters.find { it.name == "fields" }?.value ?: ""
+                s(R.string.toolreg_fill_form_desc, fields)
+            },
+            executor = { tool ->
+                runBlocking(Dispatchers.IO) {
+                    executeUiToolWithVisibility(tool) { uiTools.fillForm(it) }
                 }
             }
     )

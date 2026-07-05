@@ -5540,6 +5540,8 @@
     <string name="toolreg_run_ui_subagent_hint">。建议在多次调用中尽量复用同一个 agent_id，以持续操作同一虚拟屏幕会话（可沿用上一次返回的 agentId 作为 agent_id）。</string>
     <string name="toolreg_dump_ui_tree_desc">转储当前界面层次结构 (格式: %1$s)</string>
     <string name="toolreg_find_ui_element_desc">查找屏幕元素: \"%1$s\" (依据 %2$s)</string>
+    <string name="toolreg_fill_form_desc">自动填充表单输入框（仅写入，不提交）: %1$s</string>
+    <string name="toolreg_schedule_task_desc">为工作流排期/取消排期: %1$s (操作: %2$s)</string>
     <!-- UI 子代理（无障碍通道）运行时消息 -->
     <string name="ui_subagent_standard_unavailable">UI 自动化子代理需要无障碍通道。当前工具运行在“标准”权限级别下，无法驱动界面。请在设置中将首选权限级别切换为“无障碍”，并启用 Tracendroid 无障碍服务后重试。</string>
     <string name="ui_subagent_accessibility_disabled">UI 自动化需要 Tracendroid 无障碍服务，但该服务当前未启用。请前往 系统设置 &gt; 无障碍，启用 Tracendroid 的无障碍服务后重试（应用内的无障碍引导页会打开同一系统设置页面）。</string>

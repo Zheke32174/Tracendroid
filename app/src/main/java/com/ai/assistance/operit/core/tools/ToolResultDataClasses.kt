@@ -927,6 +927,79 @@ data class UIElementMatchData(
     }
 }
 
+/**
+ * Result of a query-and-set form autofill pass (the `fill_form` tool).
+ *
+ * For each requested field the tool reports whether the matching editable node was found and its
+ * text set. This is deliberately query+set only: it locates each field via the same accessibility
+ * XML matcher [find_ui_element]/[click_element] use and sets text via the existing setText
+ * primitive — it NEVER submits or clicks any button. The per-field [FieldResult.status] is one of
+ * "filled", "not_found", or "failed"; [filledCount] is the number of "filled" entries.
+ */
+@Serializable
+data class FormFillResultData(
+        val totalFields: Int,
+        val filledCount: Int,
+        val notFoundCount: Int,
+        val failedCount: Int,
+        val fields: List<FieldResult>
+) : ToolResultData() {
+    @Serializable
+    data class FieldResult(
+            val field: String,
+            val status: String, // "filled" | "not_found" | "failed"
+            val matchedBy: String? = null, // which attribute the input was located by
+            val bounds: String? = null,
+            val detail: String? = null
+    )
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine(
+                "Form autofill: $filledCount filled, $notFoundCount not found, $failedCount failed (of $totalFields field(s)). No submit/click performed."
+        )
+        fields.forEach { f ->
+            sb.append("- ${f.field}: ${f.status}")
+            f.matchedBy?.takeIf { it.isNotBlank() }?.let { sb.append(" (by $it)") }
+            f.bounds?.takeIf { it.isNotBlank() }?.let { sb.append(" @$it") }
+            f.detail?.takeIf { it.isNotBlank() }?.let { sb.append(" — $it") }
+            sb.appendLine()
+        }
+        return sb.toString()
+    }
+}
+
+/**
+ * Result of arming / cancelling a scheduled task (the `schedule_task` tool).
+ *
+ * The tool is a thin re-arm over the existing WorkflowScheduler (WorkManager): it schedules,
+ * re-schedules, or cancels an already-persisted workflow that carries a `schedule` trigger node.
+ * [nextExecutionTime] is the epoch-ms of the next planned run when known (null for cancel or when
+ * the scheduler cannot compute it).
+ */
+@Serializable
+data class ScheduleTaskResultData(
+        val workflowId: String,
+        val action: String, // "scheduled" | "cancelled"
+        val scheduled: Boolean,
+        val nextExecutionTime: Long? = null,
+        val message: String
+) : ToolResultData() {
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine(message)
+        sb.appendLine("Workflow: $workflowId")
+        sb.appendLine("Scheduled: $scheduled")
+        nextExecutionTime?.let {
+            val when_ =
+                    java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                            .format(java.util.Date(it))
+            sb.appendLine("Next run: $when_")
+        }
+        return sb.toString()
+    }
+}
+
 /** Represents a combined operation result data */
 @Serializable
 data class CombinedOperationResultData(

@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.core.tools.FormFillResultData
 import com.ai.assistance.operit.core.tools.SimplifiedUINode
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.UIActionResultData
@@ -1086,6 +1087,283 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
                 error = "Error finding UI element: ${e.message}"
             )
         }
+    }
+
+    /**
+     * Fill a set of on-screen input fields from a `field identifier -> value` mapping (the
+     * `fill_form` tool).
+     *
+     * Query-and-set only: for each entry it (1) locates the best-matching EDITABLE node by scanning
+     * the live accessibility XML the same way [findUiElement]/[clickElement] do, then (2) sets that
+     * node's text through the existing [UIHierarchyManager.setTextOnNode] primitive (keyed on the
+     * node's bounds — the same nodeId contract [setInputText] relies on). It NEVER clicks a button or
+     * submits the form.
+     *
+     * Matching is substring-tolerant and checks, in priority order: the input's own resource-id,
+     * content-description, and visible text/hint; then, as a fallback, a NEARBY LABEL — a non-editable
+     * text/desc node immediately preceding an editable node in document order (the common
+     * "Label:" then EditText layout). The highest-priority match for each editable node wins, and each
+     * editable node is used at most once so two fields don't collide on the same input.
+     *
+     * Gated by the accessibility check with the same honest "enable the Tracendroid accessibility
+     * service" message the other accessibility tools use. Every field yields a per-field report entry
+     * ("filled" / "not_found" / "failed"); the tool result is successful as long as the query ran,
+     * even if some fields were not found.
+     */
+    override suspend fun fillForm(tool: AITool): ToolResult {
+        return try {
+            if (!isAccessibilityServiceEnabled()) {
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = context.getString(R.string.ui_subagent_accessibility_disabled)
+                )
+            }
+
+            // Parse the `fields` param: a JSON object mapping field identifier -> value.
+            val fieldsRaw = tool.parameters.find { it.name == "fields" }?.value
+            val fieldMap = parseFieldMap(fieldsRaw)
+            if (fieldMap == null) {
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = "Missing or invalid 'fields' parameter. Provide a JSON object mapping field identifier (matches an input's label / hint / content-desc / nearby text / resource-id, substring-tolerant) to the value to type."
+                )
+            }
+            if (fieldMap.isEmpty()) {
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = "The 'fields' object is empty; nothing to fill."
+                )
+            }
+
+            val uiXml = getUIHierarchyWithRetry()
+            if (uiXml.isEmpty()) {
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = "Failed to retrieve UI data via accessibility service."
+                )
+            }
+
+            // Snapshot the editable inputs (and the label sitting just before each) once.
+            val editables = collectEditableFields(uiXml)
+
+            val usedBounds = mutableSetOf<String>()
+            val fieldResults = mutableListOf<FormFillResultData.FieldResult>()
+            var filled = 0
+            var notFound = 0
+            var failed = 0
+
+            for ((identifier, value) in fieldMap) {
+                val candidate = matchEditableField(identifier, editables, usedBounds)
+                if (candidate == null) {
+                    notFound++
+                    fieldResults.add(
+                        FormFillResultData.FieldResult(
+                            field = identifier,
+                            status = "not_found",
+                            detail = "no editable input matched this identifier"
+                        )
+                    )
+                    continue
+                }
+
+                val bounds = candidate.field.bounds
+                if (bounds.isNullOrBlank()) {
+                    failed++
+                    fieldResults.add(
+                        FormFillResultData.FieldResult(
+                            field = identifier,
+                            status = "failed",
+                            matchedBy = candidate.matchedBy,
+                            detail = "matched input has no bounds to target"
+                        )
+                    )
+                    continue
+                }
+
+                usedBounds.add(bounds)
+
+                // Reuse the existing setText primitive; nodeId == bounds string (same contract as
+                // setInputText, which passes the focused node's bounds id to setTextOnNode).
+                val ok = try {
+                    UIHierarchyManager.setTextOnNode(context, bounds, value)
+                } catch (e: Exception) {
+                    AppLogger.e(TAG, "fill_form: setTextOnNode threw for '$identifier'", e)
+                    false
+                }
+
+                if (ok) {
+                    filled++
+                    fieldResults.add(
+                        FormFillResultData.FieldResult(
+                            field = identifier,
+                            status = "filled",
+                            matchedBy = candidate.matchedBy,
+                            bounds = bounds
+                        )
+                    )
+                } else {
+                    failed++
+                    fieldResults.add(
+                        FormFillResultData.FieldResult(
+                            field = identifier,
+                            status = "failed",
+                            matchedBy = candidate.matchedBy,
+                            bounds = bounds,
+                            detail = "accessibility setText failed"
+                        )
+                    )
+                }
+            }
+
+            operationOverlay.hide()
+
+            val resultData = FormFillResultData(
+                totalFields = fieldMap.size,
+                filledCount = filled,
+                notFoundCount = notFound,
+                failedCount = failed,
+                fields = fieldResults.toList()
+            )
+            ToolResult(toolName = tool.name, success = true, result = resultData, error = "")
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "Error filling form", e)
+            operationOverlay.hide()
+            ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = "Error filling form: ${e.message}"
+            )
+        }
+    }
+
+    /** One editable input plus the label text that immediately precedes it in document order. */
+    private data class EditableField(
+        val resourceId: String?,
+        val contentDesc: String?,
+        val text: String?,
+        val nearbyLabel: String?,
+        val bounds: String?
+    )
+
+    /** An editable field selected for a requested identifier, and which attribute it matched on. */
+    private data class FieldMatch(val field: EditableField, val matchedBy: String)
+
+    /**
+     * Parse the `fields` param into an ordered identifier -> value map. Returns null when the param is
+     * absent/blank or is not a JSON object. Values are coerced to their string form; null JSON values
+     * become the empty string (clearing the field).
+     */
+    private fun parseFieldMap(raw: String?): LinkedHashMap<String, String>? {
+        if (raw.isNullOrBlank()) return null
+        return try {
+            val obj = JSONObject(raw)
+            val out = LinkedHashMap<String, String>()
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                if (key.isNullOrBlank()) continue
+                out[key] = if (obj.isNull(key)) "" else obj.optString(key, "")
+            }
+            out
+        } catch (e: Exception) {
+            AppLogger.w(TAG, "fill_form: could not parse 'fields' as a JSON object", e)
+            null
+        }
+    }
+
+    /**
+     * Walk the accessibility XML once and collect every editable input, remembering the most recent
+     * non-editable label (visible text or content-desc) seen before it — the common "Label then input"
+     * layout — so a field identifier can also be matched against a nearby label. A node is treated as
+     * editable when its class looks like an EditText or it advertises the editable/focusable-input
+     * attributes some frameworks emit.
+     */
+    private fun collectEditableFields(xml: String): List<EditableField> {
+        val fields = mutableListOf<EditableField>()
+        val factory = XmlPullParserFactory.newInstance().apply { isNamespaceAware = false }
+        val parser = factory.newPullParser().apply { setInput(StringReader(xml)) }
+
+        var lastLabel: String? = null
+        while (parser.eventType != XmlPullParser.END_DOCUMENT) {
+            if (parser.eventType == XmlPullParser.START_TAG && parser.name == "node") {
+                val className = parser.getAttributeValue(null, "class")
+                val text = parser.getAttributeValue(null, "text")
+                val desc = parser.getAttributeValue(null, "content-desc")
+                val resourceId = parser.getAttributeValue(null, "resource-id")
+                val bounds = parser.getAttributeValue(null, "bounds")
+                val editableAttr = parser.getAttributeValue(null, "editable")
+
+                if (isEditableClass(className, editableAttr)) {
+                    fields.add(
+                        EditableField(
+                            resourceId = resourceId,
+                            contentDesc = desc,
+                            text = text,
+                            nearbyLabel = lastLabel,
+                            bounds = bounds
+                        )
+                    )
+                } else {
+                    // Remember this node's visible label for the next editable input.
+                    val label = text?.takeIf { it.isNotBlank() } ?: desc?.takeIf { it.isNotBlank() }
+                    if (label != null) lastLabel = label
+                }
+            }
+            parser.next()
+        }
+        return fields
+    }
+
+    /** Heuristic: does this node accept text input? */
+    private fun isEditableClass(className: String?, editableAttr: String?): Boolean {
+        if (editableAttr == "true") return true
+        val c = className?.lowercase().orEmpty()
+        return c.contains("edittext") || c.contains("autocompletetextview") || c.endsWith(".textfield")
+    }
+
+    /**
+     * Pick the best still-unused editable node for a requested identifier. Priority (highest first):
+     * resource-id, content-desc, the input's own text/hint, then the nearby label. Matching is
+     * case-insensitive substring in both directions (identifier in attribute or attribute in
+     * identifier) so short labels like "email" match a hint of "Email address" and vice-versa.
+     */
+    private fun matchEditableField(
+        identifier: String,
+        editables: List<EditableField>,
+        usedBounds: Set<String>
+    ): FieldMatch? {
+        val needle = identifier.trim().lowercase()
+        if (needle.isEmpty()) return null
+
+        // (attribute-selector, priority) — lower priority number wins.
+        val attributeExtractors: List<Pair<(EditableField) -> String?, String>> = listOf(
+            { f: EditableField -> f.resourceId } to "resource-id",
+            { f: EditableField -> f.contentDesc } to "content-desc",
+            { f: EditableField -> f.text } to "text/hint",
+            { f: EditableField -> f.nearbyLabel } to "nearby-label"
+        )
+
+        for ((extractor, label) in attributeExtractors) {
+            for (field in editables) {
+                val boundsKey = field.bounds ?: continue
+                if (boundsKey in usedBounds) continue
+                val attr = extractor(field)?.lowercase()?.trim() ?: continue
+                if (attr.isEmpty()) continue
+                if (attr.contains(needle) || needle.contains(attr)) {
+                    return FieldMatch(field, label)
+                }
+            }
+        }
+        return null
     }
 
     /** 设置输入文本 */

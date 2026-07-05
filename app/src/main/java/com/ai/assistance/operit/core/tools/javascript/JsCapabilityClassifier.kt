@@ -104,6 +104,9 @@ object JsCapabilityClassifier {
         // carry the UI_AUTOMATION capability rather than a weaker read class.
         put("dump_ui_tree", JsCapabilityClass.UI_AUTOMATION)
         put("find_ui_element", JsCapabilityClass.UI_AUTOMATION)
+        // Query-and-set autofill: locates editable inputs and writes text into them via the
+        // AccessibilityService (no submit/click). Driving inputs is UI automation.
+        put("fill_form", JsCapabilityClass.UI_AUTOMATION)
 
         // System read / write
         put("device_info", JsCapabilityClass.SYSTEM_READ)
@@ -111,6 +114,9 @@ object JsCapabilityClassifier {
         put("modify_software_settings", JsCapabilityClass.SYSTEM_WRITE)
         put("send_broadcast", JsCapabilityClass.SYSTEM_WRITE)
         put("send_sms", JsCapabilityClass.SYSTEM_WRITE)
+        // Arms/cancels a background WorkManager schedule for an existing workflow — mutates device
+        // scheduling state, so it carries the SYSTEM_WRITE capability.
+        put("schedule_task", JsCapabilityClass.SYSTEM_WRITE)
 
         // Chat / memory
         put("memory_query", JsCapabilityClass.CHAT_READ)

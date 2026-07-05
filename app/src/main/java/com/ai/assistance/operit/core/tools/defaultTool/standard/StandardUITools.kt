@@ -394,6 +394,24 @@ open class StandardUITools(protected val context: Context) {
         )
     }
 
+    /**
+     * Fills a set of on-screen input fields from a field-identifier -> value mapping (the
+     * `fill_form` tool). Query-and-set only: it locates each editable field and sets its text; it
+     * NEVER submits or clicks any button. Needs the AccessibilityService transport, so the
+     * functional implementation lives in
+     * [com.ai.assistance.operit.core.tools.defaultTool.accessbility.AccessibilityUITools.fillForm].
+     * The STANDARD tier has no safe (non-root/non-shell) way to drive input fields and returns an
+     * honest "not supported" message.
+     */
+    open suspend fun fillForm(tool: AITool): ToolResult {
+        return ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = OPERATION_NOT_SUPPORTED
+        )
+    }
+
     /** Sets text in an input field */
     open suspend fun setInputText(tool: AITool): ToolResult {
                 return ToolResult(
