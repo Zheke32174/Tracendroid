@@ -1,0 +1,166 @@
+name: release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+# Serialize releases: a newer tag/dispatch cancels an in-flight run for the
+# same ref so we never publish two overlapping releases. We do NOT cancel
+# across different tags (each tag is its own group via github.ref).
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # needed for the tag-gated GitHub Release (softprops/action-gh-release)
+
+jobs:
+  release:
+    name: Signed release (bundleRelease + assembleRelease)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      # fetch-depth: 0 so the tag ref and full history are present; submodules
+      # recursive because the native modules (:mnn :llama :mmd :fbx :quickjs +
+      # ncnn/sherpa under app/) are git submodules and MUST be checked out for
+      # the NDK/CMake build to compile. All submodule URLs in .gitmodules are
+      # https (anonymous-CI friendly) — verified 2026-07-05.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Provides sdkmanager + accepts licenses so we can install the exact
+      # pinned NDK below. The default hosted image ships several NDKs, but
+      # NOT necessarily the pinned 29.x — install it explicitly.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      # app/build.gradle.kts pins ndkVersion = "29.0.14206865" and the CMake
+      # external build at src/main/cpp/CMakeLists.txt. Install that exact NDK
+      # so Gradle does not fail with "NDK not found" or silently pick another.
+      # If the pinned NDK is ever bumped in build.gradle.kts, bump it here too.
+      #
+      # NOTE: This native-module NDK/CMake build path (MNN / llama.cpp /
+      # ncnn / sherpa-ncnn / quickjs / ufbx / bullet3 / saba) has NEVER been
+      # exercised in this fork's CI. The existing app-build.yml only runs
+      # :app:compileDebugKotlin (no native link, no assemble). Expect the
+      # FIRST real run of this workflow to need iteration: NDK toolchain
+      # availability, submodule build scripts, and the manually-provisioned
+      # vendored blobs (app/libs, jniLibs, models/subpack per docs/BUILDING.md)
+      # are all unproven here.
+      - name: Install pinned NDK + CMake
+        run: |
+          set -euo pipefail
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" \
+            "ndk;29.0.14206865" \
+            "cmake;3.22.1" \
+            "platforms;android-36" \
+            "build-tools;34.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      # The signing config in app/build.gradle.kts reads FOUR properties from
+      # local.properties (NOT env, NOT -P project properties):
+      #   RELEASE_STORE_FILE / RELEASE_STORE_PASSWORD /
+      #   RELEASE_KEY_ALIAS   / RELEASE_KEY_PASSWORD
+      # and only creates the "release" signingConfig when all four are set AND
+      # the keystore file exists. GITHUB_CLIENT_ID is also read from
+      # local.properties (buildConfigField) — supply a value so BuildConfig
+      # does not embed the literal string "null".
+      #
+      # If RELEASE_KEYSTORE_BASE64 is absent the release build still succeeds
+      # but produces an UNSIGNED apk/aab (the signingConfig block is skipped).
+      - name: Decode keystore + write local.properties
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          GITHUB_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          # GITHUB_CLIENT_ID is optional; fall back to an empty-string literal
+          # so the buildConfigField is well-formed even without the secret.
+          echo "GITHUB_CLIENT_ID=\"${GITHUB_CLIENT_ID:-}\"" > local.properties
+
+          if [ -n "${RELEASE_KEYSTORE_BASE64:-}" ]; then
+            KEYSTORE_PATH="${RUNNER_TEMP}/release.keystore"
+            # Materialize the keystore from the base64 secret onto the runner.
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+            chmod 600 "$KEYSTORE_PATH"
+            {
+              echo "RELEASE_STORE_FILE=${KEYSTORE_PATH}"
+              echo "RELEASE_STORE_PASSWORD=${RELEASE_STORE_PASSWORD}"
+              echo "RELEASE_KEY_ALIAS=${RELEASE_KEY_ALIAS}"
+              echo "RELEASE_KEY_PASSWORD=${RELEASE_KEY_PASSWORD}"
+            } >> local.properties
+            echo "SIGNED=true" >> "$GITHUB_ENV"
+            echo "Keystore materialized; release will be SIGNED."
+          else
+            echo "SIGNED=false" >> "$GITHUB_ENV"
+            echo "::warning::RELEASE_KEYSTORE_BASE64 not set — build will produce an UNSIGNED apk/aab."
+          fi
+
+      - name: Show toolchain
+        run: |
+          java -version
+          ./gradlew --version
+
+      # AAB for Play + APK for direct sideload. --stacktrace so the first-run
+      # native/link failures (see NDK note above) are diagnosable.
+      - name: Build release (bundle + assemble)
+        run: ./gradlew :app:bundleRelease :app:assembleRelease --no-daemon --stacktrace
+
+      # Scrub the keystore + credentials from the runner before any later step
+      # (artifact upload / release) can touch the workspace.
+      - name: Scrub secrets from runner
+        if: always()
+        run: |
+          rm -f "${RUNNER_TEMP}/release.keystore" || true
+          rm -f local.properties || true
+
+      - name: Upload AAB artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracendroid-release-aab
+          path: app/build/outputs/bundle/release/*.aab
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload APK artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracendroid-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
+          retention-days: 30
+
+      # Tag-gated: only on a v* tag push, NEVER on workflow_dispatch and never
+      # on a branch push. draft:true means it is created but NOT auto-published
+      # — a human reviews the attached .aab/.apk and clicks publish.
+      - name: Create GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: |
+            app/build/outputs/bundle/release/*.aab
+            app/build/outputs/apk/release/*.apk
