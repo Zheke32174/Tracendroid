@@ -1130,6 +1130,14 @@ private fun getBuiltInProviderDisplayName(provider: ApiProviderType, context: an
         ApiProviderType.LLAMA_CPP -> context.getString(R.string.provider_llama_cpp)
         ApiProviderType.PPINFRA -> context.getString(R.string.provider_ppinfra)
         ApiProviderType.NOVITA -> context.getString(R.string.provider_novita)
+        ApiProviderType.XAI -> context.getString(R.string.provider_xai)
+        ApiProviderType.GROQ -> context.getString(R.string.provider_groq)
+        ApiProviderType.PERPLEXITY -> context.getString(R.string.provider_perplexity)
+        ApiProviderType.TOGETHER -> context.getString(R.string.provider_together)
+        ApiProviderType.FIREWORKS -> context.getString(R.string.provider_fireworks)
+        ApiProviderType.DEEPINFRA -> context.getString(R.string.provider_deepinfra)
+        ApiProviderType.COHERE -> context.getString(R.string.provider_cohere)
+        ApiProviderType.AZURE_OPENAI -> context.getString(R.string.provider_azure_openai)
         ApiProviderType.OTHER -> context.getString(R.string.provider_other)
     }
 }
@@ -1785,6 +1793,14 @@ private fun getProviderColor(providerTypeId: String): androidx.compose.ui.graphi
         ApiProviderType.LLAMA_CPP -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f)
         ApiProviderType.PPINFRA -> MaterialTheme.colorScheme.primaryContainer
         ApiProviderType.NOVITA -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.75f)
+        ApiProviderType.XAI -> MaterialTheme.colorScheme.primary.copy(alpha = 0.68f)
+        ApiProviderType.GROQ -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.68f)
+        ApiProviderType.PERPLEXITY -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.68f)
+        ApiProviderType.TOGETHER -> MaterialTheme.colorScheme.primary.copy(alpha = 0.62f)
+        ApiProviderType.FIREWORKS -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.62f)
+        ApiProviderType.DEEPINFRA -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.62f)
+        ApiProviderType.COHERE -> MaterialTheme.colorScheme.primary.copy(alpha = 0.58f)
+        ApiProviderType.AZURE_OPENAI -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.58f)
         ApiProviderType.OTHER -> MaterialTheme.colorScheme.surfaceVariant
     }
 }

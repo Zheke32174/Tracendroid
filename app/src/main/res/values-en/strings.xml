@@ -3743,6 +3743,14 @@
     <string name="provider_openai_local">OpenAI-Compatible (Local Model)</string>
     <string name="provider_ppinfra">PPInfra Cloud</string>
     <string name="provider_novita">Novita AI</string>
+    <string name="provider_xai">xAI (Grok)</string>
+    <string name="provider_groq">Groq</string>
+    <string name="provider_perplexity">Perplexity</string>
+    <string name="provider_together">Together AI</string>
+    <string name="provider_fireworks">Fireworks AI</string>
+    <string name="provider_deepinfra">DeepInfra</string>
+    <string name="provider_cohere">Cohere</string>
+    <string name="provider_azure_openai">Azure OpenAI</string>
     <string name="provider_openai_generic">OpenAI (Generic)</string>
     <string name="provider_other">Other Providers</string>
     <string name="provider_doubao">Doubao</string>

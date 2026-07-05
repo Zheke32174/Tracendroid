@@ -37,6 +37,15 @@ enum class ApiProviderType {
         LLAMA_CPP, // llama.cpp 本地推理引擎
         PPINFRA, // 派欧云
         NOVITA, // Novita AI
+        // Western vendors (OpenAI-compatible). Azure uses api-key header auth, not Bearer.
+        XAI, // xAI (Grok系列)
+        GROQ, // Groq (LPU推理)
+        PERPLEXITY, // Perplexity (Sonar系列)
+        TOGETHER, // Together AI
+        FIREWORKS, // Fireworks AI
+        DEEPINFRA, // DeepInfra
+        COHERE, // Cohere (Command系列，OpenAI兼容端点)
+        AZURE_OPENAI, // Azure OpenAI (api-key头认证，用户自定义部署端点)
         OTHER; // 其他提供商（自定义端点）
 
         companion object {

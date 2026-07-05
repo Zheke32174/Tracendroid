@@ -235,6 +235,50 @@ object ApiProviderConfigs {
                 )
             )
         ),
+        // --- Western vendors (OpenAI-compatible; Bearer auth unless noted) ---
+        ProviderApiConfig(
+            providerType = ApiProviderType.XAI,
+            defaultModelName = "grok-2-latest,grok-2-vision-latest",
+            defaultApiEndpoint = "https://api.x.ai/v1/chat/completions"
+        ),
+        ProviderApiConfig(
+            providerType = ApiProviderType.GROQ,
+            defaultModelName = "llama-3.3-70b-versatile,llama-3.1-8b-instant",
+            defaultApiEndpoint = "https://api.groq.com/openai/v1/chat/completions"
+        ),
+        ProviderApiConfig(
+            providerType = ApiProviderType.PERPLEXITY,
+            defaultModelName = "sonar,sonar-pro,sonar-reasoning",
+            defaultApiEndpoint = "https://api.perplexity.ai/chat/completions"
+        ),
+        ProviderApiConfig(
+            providerType = ApiProviderType.TOGETHER,
+            defaultModelName = "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+            defaultApiEndpoint = "https://api.together.xyz/v1/chat/completions"
+        ),
+        ProviderApiConfig(
+            providerType = ApiProviderType.FIREWORKS,
+            defaultModelName = "accounts/fireworks/models/llama-v3p3-70b-instruct",
+            defaultApiEndpoint = "https://api.fireworks.ai/inference/v1/chat/completions"
+        ),
+        ProviderApiConfig(
+            providerType = ApiProviderType.DEEPINFRA,
+            defaultModelName = "meta-llama/Llama-3.3-70B-Instruct",
+            defaultApiEndpoint = "https://api.deepinfra.com/v1/openai/chat/completions"
+        ),
+        ProviderApiConfig(
+            providerType = ApiProviderType.COHERE,
+            defaultModelName = "command-r-plus,command-r",
+            defaultApiEndpoint = "https://api.cohere.ai/compatibility/v1/chat/completions"
+        ),
+        ProviderApiConfig(
+            // Azure OpenAI: no hardcoded default endpoint — the user supplies their own
+            // deployment URL (https://<resource>.openai.azure.com/openai/deployments/<deployment>/chat/completions?api-version=...).
+            // Auth is api-key header (see OpenAIProvider.resolveAuthStrategy), not Bearer.
+            providerType = ApiProviderType.AZURE_OPENAI,
+            defaultModelName = "",
+            defaultApiEndpoint = ""
+        ),
         ProviderApiConfig(
             providerType = ApiProviderType.OTHER,
             defaultModelName = "",

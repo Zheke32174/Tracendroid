@@ -432,7 +432,10 @@ object AIServiceFactory {
                     enableToolCall = enableToolCall
                 )
 
-            // 其他中文服务商，当前使用OpenAI Provider (大多数兼容OpenAI格式)
+            // 其他中文服务商 + 西方厂商，当前使用OpenAI Provider (大多数兼容OpenAI格式)
+            // 西方厂商(XAI/GROQ/PERPLEXITY/TOGETHER/FIREWORKS/DEEPINFRA/COHERE)均为OpenAI兼容+Bearer认证。
+            // AZURE_OPENAI 同样路由到 OpenAIProvider，但其 AuthStrategy 由 providerType 决定为
+            // HeaderKeyAuth("api-key")，端点由用户自定义部署URL提供（无内置默认值）。见 OpenAIProvider.resolveAuthStrategy。
             ApiProviderType.BAIDU,
             ApiProviderType.XUNFEI,
             ApiProviderType.ZHIPU,
@@ -442,6 +445,14 @@ object AIServiceFactory {
             ApiProviderType.ALIPAY_BAILING,
             ApiProviderType.PPINFRA,
             ApiProviderType.NOVITA,
+            ApiProviderType.XAI,
+            ApiProviderType.GROQ,
+            ApiProviderType.PERPLEXITY,
+            ApiProviderType.TOGETHER,
+            ApiProviderType.FIREWORKS,
+            ApiProviderType.DEEPINFRA,
+            ApiProviderType.COHERE,
+            ApiProviderType.AZURE_OPENAI,
             ApiProviderType.OTHER ->
                 OpenAIProvider(
                     apiEndpoint = config.apiEndpoint,
