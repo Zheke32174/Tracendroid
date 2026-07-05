@@ -7446,4 +7446,7 @@
     <string name="onnx_tts_error_config_invalid_int">ONNX TTS parameter is not an integer: %1$s</string>
     <string name="onnx_tts_error_config_invalid_float">ONNX TTS parameter is not a number: %1$s</string>
     <string name="onnx_tts_error_config_invalid_bool">ONNX TTS parameter is not a boolean: %1$s</string>
+    <string name="homage_blue_translation">Blue is taken from the indigo plant, yet it is bluer than indigo — the one who comes after stands on those who came before.</string>
+    <string name="homage_gratitude">Tracendroid grows from Operit. With deep respect and gratitude to AAswordman and everyone who built Operit AI — this app stands only because you laid the ground beneath it.</string>
+    <string name="homage_thanks">Thank you</string>
 </resources>

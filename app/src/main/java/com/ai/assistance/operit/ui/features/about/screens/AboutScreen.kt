@@ -498,6 +498,11 @@ fun AboutScreen(
     // 添加开源许可对话框状态
     var showLicenseDialog by remember { mutableStateOf(false) }
 
+    // Easter egg — homage to Operit / AAswordman. Tap the app logo 7 times.
+    // 彩蛋：轻点应用图标 7 次，向 Operit 与其作者致敬。
+    var homageTapCount by remember { mutableStateOf(0) }
+    var showHomageDialog by remember { mutableStateOf(false) }
+
     // 获取应用版本信息
     val appVersion = remember {
         try {
@@ -742,6 +747,11 @@ fun AboutScreen(
         LicenseDialog(onDismiss = { showLicenseDialog = false })
     }
 
+    // 彩蛋：致敬 Operit
+    if (showHomageDialog) {
+        HomageDialog(onDismiss = { showHomageDialog = false })
+    }
+
     if (patchUpdateState != null) {
         PatchUpdateProgressDialog(
             state = patchUpdateState!!,
@@ -857,7 +867,15 @@ fun AboutScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Surface(
-                        modifier = Modifier.size(80.dp),
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clickable {
+                                homageTapCount++
+                                if (homageTapCount >= 7) {
+                                    homageTapCount = 0
+                                    showHomageDialog = true
+                                }
+                            },
                         shape = CircleShape,
                         tonalElevation = 1.dp,
                         color = MaterialTheme.colorScheme.surfaceVariant
@@ -1037,6 +1055,78 @@ fun AboutScreen(
             }
         }
     }
+}
+
+/**
+ * Easter egg — a homage to Operit and its author AAswordman, revealed by tapping the
+ * About-screen logo seven times. Built around 青出于蓝 ("the blue surpasses the indigo it
+ * came from"): a fork honoring, in the creator's own language, the work it grew out of.
+ * Tracendroid stands because Operit built the ground it stands on.
+ */
+@Composable
+private fun HomageDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Favorite,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        },
+        title = {
+            Text(
+                text = "青出于蓝",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "「青出于蓝，而胜于蓝」",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "qīng chū yú lán, ér shèng yú lán",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = stringResource(id = R.string.homage_blue_translation),
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                Text(
+                    text = stringResource(id = R.string.homage_gratitude),
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "从 Operit 而来 · Born from Operit",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(id = R.string.homage_thanks))
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -7422,4 +7422,7 @@
     <string name="package_conflict_delete_source">删除源文件</string>
     <string name="package_conflict_delete_success">冲突包源文件已删除</string>
     <string name="package_conflict_delete_failed">删除冲突包源文件失败</string>
+    <string name="homage_blue_translation">青，取之于蓝，而青于蓝。后来者立于前人肩上，方能致远。</string>
+    <string name="homage_gratitude">Tracendroid 生于 Operit。谨向 AAswordman 及每一位建造 Operit AI 的人，致以深深的敬意与谢意——因你们奠定根基，此应用方得以立足。</string>
+    <string name="homage_thanks">谢谢</string>
 </resources>
