@@ -353,7 +353,7 @@ class AvatarModelFactoryImpl : AvatarModelFactory {
         }
 
         val candidates = linkedMapOf(
-            AvatarEmotion.IDLE to listOf("idle", "default", "normal", "standby"),
+            AvatarEmotion.IDLE to listOf("idle", "default", "normal", "standby", "face", "vesper_face"),
             AvatarEmotion.LISTENING to listOf("listening", "talking", "speak", "speaking", "chat"),
             AvatarEmotion.THINKING to listOf("thinking", "think", "loading"),
             AvatarEmotion.HAPPY to listOf("happy", "smile", "joy"),

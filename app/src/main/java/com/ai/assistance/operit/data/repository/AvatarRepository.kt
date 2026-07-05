@@ -508,6 +508,27 @@ class AvatarRepository(
 
         private const val ASSETS_AVATAR_DIR = "pets"
         private const val USER_AVATAR_DIR = "avatars"
+
+        /**
+         * Directory of avatars bundled with (and committed to) the app. Unlike
+         * [ASSETS_AVATAR_DIR] (a dev/runtime-populated, git-ignored location),
+         * everything under `assets/$BUNDLED_AVATAR_DIR/<name>/` ships in the APK.
+         * Each immediate subfolder is one avatar whose files are recognized by
+         * the persistence delegates (e.g. a folder with `.webp` files is a WebP
+         * avatar). These are copied into the user avatar directory on first run.
+         */
+        private const val BUNDLED_AVATAR_DIR = "avatar"
+
+        /**
+         * The bundled avatar that a fresh install should select by default.
+         * This matches the seed folder name shipped under
+         * `assets/$BUNDLED_AVATAR_DIR/$DEFAULT_BUILT_IN_AVATAR_NAME`, which
+         * [synchronizeAssets] copies into the user avatar directory on first run.
+         * It is only applied when the user has not yet chosen an avatar, so it
+         * never overrides an explicit selection.
+         */
+        private const val DEFAULT_BUILT_IN_AVATAR_NAME = "vesper"
+        private val DEFAULT_BUILT_IN_AVATAR_TYPE = AvatarType.WEBP
         private val ZIP_IMPORT_CHARSETS: List<Charset> =
             listOf("UTF-8", "GBK", "GB18030", "CP437").mapNotNull { name ->
                 runCatching { Charset.forName(name) }.getOrNull()
@@ -561,7 +582,7 @@ class AvatarRepository(
             val assetManager = context.assets
             val avatarTypeDirs = assetManager.list(ASSETS_AVATAR_DIR)?.filter {
                 try { assetManager.list("$ASSETS_AVATAR_DIR/$it")?.isNotEmpty() == true } catch (e: Exception) { false }
-            } ?: return
+            } ?: emptyList()
 
             for (typeDir in avatarTypeDirs) {
                 val modelFolders = assetManager.list("$ASSETS_AVATAR_DIR/$typeDir") ?: continue
@@ -580,6 +601,42 @@ class AvatarRepository(
             }
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error synchronizing assets: ${e.message}", e)
+        }
+
+        synchronizeBundledAvatars()
+    }
+
+    /**
+     * Seeds avatars that ship committed in the APK under
+     * `assets/$BUNDLED_AVATAR_DIR/<name>/`. Each immediate subfolder is copied
+     * into the user avatar directory (only when absent, so user edits are kept)
+     * and is then recognized by the normal persistence-delegate scan.
+     */
+    private fun synchronizeBundledAvatars() {
+        try {
+            val assetManager = context.assets
+            val bundledFolders = assetManager.list(BUNDLED_AVATAR_DIR)?.filter { folder ->
+                try {
+                    assetManager.list("$BUNDLED_AVATAR_DIR/$folder")?.isNotEmpty() == true
+                } catch (e: Exception) {
+                    false
+                }
+            } ?: return
+
+            for (avatarFolder in bundledFolders) {
+                val destDir = File(userAvatarDir, avatarFolder)
+                if (!destDir.exists()) {
+                    AppLogger.d(TAG, "Populating bundled avatar '$avatarFolder'")
+                    AssetCopyUtils.copyAssetDirRecursive(
+                        context,
+                        "$BUNDLED_AVATAR_DIR/$avatarFolder",
+                        destDir,
+                        overwrite = false
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "Error synchronizing bundled avatars: ${e.message}", e)
         }
     }
 
@@ -626,7 +683,24 @@ class AvatarRepository(
 
         val settings = loadSettingsFromPrefs()
         _settings.value = settings
-        updateCurrentAvatar(settings.currentAvatarId)
+
+        // On a fresh install the user has not chosen an avatar yet. Prefer the
+        // bundled default (Vesper) if it is available, so the app shows her
+        // out of the box. An explicit prior selection is always respected.
+        val targetAvatarId = settings.currentAvatarId ?: findDefaultBuiltInAvatarId(finalConfigs)
+        updateCurrentAvatar(targetAvatarId)
+    }
+
+    /**
+     * Finds the id of the bundled default avatar within [configs], matching by
+     * the seed folder name and type. Returns null when it is not present, in
+     * which case callers fall back to the first available avatar.
+     */
+    private fun findDefaultBuiltInAvatarId(configs: List<AvatarConfig>): String? {
+        return configs.firstOrNull { config ->
+            config.type == DEFAULT_BUILT_IN_AVATAR_TYPE &&
+                config.name.equals(DEFAULT_BUILT_IN_AVATAR_NAME, ignoreCase = true)
+        }?.id
     }
 
     private fun scanUserAvatarDirectory(): List<AvatarConfig> {
