@@ -41,6 +41,10 @@ jobs:
           cp tools/ffmpeg/build_ffmpeg_kit_wsl.sh /tmp/build.sh
           # strip all proxy lines (CI has direct internet; the hard-coded proxy would break downloads)
           sed -i '/proxy/Id; /PROXY/d; /proxyHost/d; /proxyPort/d' /tmp/build.sh
+          # gnutls is the one library that fails to build (fragile nested-submodule
+          # bootstrap) and it is only needed for HTTPS/TLS stream I/O. The app's
+          # FFmpeg tools do local transcode/probe, so drop gnutls to let the .aar finish.
+          sed -i '/--enable-gnutls/d; /^[[:space:]]*gnutls[[:space:]]*$/d' /tmp/build.sh
           chmod +x /tmp/build.sh
           bash /tmp/build.sh "$HOME/build/ffmpeg-kit"
       - name: Locate + stage the .aar
