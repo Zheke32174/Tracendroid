@@ -1,58 +1,44 @@
 package com.ai.assistance.operit.util
 
-import com.ai.assistance.operit.util.AppLogger
-import com.arthenica.ffmpegkit.FFmpegKit
-import com.arthenica.ffmpegkit.FFprobeKit
-import com.arthenica.ffmpegkit.MediaInformation
-import com.arthenica.ffmpegkit.ReturnCode
-
-/**
- * Utility class for FFmpeg operations
- */
+// FFmpeg support was removed: the arthenica ffmpeg-kit artifacts were retired from
+// Maven Central (the project was archived). This stub keeps FFmpegUtil's API surface
+// so callers (StandardFileSystemTools' media-info paths) still compile, but it reports
+// no media info and executes nothing. Restoring real media probing means wiring an
+// ffmpeg-kit replacement and re-fleshing getMediaInfo/executeCommand. Disclosed ceiling,
+// not a silent no-op.
 object FFmpegUtil {
     private const val TAG = "FFmpegUtil"
 
     /**
+     * Minimal stand-in for the removed com.arthenica MediaInformation, exposing only
+     * the fields the callers read. Always null in this build (no probe backend bundled).
+     */
+    data class MediaInfo(
+        val format: String? = null,
+        val duration: String? = null,
+        val bitrate: String? = null,
+        val streams: List<StreamInfo>? = null,
+    )
+
+    data class StreamInfo(
+        val type: String? = null,
+    )
+
+    /**
      * Build a scale filter string that survives FFmpegKit argument parsing.
-     * FFmpeg expressions need an escaped comma when passed without a shell.
+     * Kept because it is pure string work with no ffmpeg dependency.
      */
-    fun scaleFilterMaxWidth(maxWidth: Int): String = "scale=min(${maxWidth}\\,iw):-2"
+    fun scaleFilterMaxWidth(maxWidth: Int): String = "scale=min(${maxWidth}\,iw):-2"
 
-    /**
-     * Execute an FFmpeg command and return if it was successful
-     */
+    /** No ffmpeg backend bundled — cannot execute. */
     fun executeCommand(command: String): Boolean {
-        try {
-            AppLogger.d(TAG, "Executing FFmpeg command: $command")
-            val session = FFmpegKit.execute(command)
-            val returnCode = session.returnCode
-
-            if (ReturnCode.isSuccess(returnCode)) {
-                AppLogger.d(TAG, "FFmpeg command executed successfully")
-                return true
-            } else {
-                AppLogger.e(
-                    TAG,
-                    "FFmpeg failed with return code: ${returnCode.value}, output: ${session.output}"
-                )
-                return false
-            }
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Error executing FFmpeg command", e)
-            return false
-        }
+        AppLogger.w(TAG, "FFmpeg unavailable (ffmpeg-kit removed); cannot execute: $command")
+        return false
     }
 
-    /**
-     * Get media information for a file
-     */
-    fun getMediaInfo(filePath: String): MediaInformation? {
-        return try {
-            val mediaInfoSession = FFprobeKit.getMediaInformation(filePath)
-            mediaInfoSession.mediaInformation
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Error getting media info: ${e.message}")
-            null
-        }
+    /** No ffprobe backend bundled — no media info available. */
+    fun getMediaInfo(filePath: String): MediaInfo? {
+        AppLogger.w(TAG, "FFmpeg unavailable (ffmpeg-kit removed); no media info for: $filePath")
+        return null
     }
-} 
+}

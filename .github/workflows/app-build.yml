@@ -65,6 +65,19 @@ jobs:
       - name: Compile (debug Kotlin)
         run: ./gradlew :app:compileDebugKotlin --no-daemon --stacktrace
 
+      # Produce an installable debug APK so the branch can be sideloaded.
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Upload debug APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracendroid-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Lint (debug)
         run: ./gradlew :app:lintDebug --no-daemon --stacktrace || true
         # Lint findings don't fail the job in v1 — the project has decades

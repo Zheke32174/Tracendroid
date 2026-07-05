@@ -678,7 +678,17 @@ class MCPMarketViewModel(
                 _isLoading.value = true
                 AppLogger.d(TAG, "Handling GitHub callback with code: $code")
 
-                val tokenResult = githubApiService.getAccessToken(code)
+                // PKCE (RFC 7636): consume the verifier stored when the auth URL was
+                // built (createExternalAuthorizationUrl -> setPendingCodeVerifier). The
+                // token exchange requires it; passing none returns a hard 400 from GitHub.
+                val codeVerifier = GitHubAuthPreferences.getInstance(context).consumePendingCodeVerifier()
+                if (codeVerifier == null) {
+                    AppLogger.e(TAG, "Missing pending PKCE code verifier for GitHub login")
+                    _errorMessage.value = context.getString(R.string.main_github_login_failed, "missing PKCE verifier")
+                    _isLoading.value = false
+                    return@launch
+                }
+                val tokenResult = githubApiService.getAccessToken(code, codeVerifier)
                 val tokenResponse = tokenResult.getOrElse { error ->
                     AppLogger.e(TAG, "Failed to get access token", error)
                     _errorMessage.value = context.getString(R.string.main_github_login_failed, error.message ?: "")
