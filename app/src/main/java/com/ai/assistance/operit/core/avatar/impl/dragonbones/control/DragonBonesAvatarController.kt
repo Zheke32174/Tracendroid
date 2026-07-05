@@ -33,6 +33,18 @@ class DragonBonesAvatarController(
     private var emotionAnimationMapping: Map<AvatarEmotion, String> = emptyMap()
     private var triggerAnimationMapping: Map<String, String> = emptyMap()
 
+    /**
+     * Normalized emotion intensity (0f subtle .. 1f emphatic), driven from an upstream
+     * `<mood weight>` value via [setEmotionIntensity]. Applied to the fade-in time of
+     * subsequent emotion/trigger playback so higher intensity looks snappier / more
+     * emphatic. Defaults to a neutral mid value so behavior is unchanged until a caller
+     * sets it.
+     */
+    private var emotionIntensity: Float = DEFAULT_EMOTION_INTENSITY
+
+    /** Tracks whether the mouth bone is currently displaced, so we only reset when needed. */
+    private var mouthIsOpen: Boolean = false
+
     override fun setEmotion(newEmotion: AvatarEmotion) {
         playEmotion(newEmotion, loop = 0)
     }
@@ -40,7 +52,14 @@ class DragonBonesAvatarController(
     override fun playEmotion(emotion: AvatarEmotion, loop: Int) {
         val animationName = resolveAnimationForEmotion(emotion) ?: return
 
-        libController.playAnimation(animationName, loop.toFloat())
+        // Play on the base layer with an intensity-scaled fade-in so a high-intensity mood
+        // snaps in and a subtle one eases in. loop maps 1:1 onto fadeInAnimation (0 = infinite).
+        libController.fadeInAnimation(
+            name = animationName,
+            layer = 0,
+            loop = loop,
+            fadeInTime = intensityFadeInSeconds()
+        )
         _state.value = _state.value.copy(
             emotion = emotion,
             currentAnimation = animationName,
@@ -52,7 +71,12 @@ class DragonBonesAvatarController(
         val normalizedTrigger = AvatarMoodTypes.normalizeKey(triggerName)
         val animationName = resolveAnimationForTrigger(normalizedTrigger) ?: return false
 
-        libController.playAnimation(animationName, loop.toFloat())
+        libController.fadeInAnimation(
+            name = animationName,
+            layer = 0,
+            loop = loop,
+            fadeInTime = intensityFadeInSeconds()
+        )
         _state.value = _state.value.copy(
             emotion =
                 AvatarMoodTypes.builtInFallbackEmotion(normalizedTrigger)
@@ -95,9 +119,87 @@ class DragonBonesAvatarController(
         }
     }
 
-    // `lookAt` is not supported by the DragonBones implementation.
+    /**
+     * Gaze / look-at. Reuses the model's IK target bone (the same [IK_TARGET_BONE_NAME]
+     * bone the drag gesture drives) so the head/eyes track a normalized point without any
+     * new native entry points. Coordinates are normalized (-1..1); (0,0) recenters the
+     * gaze. If the model has no such bone, [DragonBonesController.overrideBonePosition]
+     * queues a native call that is a harmless no-op, so this never crashes.
+     *
+     * @param x Normalized horizontal target, -1 (left) .. 1 (right).
+     * @param y Normalized vertical target, -1 (up) .. 1 (down).
+     */
     override fun lookAt(x: Float, y: Float) {
-        // No-op
+        try {
+            val clampedX = x.coerceIn(-1f, 1f)
+            val clampedY = y.coerceIn(-1f, 1f)
+            if (clampedX == 0f && clampedY == 0f) {
+                libController.resetBone(IK_TARGET_BONE_NAME)
+                return
+            }
+            // Map normalized coords to a modest bone displacement around the rig origin.
+            libController.overrideBonePosition(
+                IK_TARGET_BONE_NAME,
+                clampedX * GAZE_RANGE_PX,
+                clampedY * GAZE_RANGE_PX
+            )
+        } catch (_: Exception) {
+            // Bone may not exist for this model; ignore rather than crash.
+        }
+    }
+
+    /**
+     * Lip-sync. Displaces a mouth bone by [openAmount] so the mouth opens while speaking
+     * and closes when done. Tries a small list of common mouth-bone names and stops at the
+     * first that the native side accepts; when none exist the native calls are no-ops, so
+     * this is safe on any rig. Amplitude-accurate lip-sync (driving [openAmount] from live
+     * audio RMS) is a documented follow-up — v1 is a speaking on/off drive.
+     *
+     * @param openAmount 0f (closed) .. 1f (fully open).
+     */
+    override fun lipSync(openAmount: Float) {
+        try {
+            val amount = openAmount.coerceIn(0f, 1f)
+            if (amount <= MOUTH_CLOSED_EPSILON) {
+                if (mouthIsOpen) {
+                    MOUTH_BONE_CANDIDATES.forEach { bone ->
+                        libController.resetBone(bone)
+                    }
+                    mouthIsOpen = false
+                }
+                return
+            }
+            // Open the mouth: push candidate mouth bones downward proportionally.
+            val offsetY = amount * MOUTH_OPEN_RANGE_PX
+            MOUTH_BONE_CANDIDATES.forEach { bone ->
+                libController.overrideBonePosition(bone, 0f, offsetY)
+            }
+            mouthIsOpen = true
+        } catch (_: Exception) {
+            // Mouth bone may not exist for this model; ignore rather than crash.
+        }
+    }
+
+    /**
+     * Emotion intensity. Stores a normalized 0f..1f value used to modulate the fade-in
+     * time of subsequent emotion / trigger playback: higher intensity yields a snappier,
+     * more emphatic transition. Non-finite values fall back to the neutral default.
+     */
+    override fun setEmotionIntensity(intensity: Float) {
+        emotionIntensity =
+            if (intensity.isFinite()) intensity.coerceIn(0f, 1f) else DEFAULT_EMOTION_INTENSITY
+    }
+
+    /**
+     * Maps the current [emotionIntensity] to a fade-in time in seconds: a high-intensity
+     * mood snaps in quickly (short fade), a subtle one eases in (longer fade). Used by the
+     * intensity-aware playback path so callers get emphatic transitions without any new
+     * native capability.
+     */
+    private fun intensityFadeInSeconds(): Float {
+        // intensity 1f -> MIN fade (snappy); intensity 0f -> MAX fade (gentle).
+        return MAX_FADE_IN_SECONDS -
+            (emotionIntensity.coerceIn(0f, 1f) * (MAX_FADE_IN_SECONDS - MIN_FADE_IN_SECONDS))
     }
 
     override fun updateSettings(settings: Map<String, Any>) {
@@ -194,6 +296,30 @@ class DragonBonesAvatarController(
         return AvatarEmotion.values().firstOrNull { emotion ->
             emotion.name.lowercase() == animationName
         }
+    }
+
+    private companion object {
+        /** IK target bone reused for gaze; matches the drag gesture's bone name. */
+        const val IK_TARGET_BONE_NAME = "ik_target"
+
+        /** Candidate mouth-bone names, tried in order for lip-sync. Missing ones no-op. */
+        val MOUTH_BONE_CANDIDATES = listOf("mouth", "ik_mouth", "jaw", "lip")
+
+        /** Below this openAmount the mouth is treated as closed. */
+        const val MOUTH_CLOSED_EPSILON = 0.05f
+
+        /** Max downward bone displacement (rig units) at fully-open mouth. */
+        const val MOUTH_OPEN_RANGE_PX = 40f
+
+        /** Max bone displacement (rig units) for a full-deflection gaze. */
+        const val GAZE_RANGE_PX = 120f
+
+        /** Neutral emotion intensity used until a caller sets one. */
+        const val DEFAULT_EMOTION_INTENSITY = 0.5f
+
+        /** Fade-in bounds (seconds) mapped from emotion intensity. */
+        const val MIN_FADE_IN_SECONDS = 0.08f
+        const val MAX_FADE_IN_SECONDS = 0.45f
     }
 }
 

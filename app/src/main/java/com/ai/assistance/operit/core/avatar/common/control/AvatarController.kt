@@ -72,7 +72,40 @@ interface AvatarController {
      * @param y The normalized y-coordinate (-1 to 1).
      */
     fun lookAt(x: Float, y: Float)
-    
+
+    /**
+     * Expressive drive — lip-sync hook.
+     *
+     * Drives the avatar's mouth to a given open amount. Callers typically toggle this
+     * between roughly 0f (closed) and a positive value (open) while speech is playing,
+     * producing a talking effect. Amplitude-accurate lip-sync (driving [openAmount]
+     * from live audio RMS) is a future refinement; a speaking on/off loop is sufficient
+     * for v1.
+     *
+     * Provided with a default no-op body so that avatar runtimes which cannot express a
+     * mouth (frame-sequence formats, video formats, and skeletal formats without a mouth
+     * bone) compile and behave unchanged without overriding it. Only runtimes that can
+     * meaningfully move a mouth should override this.
+     *
+     * @param openAmount How open the mouth should be, normalized to 0f (closed)..1f (fully open).
+     */
+    fun lipSync(openAmount: Float) {}
+
+    /**
+     * Expressive drive — emotion intensity.
+     *
+     * Sets a normalized intensity that controllers may apply to subsequent emotion /
+     * trigger / animation playback (for example, by making transitions snappier and
+     * layering a stronger reaction for high-intensity moods). This lets an upstream
+     * `<mood weight="0.8">` value modulate how emphatic the avatar looks.
+     *
+     * Provided with a default no-op body so runtimes that cannot vary intensity compile
+     * and behave unchanged without overriding it.
+     *
+     * @param intensity Normalized emotion intensity, 0f (subtle)..1f (emphatic).
+     */
+    fun setEmotionIntensity(intensity: Float) {}
+
     /**
      * Updates avatar-specific settings, such as scale or position.
      * Each controller implementation should handle the settings relevant to it.

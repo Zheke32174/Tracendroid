@@ -34,7 +34,13 @@ data class VoiceAvatarMotionRequest(
     val emotion: AvatarEmotion = AvatarEmotion.IDLE,
     val triggerName: String? = null,
     val playOnce: Boolean = false,
-    val sequence: Long = 0L
+    val sequence: Long = 0L,
+    /**
+     * Normalized emotion intensity (0f..1f) parsed from an upstream `<mood weight>` tag,
+     * or null when the tag carried no weight. Threaded to
+     * [com.ai.assistance.operit.core.avatar.common.control.AvatarController.setEmotionIntensity].
+     */
+    val intensity: Float? = null
 )
 
 class FloatingFullscreenModeViewModel(
@@ -687,13 +693,13 @@ class FloatingFullscreenModeViewModel(
                 val moodTag = AvatarEmotionManager.extractMoodTag(message.content)
                 val triggerName = moodTag?.key
                 if (!triggerName.isNullOrBlank()) {
-                    // moodTag.weight is parsed and available here, but the AvatarController
-                    // interface has no strength/blend-weight parameter, so we do not thread it
-                    // through yet (see AvatarEmotionManager.extractMoodTag TODO).
+                    // Thread the parsed `<mood weight>` through to the avatar so the
+                    // controller can drive emotion intensity (setEmotionIntensity).
                     pushVoiceAvatarMotion(
                         emotion = emotion,
                         triggerName = triggerName,
-                        playOnce = true
+                        playOnce = true,
+                        intensity = moodTag?.weight
                     )
                     return
                 }
@@ -733,14 +739,16 @@ class FloatingFullscreenModeViewModel(
     private fun pushVoiceAvatarMotion(
         emotion: AvatarEmotion,
         triggerName: String? = null,
-        playOnce: Boolean
+        playOnce: Boolean,
+        intensity: Float? = null
     ) {
         voiceAvatarSequence += 1
         voiceAvatarMotionRequest = VoiceAvatarMotionRequest(
             emotion = emotion,
             triggerName = triggerName,
             playOnce = playOnce,
-            sequence = voiceAvatarSequence
+            sequence = voiceAvatarSequence,
+            intensity = intensity
         )
     }
 

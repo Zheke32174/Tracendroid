@@ -285,6 +285,10 @@ fun FloatingFullscreenMode(floatContext: FloatContext) {
         }
 
         val request = viewModel.voiceAvatarMotionRequest
+        // Apply parsed `<mood weight>` intensity (if any) before playback so the
+        // controller can make the transition more/less emphatic. No-op on runtimes
+        // that don't override setEmotionIntensity.
+        request.intensity?.let { controller.setEmotionIntensity(it) }
         val triggerName = request.triggerName?.trim().orEmpty()
         if (triggerName.isNotEmpty()) {
             val handled = controller.playTrigger(triggerName, loop = if (request.playOnce) 1 else 0)
@@ -312,7 +316,36 @@ fun FloatingFullscreenMode(floatContext: FloatContext) {
             controller.setEmotion(request.emotion)
         }
     }
-    
+
+    // Lip-sync: drive the active avatar's mouth while TTS is speaking.
+    // v1 is a speaking on/off oscillation (mouth opens/closes on a fixed cadence while
+    // the voice service reports it is speaking, then closes when playback stops).
+    // collectLatest cancels the in-flight oscillation as soon as speaking flips, so the
+    // finally block always closes the mouth. Amplitude-accurate lip-sync (driving the
+    // open amount from live audio RMS) is a documented follow-up; the seam is the same
+    // controller.lipSync(openAmount) call. lipSync() is a no-op default on runtimes that
+    // don't override it, so this is safe for all avatar types.
+    LaunchedEffect(voiceAvatarController, isVoiceAvatarEnabled) {
+        val controller = voiceAvatarController ?: return@LaunchedEffect
+        if (!isVoiceAvatarEnabled) return@LaunchedEffect
+        viewModel.speechManager.voiceService.speakingStateFlow.collectLatest { speaking ->
+            if (!speaking) {
+                controller.lipSync(0f)
+                return@collectLatest
+            }
+            try {
+                var open = true
+                while (true) {
+                    controller.lipSync(if (open) 0.9f else 0.1f)
+                    open = !open
+                    delay(120)
+                }
+            } finally {
+                controller.lipSync(0f)
+            }
+        }
+    }
+
     // 清理资源
     DisposableEffect(Unit) {
         onDispose {
