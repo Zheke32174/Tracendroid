@@ -399,6 +399,11 @@
     <string name="how_to_import_tap_to_collapse">How to create and import models? (tap to collapse)</string>
     <string name="avatar_config_supported_formats">Supported: DragonBones (.json + _tex.json + _tex.png), WebP (.webp), MP4 (.mp4), MMD (.pmx/.pmd + optional .vmd), glTF (.glb/.gltf), FBX (.fbx).</string>
     <string name="avatar_config_import_methods">Direct file import supports .glb/.gltf/.mp4/.fbx; use .zip for DragonBones, WebP, MP4, MMD, multi-file glTF, or FBX packages with external textures/resources.</string>
+    <string name="avatar_import_error_unsupported">Unsupported file type \".%1$s\". Pick a .zip archive, or a .glb/.gltf/.mp4/.fbx model file.</string>
+    <string name="avatar_import_error_unsupported_unknown">Could not recognize the file type. Pick a .zip archive, or a .glb/.gltf/.mp4/.fbx model file.</string>
+    <string name="avatar_import_error_corrupt_archive">The archive is corrupt or uses an unsupported filename encoding and could not be read.</string>
+    <string name="avatar_import_error_no_model">No usable avatar model was found in the archive. Check the folder layout: DragonBones needs *_tex.json + *_tex.png, WebP needs .webp, MP4 needs .mp4, MMD needs .pmx/.pmd, glTF needs .glb/.gltf plus its resources.</string>
+    <string name="avatar_import_error_fbx_needs_package">This FBX references external textures/resources. Package the model and its resources together into a .zip and import that instead.</string>
     <string name="avatar_mood_trigger_mapping_title">Mood Trigger Mapping</string>
     <string name="avatar_mood_trigger_mapping_desc">Returned &lt;mood&gt; values from the desktop pet and voice avatar will match these triggers first. Only custom types that already have an animation binding will be appended to the prompt.</string>
     <string name="avatar_no_model_actions">No model actions found for this avatar</string>

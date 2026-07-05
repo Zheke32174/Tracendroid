@@ -386,6 +386,11 @@
     <string name="how_to_import_tap_to_collapse">如何制作和导入模型?（点击收起）</string>
     <string name="avatar_config_supported_formats">支持：DragonBones（.json + _tex.json + _tex.png）、WebP（.webp）、MP4（.mp4）、MMD（.pmx/.pmd + 可选 .vmd）、glTF（.glb/.gltf）、FBX（.fbx）。</string>
     <string name="avatar_config_import_methods">直接文件导入支持 .glb/.gltf/.mp4/.fbx；DragonBones、WebP、MP4、MMD、多文件 glTF，或带外置贴图/资源的 FBX 请导入 .zip。</string>
+    <string name="avatar_import_error_unsupported">不支持的文件类型「.%1$s」。请选择 .zip 压缩包，或 .glb/.gltf/.mp4/.fbx 模型文件。</string>
+    <string name="avatar_import_error_unsupported_unknown">无法识别的文件类型。请选择 .zip 压缩包，或 .glb/.gltf/.mp4/.fbx 模型文件。</string>
+    <string name="avatar_import_error_corrupt_archive">压缩包已损坏或使用了不支持的文件名编码，无法读取。</string>
+    <string name="avatar_import_error_no_model">压缩包中未找到可用的虚拟形象模型。请检查目录结构：DragonBones 需 *_tex.json + *_tex.png，WebP 需 .webp，MP4 需 .mp4，MMD 需 .pmx/.pmd，glTF 需 .glb/.gltf 及其资源。</string>
+    <string name="avatar_import_error_fbx_needs_package">该 FBX 引用了外置贴图/资源，请将模型和资源一起打包成 .zip 后再导入。</string>
     <string name="avatar_mood_trigger_mapping_title">Mood 触发映射</string>
     <string name="avatar_mood_trigger_mapping_desc">桌宠和语音头像返回的 &lt;mood&gt; 会优先匹配这里的 trigger。只有绑定了动画的自定义类型才会拼接进提示词。</string>
     <string name="avatar_no_model_actions">当前虚拟形象没有可用动作</string>

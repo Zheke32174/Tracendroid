@@ -192,6 +192,36 @@ data class AvatarSettings(
 )
 
 /**
+ * Result of a user-initiated avatar import.
+ *
+ * This carries a specific, user-actionable reason on failure so the UI can surface a
+ * friendly message (instead of a generic "operation failed"). The underlying load /
+ * validate path is unchanged; this only enriches the return value.
+ */
+sealed class AvatarImportResult {
+    /** Import succeeded; [importedCount] models were added. */
+    data class Success(val importedCount: Int) : AvatarImportResult()
+
+    /**
+     * The picked file's type is not something we can import at all
+     * (e.g. a bare .webp or .pmx single file that must be zipped, or an unknown type).
+     */
+    data class UnsupportedFile(val extension: String) : AvatarImportResult()
+
+    /** The archive could not be decoded with any supported filename charset. */
+    object CorruptArchive : AvatarImportResult()
+
+    /** No recognizable avatar model was found in the archive. */
+    object NoModelFound : AvatarImportResult()
+
+    /** An FBX model file references external resources and must be packaged as a .zip. */
+    object FbxNeedsPackage : AvatarImportResult()
+
+    /** An unexpected I/O or runtime error occurred while importing. */
+    object UnknownError : AvatarImportResult()
+}
+
+/**
  * Defines a contract for type-specific avatar persistence logic.
  * Each supported AvatarType should have an implementation of this delegate.
  */
@@ -824,15 +854,28 @@ class AvatarRepository(
         UNSUPPORTED
     }
 
-    suspend fun importAvatarFromUri(uri: Uri): Boolean {
+    suspend fun importAvatarFromUri(uri: Uri): AvatarImportResult {
         return when (detectImportKind(uri)) {
             AvatarImportKind.ZIP -> importAvatarFromZip(uri)
             AvatarImportKind.MODEL_FILE -> importAvatarFromModelFile(uri)
             AvatarImportKind.UNSUPPORTED -> {
-                AppLogger.w(TAG, "Unsupported avatar import file type: uri=$uri")
-                false
+                val extension = resolveImportExtension(uri)
+                AppLogger.w(TAG, "Unsupported avatar import file type: uri=$uri ext=$extension")
+                AvatarImportResult.UnsupportedFile(extension)
             }
         }
+    }
+
+    /**
+     * Best-effort extraction of the picked file's extension (lower-cased, no dot) for use in
+     * user-facing error messages. Returns an empty string when it cannot be determined.
+     */
+    private fun resolveImportExtension(uri: Uri): String {
+        val fileName = (resolveImportDisplayName(uri) ?: uri.lastPathSegment)
+            .orEmpty()
+            .substringAfterLast('/')
+            .substringAfterLast('\\')
+        return File(fileName).extension.lowercase()
     }
 
     private fun detectImportKind(uri: Uri): AvatarImportKind {
@@ -922,7 +965,7 @@ class AvatarRepository(
         return targetDir
     }
 
-    private suspend fun importAvatarFromModelFile(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+    private suspend fun importAvatarFromModelFile(uri: Uri): AvatarImportResult = withContext(Dispatchers.IO) {
         try {
             val displayName = resolveImportDisplayName(uri)
                 ?: uri.lastPathSegment
@@ -938,7 +981,7 @@ class AvatarRepository(
                 mimeType.contains("fbx") -> "fbx"
                 else -> {
                     AppLogger.w(TAG, "Unable to determine model extension for uri=$uri mime=$mimeType name=$displayName")
-                    return@withContext false
+                    return@withContext AvatarImportResult.UnsupportedFile(currentExt)
                 }
             }
 
@@ -951,7 +994,8 @@ class AvatarRepository(
                 targetFile.outputStream().use(inputStream::copyTo)
             } ?: run {
                 AppLogger.w(TAG, "Import failed: unable to open model stream for uri=$uri")
-                return@withContext false
+                targetDir.deleteRecursively()
+                return@withContext AvatarImportResult.UnknownError
             }
 
             if (normalizedExt == "fbx") {
@@ -963,7 +1007,7 @@ class AvatarRepository(
                         TAG,
                         "Imported FBX inspection failed: ${targetFile.absolutePath}, reason=${reason.ifBlank { "<unknown>" }}"
                     )
-                    return@withContext false
+                    return@withContext AvatarImportResult.NoModelFound
                 }
 
                 if (modelInfo.requiredExternalFiles.isNotEmpty()) {
@@ -972,7 +1016,7 @@ class AvatarRepository(
                         TAG,
                         "Imported FBX requires external resources and must be packaged as ZIP: ${modelInfo.requiredExternalFiles.joinToString()}"
                     )
-                    return@withContext false
+                    return@withContext AvatarImportResult.FbxNeedsPackage
                 }
             }
 
@@ -985,14 +1029,14 @@ class AvatarRepository(
 
             refreshAvatars()
             AppLogger.i(TAG, "Imported avatar model file: ${targetFile.absolutePath}")
-            true
+            AvatarImportResult.Success(importedCount = 1)
         } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to import avatar model file", e)
-            false
+            AvatarImportResult.UnknownError
         }
     }
     
-    suspend fun importAvatarFromZip(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+    suspend fun importAvatarFromZip(uri: Uri): AvatarImportResult = withContext(Dispatchers.IO) {
         val tempDir = File(context.cacheDir, "avatar_import_${System.currentTimeMillis()}")
         try {
             tempDir.mkdirs()
@@ -1042,7 +1086,7 @@ class AvatarRepository(
                         }
                     } ?: run {
                         AppLogger.w(TAG, "Import failed: unable to open ZIP stream for uri=$uri")
-                        return@withContext false
+                        return@withContext AvatarImportResult.UnknownError
                     }
 
                     extractedCharset = charset
@@ -1065,9 +1109,20 @@ class AvatarRepository(
             }
 
             if (extractedCharset == null) {
-                throw malformedDecodeError ?: IllegalArgumentException(
-                    "Unable to decode ZIP entry names with supported charsets."
-                )
+                val decodeError = malformedDecodeError
+                if (decodeError != null) {
+                    AppLogger.w(
+                        TAG,
+                        "ZIP import aborted: unable to decode entry names with supported charsets.",
+                        decodeError
+                    )
+                } else {
+                    AppLogger.w(
+                        TAG,
+                        "ZIP import aborted: unable to decode entry names with supported charsets."
+                    )
+                }
+                return@withContext AvatarImportResult.CorruptArchive
             }
 
             AppLogger.i(
@@ -1113,7 +1168,7 @@ class AvatarRepository(
                     TAG,
                     "Import hints: DragonBones needs *_tex.json + *_tex.png; WebP needs .webp; MP4 needs .mp4; MMD needs .pmx/.pmd (optional .vmd); glTF needs .glb/.gltf (+ referenced resources); FBX supports direct .fbx only for self-contained assets, otherwise import ZIP with textures/resources."
                 )
-                return@withContext false
+                return@withContext AvatarImportResult.NoModelFound
             }
 
             uniqueConfigs.forEach { config ->
@@ -1137,10 +1192,10 @@ class AvatarRepository(
 
             refreshAvatars()
             AppLogger.i(TAG, "Import completed: importedConfigs=${uniqueConfigs.size}")
-            true
+            AvatarImportResult.Success(importedCount = uniqueConfigs.size)
         } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to import avatar from ZIP", e)
-            false
+            AvatarImportResult.UnknownError
         } finally {
             tempDir.deleteRecursively()
         }

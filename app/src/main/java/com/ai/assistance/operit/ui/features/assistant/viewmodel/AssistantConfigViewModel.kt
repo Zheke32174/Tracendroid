@@ -13,6 +13,7 @@ import com.ai.assistance.operit.core.avatar.common.state.AvatarEmotion
 import com.ai.assistance.operit.core.avatar.common.state.AvatarMoodTypes
 import com.ai.assistance.operit.core.avatar.impl.factory.AvatarModelFactoryImpl
 import com.ai.assistance.operit.data.repository.AvatarConfig
+import com.ai.assistance.operit.data.repository.AvatarImportResult
 import com.ai.assistance.operit.data.repository.AvatarInstanceSettings
 import com.ai.assistance.operit.data.repository.AvatarRepository
 import com.ai.assistance.operit.data.repository.getCustomMoodDefinitions
@@ -340,17 +341,13 @@ class AssistantConfigViewModel(
         updateUiState(isLoading = true, isImporting = true)
         viewModelScope.launch {
             try {
-                val success = repository.importAvatarFromUri(uri)
+                val result = repository.importAvatarFromUri(uri)
+                val succeeded = result is AvatarImportResult.Success
                 updateUiState(
                     isLoading = false,
                     isImporting = false,
-                    operationSuccess = success,
-                    errorMessage =
-                        if (!success) {
-                            context.getString(R.string.error_occurred_simple)
-                        } else {
-                            null
-                        }
+                    operationSuccess = succeeded,
+                    errorMessage = if (succeeded) null else importErrorMessage(result)
                 )
             } catch (e: Exception) {
                 updateUiState(
@@ -360,6 +357,32 @@ class AssistantConfigViewModel(
                     errorMessage = context.getString(R.string.error_occurred, e.message)
                 )
             }
+        }
+    }
+
+    /**
+     * Maps an import failure to a specific, user-actionable message.
+     * The [when] is exhaustive over [AvatarImportResult]; [AvatarImportResult.Success] never
+     * reaches here (callers check for success first), so it falls back to the generic string.
+     */
+    private fun importErrorMessage(result: AvatarImportResult): String {
+        return when (result) {
+            is AvatarImportResult.UnsupportedFile ->
+                if (result.extension.isBlank()) {
+                    context.getString(R.string.avatar_import_error_unsupported_unknown)
+                } else {
+                    context.getString(R.string.avatar_import_error_unsupported, result.extension)
+                }
+            AvatarImportResult.CorruptArchive ->
+                context.getString(R.string.avatar_import_error_corrupt_archive)
+            AvatarImportResult.NoModelFound ->
+                context.getString(R.string.avatar_import_error_no_model)
+            AvatarImportResult.FbxNeedsPackage ->
+                context.getString(R.string.avatar_import_error_fbx_needs_package)
+            AvatarImportResult.UnknownError ->
+                context.getString(R.string.error_occurred_simple)
+            is AvatarImportResult.Success ->
+                context.getString(R.string.error_occurred_simple)
         }
     }
 
