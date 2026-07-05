@@ -449,6 +449,10 @@ dependencies {
         exclude(group = "org.bouncycastle", module = "bcprov-jdk18on")
         exclude(group = "org.bouncycastle", module = "bcpkix-jdk18on")
     }
+    // sshj declares net.i2p.crypto:eddsa at implementation scope, so it reaches the
+    // runtime classpath but NOT the consumer compile classpath. SshKeyManager imports
+    // net.i2p.crypto.eddsa.* directly for Ed25519 keygen, so declare it explicitly.
+    implementation("net.i2p.crypto:eddsa:0.3.0")
 
     // Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")

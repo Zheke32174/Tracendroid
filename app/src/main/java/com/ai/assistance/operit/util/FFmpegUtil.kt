@@ -28,7 +28,7 @@ object FFmpegUtil {
      * Build a scale filter string that survives FFmpegKit argument parsing.
      * Kept because it is pure string work with no ffmpeg dependency.
      */
-    fun scaleFilterMaxWidth(maxWidth: Int): String = "scale=min(${maxWidth}\,iw):-2"
+    fun scaleFilterMaxWidth(maxWidth: Int): String = """scale=min(${maxWidth}\,iw):-2"""
 
     /** No ffmpeg backend bundled — cannot execute. */
     fun executeCommand(command: String): Boolean {
