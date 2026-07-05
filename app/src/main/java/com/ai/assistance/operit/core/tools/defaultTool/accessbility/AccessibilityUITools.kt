@@ -8,7 +8,9 @@ import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.SimplifiedUINode
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.UIActionResultData
+import com.ai.assistance.operit.core.tools.UIElementMatchData
 import com.ai.assistance.operit.core.tools.UIPageResultData
+import com.ai.assistance.operit.core.tools.UITreeResultData
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardUITools
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
@@ -918,6 +920,173 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
     }
 
     private data class NodeInfo(val bounds: String?, val text: String?)
+
+    /**
+     * Read-only structured dump of the current UI hierarchy (the `dump_ui_tree` tool).
+     *
+     * Reuses the same accessibility read path as [getPageInfo] ([getUIHierarchyWithRetry] +
+     * [simplifyLayout]) but returns a [UITreeResultData] that can render either an indented tree
+     * (format="tree") or a JSON object (format="json", the default — richer/structured than a
+     * screenshot). No UI action is performed. Gated by [withAccessibilityCheck]: when the service is
+     * off it surfaces the same clear "enable the Tracendroid accessibility service" message the
+     * sub-agent uses.
+     */
+    override suspend fun dumpUiTree(tool: AITool): ToolResult {
+        return try {
+            if (!isAccessibilityServiceEnabled()) {
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = context.getString(R.string.ui_subagent_accessibility_disabled)
+                )
+            }
+
+            val requestedFormat =
+                tool.parameters.find { it.name == "format" }?.value?.trim()?.lowercase() ?: "json"
+            val format = if (requestedFormat == "tree") "tree" else "json"
+
+            val uiXml = getUIHierarchyWithRetry()
+            if (uiXml.isEmpty()) {
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = "Failed to retrieve UI data via accessibility service."
+                )
+            }
+
+            val focusInfo = extractFocusInfoFromAccessibility()
+            val simplifiedLayout = simplifyLayout(uiXml)
+
+            val resultData = UITreeResultData(
+                packageName = focusInfo.packageName ?: "Unknown",
+                activityName = focusInfo.activityName ?: "Unknown",
+                format = format,
+                uiElements = simplifiedLayout
+            )
+            ToolResult(toolName = tool.name, success = true, result = resultData, error = "")
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "Error dumping UI tree", e)
+            ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = "Error dumping UI tree: ${e.message}"
+            )
+        }
+    }
+
+    /**
+     * Query-only search for on-screen element(s) (the `find_ui_element` tool).
+     *
+     * Reuses [findNodesInXml] — the same XML matcher [clickElement] uses — but is strictly read-only:
+     * it returns the matched elements' bounds + basic info and NEVER clicks. Matching is
+     * substring-tolerant across visible text, content-description and resource-id (a `by` param can
+     * restrict to one field). Gated by the accessibility check with the same honest "enable service"
+     * message as the sub-agent.
+     */
+    override suspend fun findUiElement(tool: AITool): ToolResult {
+        return try {
+            if (!isAccessibilityServiceEnabled()) {
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = context.getString(R.string.ui_subagent_accessibility_disabled)
+                )
+            }
+
+            val query = tool.parameters.find { it.name == "query" }?.value?.trim().orEmpty()
+            if (query.isEmpty()) {
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = "Missing required parameter: query (visible text, content-description, or resource-id substring)."
+                )
+            }
+
+            // `by` restricts which field the substring must appear in. Default "any" checks all three.
+            val by = when (tool.parameters.find { it.name == "by" }?.value?.trim()?.lowercase()) {
+                "text" -> "text"
+                "desc", "content-desc", "contentdesc" -> "desc"
+                "id", "resourceid", "resource-id" -> "id"
+                else -> "any"
+            }
+            val limit = tool.parameters.find { it.name == "limit" }?.value?.toIntOrNull()
+                ?.coerceIn(1, 50) ?: 20
+
+            val uiXml = getUIHierarchyWithRetry()
+            if (uiXml.isEmpty()) {
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = "Failed to retrieve UI data via accessibility service."
+                )
+            }
+
+            val needle = query.lowercase()
+            val matches = mutableListOf<UIElementMatchData.Match>()
+            findNodesInXml(uiXml) { parser ->
+                if (matches.size >= limit) return@findNodesInXml false
+
+                val text = parser.getAttributeValue(null, "text")
+                val desc = parser.getAttributeValue(null, "content-desc")
+                val id = parser.getAttributeValue(null, "resource-id")
+                val className = parser.getAttributeValue(null, "class")?.substringAfterLast('.')
+                val bounds = parser.getAttributeValue(null, "bounds")
+
+                val matchesText = !text.isNullOrEmpty() && text.lowercase().contains(needle)
+                val matchesDesc = !desc.isNullOrEmpty() && desc.lowercase().contains(needle)
+                val matchesId = !id.isNullOrEmpty() && id.lowercase().contains(needle)
+
+                val hit = when (by) {
+                    "text" -> matchesText
+                    "desc" -> matchesDesc
+                    "id" -> matchesId
+                    else -> matchesText || matchesDesc || matchesId
+                }
+                if (!hit) return@findNodesInXml false
+
+                val (cx, cy) = if (!bounds.isNullOrBlank()) {
+                    val rect = parseBounds(bounds)
+                    if (rect.isEmpty) null to null else rect.centerX() to rect.centerY()
+                } else null to null
+
+                matches.add(
+                    UIElementMatchData.Match(
+                        text = text,
+                        contentDesc = desc,
+                        resourceId = id,
+                        className = className,
+                        bounds = bounds,
+                        centerX = cx,
+                        centerY = cy
+                    )
+                )
+                // Predicate return value is unused for accumulation; we already recorded the match.
+                true
+            }
+
+            val resultData = UIElementMatchData(
+                query = query,
+                matchBy = by,
+                matches = matches.toList()
+            )
+            // A query that finds nothing is still a successful query (empty result), not an error.
+            ToolResult(toolName = tool.name, success = true, result = resultData, error = "")
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "Error finding UI element", e)
+            ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = "Error finding UI element: ${e.message}"
+            )
+        }
+    }
 
     /** 设置输入文本 */
     override suspend fun setInputText(tool: AITool): ToolResult {

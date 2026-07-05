@@ -99,6 +99,11 @@ object JsCapabilityClassifier {
         put("capture_screenshot", JsCapabilityClass.UI_AUTOMATION)
         put("get_page_info", JsCapabilityClass.UI_AUTOMATION)
         put("ui_dump", JsCapabilityClass.UI_AUTOMATION)
+        // Accessibility-transport reads of the live UI hierarchy. Query/read-only (no click), but
+        // reading the on-screen tree exposes the same user-facing surface as driving it, so they
+        // carry the UI_AUTOMATION capability rather than a weaker read class.
+        put("dump_ui_tree", JsCapabilityClass.UI_AUTOMATION)
+        put("find_ui_element", JsCapabilityClass.UI_AUTOMATION)
 
         // System read / write
         put("device_info", JsCapabilityClass.SYSTEM_READ)

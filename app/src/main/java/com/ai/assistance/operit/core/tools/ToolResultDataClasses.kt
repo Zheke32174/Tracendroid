@@ -769,6 +769,53 @@ data class SimplifiedUINode(
 
         return isKeyElement || hasContent || isClickable || children.any { it.shouldKeepNode() }
     }
+
+    /**
+     * Renders the (filtered) subtree as a compact JSON object. Same node-keeping rule as
+     * [toTreeString] so the JSON view and the tree view describe the same elements — this is the
+     * structured, machine-parseable counterpart the `dump_ui_tree` tool returns. Values are escaped
+     * so the output is always valid JSON. Returns an empty string for nodes that should be dropped,
+     * letting the caller skip them without emitting a hole in the children array.
+     */
+    fun toJsonString(): String {
+        if (!shouldKeepNode()) return ""
+
+        val sb = StringBuilder()
+        sb.append("{")
+        val fields = mutableListOf<String>()
+        className?.takeIf { it.isNotBlank() }?.let { fields.add("\"class\":\"${jsonEscape(it)}\"") }
+        text?.takeIf { it.isNotBlank() }?.let { fields.add("\"text\":\"${jsonEscape(it)}\"") }
+        contentDesc?.takeIf { it.isNotBlank() }?.let { fields.add("\"desc\":\"${jsonEscape(it)}\"") }
+        resourceId?.takeIf { it.isNotBlank() }?.let { fields.add("\"id\":\"${jsonEscape(it)}\"") }
+        bounds?.takeIf { it.isNotBlank() }?.let { fields.add("\"bounds\":\"${jsonEscape(it)}\"") }
+        fields.add("\"clickable\":$isClickable")
+
+        val keptChildren = children.mapNotNull { child ->
+            child.toJsonString().takeIf { it.isNotEmpty() }
+        }
+        if (keptChildren.isNotEmpty()) {
+            fields.add("\"children\":[${keptChildren.joinToString(",")}]")
+        }
+
+        sb.append(fields.joinToString(","))
+        sb.append("}")
+        return sb.toString()
+    }
+
+    private fun jsonEscape(raw: String): String {
+        val sb = StringBuilder(raw.length + 8)
+        for (c in raw) {
+            when (c) {
+                '\\' -> sb.append("\\\\")
+                '"' -> sb.append("\\\"")
+                '\n' -> sb.append("\\n")
+                '\r' -> sb.append("\\r")
+                '\t' -> sb.append("\\t")
+                else -> if (c < ' ') sb.append("\\u%04x".format(c.code)) else sb.append(c)
+            }
+        }
+        return sb.toString()
+    }
 }
 
 /** Represents UI page information result data */
@@ -799,6 +846,84 @@ data class UIActionResultData(
 ) : ToolResultData() {
     override fun toString(): String {
         return actionDescription
+    }
+}
+
+/**
+ * Structured dump of the current accessibility UI hierarchy (the `dump_ui_tree` tool).
+ *
+ * Unlike a screenshot this is machine-parseable: it carries the same filtered node set as
+ * [UIPageResultData] but can render either the indented tree (format="tree") or a JSON object
+ * (format="json"). The JSON view is the richer, structured counterpart intended for programmatic
+ * consumption. Read-only — no UI action is performed.
+ */
+@Serializable
+data class UITreeResultData(
+        val packageName: String,
+        val activityName: String,
+        val format: String,
+        val uiElements: SimplifiedUINode
+) : ToolResultData() {
+    override fun toString(): String {
+        return if (format.equals("tree", ignoreCase = true)) {
+            """
+            |Current Application: $packageName
+            |Current Activity: $activityName
+            |
+            |UI Elements (tree):
+            |${uiElements.toTreeString()}
+            """.trimMargin()
+        } else {
+            val treeJson = uiElements.toJsonString().ifEmpty { "{}" }
+            """{"package":"$packageName","activity":"$activityName","tree":$treeJson}"""
+        }
+    }
+}
+
+/**
+ * Result of a query-only on-screen element search (the `find_ui_element` tool).
+ *
+ * Each entry describes one matched node: its bounds, computed center point, and the visible
+ * text / content-description / resource-id / class the match keyed on. This performs NO click or
+ * other action — it only locates elements so a caller can decide what to do next.
+ */
+@Serializable
+data class UIElementMatchData(
+        val query: String,
+        val matchBy: String,
+        val matches: List<Match>
+) : ToolResultData() {
+    @Serializable
+    data class Match(
+            val text: String?,
+            val contentDesc: String?,
+            val resourceId: String?,
+            val className: String?,
+            val bounds: String?,
+            val centerX: Int?,
+            val centerY: Int?
+    )
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine("Found ${matches.size} element(s) for query \"$query\" (matchBy=$matchBy):")
+        if (matches.isEmpty()) {
+            sb.appendLine("No matching element found.")
+            return sb.toString()
+        }
+        matches.forEachIndexed { index, m ->
+            sb.append("${index + 1}.")
+            m.text?.takeIf { it.isNotBlank() }?.let { sb.append(" T:\"$it\"") }
+            m.contentDesc?.takeIf { it.isNotBlank() }?.let { sb.append(" D:\"$it\"") }
+            m.resourceId?.takeIf { it.isNotBlank() }?.let { sb.append(" ID:$it") }
+            m.className?.takeIf { it.isNotBlank() }?.let { sb.append(" [$it]") }
+            m.bounds?.let { sb.append(" bounds:$it") }
+            if (m.centerX != null && m.centerY != null) {
+                sb.append(" center:(${m.centerX},${m.centerY})")
+            }
+            sb.appendLine()
+        }
+        return sb.toString()
     }
 }
 

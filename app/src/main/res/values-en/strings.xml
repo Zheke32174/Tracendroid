@@ -5308,6 +5308,8 @@
     <string name="toolreg_run_ui_subagent_desc">Run UI sub-agent: %1$s (max %2$s steps)</string>
     <string name="toolreg_agent_id_suffix"> (agent_id=%1$s)</string>
     <string name="toolreg_run_ui_subagent_hint">. It is recommended to reuse the same agent_id across calls to keep operating the same virtual display session (you can reuse the agentId returned previously).</string>
+    <string name="toolreg_dump_ui_tree_desc">Dump current UI hierarchy (format: %1$s)</string>
+    <string name="toolreg_find_ui_element_desc">Find on-screen element: \"%1$s\" (by %2$s)</string>
     <!-- UI sub-agent (accessibility transport) runtime messages -->
     <string name="ui_subagent_standard_unavailable">The UI automation sub-agent requires the accessibility transport. This tool is currently running at the STANDARD permission level and cannot drive the UI. Switch the preferred permission level to ACCESSIBILITY in settings and enable the Tracendroid accessibility service, then retry.</string>
     <string name="ui_subagent_accessibility_disabled">UI automation needs the Tracendroid accessibility service, but it is not enabled. Open System Settings &gt; Accessibility and turn on the Tracendroid accessibility service, then retry (the in-app accessibility onboarding screen opens the same system settings page).</string>

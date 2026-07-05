@@ -2245,6 +2245,35 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             executor = { tool -> runBlocking(Dispatchers.IO) { uiTools.runUiSubAgent(tool) } }
     )
 
+    // 结构化转储当前无障碍UI层次（只读，比截图更丰富）
+    handler.registerTool(
+            name = "dump_ui_tree",
+            descriptionGenerator = { tool ->
+                val format = tool.parameters.find { it.name == "format" }?.value ?: "json"
+                s(R.string.toolreg_dump_ui_tree_desc, format)
+            },
+            executor = { tool ->
+                runBlocking(Dispatchers.IO) {
+                    executeUiToolWithVisibility(tool) { uiTools.dumpUiTree(it) }
+                }
+            }
+    )
+
+    // 按可见文本/内容描述/资源ID查找屏幕元素（仅查询，不点击）
+    handler.registerTool(
+            name = "find_ui_element",
+            descriptionGenerator = { tool ->
+                val query = tool.parameters.find { it.name == "query" }?.value ?: ""
+                val by = tool.parameters.find { it.name == "by" }?.value ?: "any"
+                s(R.string.toolreg_find_ui_element_desc, query, by)
+            },
+            executor = { tool ->
+                runBlocking(Dispatchers.IO) {
+                    executeUiToolWithVisibility(tool) { uiTools.findUiElement(it) }
+                }
+            }
+    )
+
     // 在输入框中设置文本
     handler.registerTool(
             name = "set_input_text",

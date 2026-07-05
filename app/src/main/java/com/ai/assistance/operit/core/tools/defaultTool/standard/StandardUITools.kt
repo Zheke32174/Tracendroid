@@ -360,6 +360,40 @@ open class StandardUITools(protected val context: Context) {
         )
     }
 
+    /**
+     * Dumps the current UI hierarchy as structured text (tree or JSON) — a read-only,
+     * richer-than-a-screenshot view of on-screen elements. Like the other UI reads this needs the
+     * AccessibilityService transport, so the functional implementation lives in
+     * [com.ai.assistance.operit.core.tools.defaultTool.accessbility.AccessibilityUITools.dumpUiTree];
+     * the STANDARD tier has no safe (non-root/non-shell) way to read the live hierarchy and returns
+     * an honest "not supported" message.
+     */
+    open suspend fun dumpUiTree(tool: AITool): ToolResult {
+        return ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = OPERATION_NOT_SUPPORTED
+        )
+    }
+
+    /**
+     * Query-only search for on-screen element(s) by visible text / content-description / resource-id.
+     * Read-only (no click). Needs the AccessibilityService transport; the functional implementation
+     * lives in
+     * [com.ai.assistance.operit.core.tools.defaultTool.accessbility.AccessibilityUITools.findUiElement].
+     * The STANDARD tier cannot read the live hierarchy safely and returns an honest "not supported"
+     * message.
+     */
+    open suspend fun findUiElement(tool: AITool): ToolResult {
+        return ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = OPERATION_NOT_SUPPORTED
+        )
+    }
+
     /** Sets text in an input field */
     open suspend fun setInputText(tool: AITool): ToolResult {
                 return ToolResult(
