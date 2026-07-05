@@ -11,6 +11,7 @@ import com.ai.assistance.operit.data.preferences.WakeWordPreferences
 import com.ai.assistance.operit.ui.floating.FloatContext
 import com.ai.assistance.operit.ui.floating.ui.fullscreen.XmlTextProcessor
 import com.ai.assistance.operit.ui.floating.ui.pet.AvatarEmotionManager
+import com.ai.assistance.operit.ui.floating.ui.pet.AvatarMoodAccumulator
 import com.ai.assistance.operit.ui.floating.voice.SpeechInteractionManager
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.TtsSegmenter
@@ -675,7 +676,14 @@ class FloatingFullscreenModeViewModel(
                 }
                 lastHandledVoiceAvatarMessageKey = messageKey
 
-                val emotion = AvatarEmotionManager.analyzeEmotion(message.content)
+                // Conversation-aware mood: feed the detailed inference through the
+                // accumulator so mood carries across turns and decays, instead of
+                // being decided fresh from this single message. An explicit signal
+                // (mood tag / keyword hit) still overrides; an ambiguous message
+                // inherits the recent dominant mood.
+                val inference =
+                    AvatarEmotionManager.analyzeEmotionDetailed(message.content)
+                val emotion = AvatarMoodAccumulator.accept(inference)
                 val moodTag = AvatarEmotionManager.extractMoodTag(message.content)
                 val triggerName = moodTag?.key
                 if (!triggerName.isNullOrBlank()) {

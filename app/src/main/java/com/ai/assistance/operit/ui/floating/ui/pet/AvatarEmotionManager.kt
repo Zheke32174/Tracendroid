@@ -19,6 +19,28 @@ object AvatarEmotionManager {
      * 而不是一律回退到 IDLE。
      */
     fun inferEmotionFromText(text: String): AvatarEmotion {
+        return inferEmotionDetailed(text).emotion
+    }
+
+    /**
+     * 推理结果，附带信号强度。
+     *
+     * @param emotion 推理出的表情。
+     * @param isExplicit 是否来自明确信号（mood 标签或关键词/emoji 命中）。
+     *                   仅靠标点回退（"!" / "?"）得到的结果视为“弱”信号，
+     *                   `isExplicit = false`，此时调用方可让最近的情绪延续下去，
+     *                   而不是被一次含糊的消息重置。
+     */
+    data class EmotionInference(
+        val emotion: AvatarEmotion,
+        val isExplicit: Boolean
+    )
+
+    /**
+     * 关键词/标点推理，同时返回信号是否“明确”。
+     * 关键词或 emoji 命中记为明确；仅命中标点回退记为弱信号；IDLE 亦为弱信号。
+     */
+    fun inferEmotionDetailed(text: String): EmotionInference {
         val t = text.lowercase()
 
         // Happy: praise, thanks, laughter, positive interjections.
@@ -77,17 +99,21 @@ object AvatarEmotionManager {
             keys.any { t.contains(it) || text.contains(it) }
 
         return when {
-            containsAny(happyKeywords) -> AvatarEmotion.HAPPY
+            // Keyword/emoji hits are explicit signals.
+            containsAny(happyKeywords) -> EmotionInference(AvatarEmotion.HAPPY, isExplicit = true)
             // Angry and sad both fall back to SAD, preserving prior behavior.
-            containsAny(angryKeywords) -> AvatarEmotion.SAD
-            containsAny(sadKeywords) -> AvatarEmotion.SAD
-            containsAny(surprisedKeywords) -> AvatarEmotion.SURPRISED
-            containsAny(confusedKeywords) -> AvatarEmotion.CONFUSED
+            containsAny(angryKeywords) -> EmotionInference(AvatarEmotion.SAD, isExplicit = true)
+            containsAny(sadKeywords) -> EmotionInference(AvatarEmotion.SAD, isExplicit = true)
+            containsAny(surprisedKeywords) -> EmotionInference(AvatarEmotion.SURPRISED, isExplicit = true)
+            containsAny(confusedKeywords) -> EmotionInference(AvatarEmotion.CONFUSED, isExplicit = true)
             // Sentiment-from-punctuation fallback (only when no keyword matched):
             // an exclamation usually reads as upbeat, a lone question as puzzled.
-            text.contains("!") || text.contains("！") -> AvatarEmotion.HAPPY
-            text.contains("?") || text.contains("？") -> AvatarEmotion.CONFUSED
-            else -> AvatarEmotion.IDLE
+            // These are weak signals: isExplicit = false so recent mood may carry instead.
+            text.contains("!") || text.contains("！") ->
+                EmotionInference(AvatarEmotion.HAPPY, isExplicit = false)
+            text.contains("?") || text.contains("？") ->
+                EmotionInference(AvatarEmotion.CONFUSED, isExplicit = false)
+            else -> EmotionInference(AvatarEmotion.IDLE, isExplicit = false)
         }
     }
     
@@ -188,6 +214,27 @@ object AvatarEmotionManager {
         val emotion = inferEmotionFromText(text)
         AppLogger.d("AvatarEmotionManager", "使用关键词推理: $emotion")
         return emotion
+    }
+
+    /**
+     * 与 [analyzeEmotion] 相同的推理，但额外返回信号是否“明确”。
+     *
+     * mood 标签成功解析或关键词命中 -> `isExplicit = true`（强信号，应覆盖累积情绪）；
+     * 仅靠标点回退或落到 IDLE -> `isExplicit = false`（弱信号，可让累积情绪延续）。
+     *
+     * 该方法为附加接口，供 [AvatarMoodAccumulator] 做跨轮次的情绪偏置；
+     * 现有 [analyzeEmotion] 行为保持不变。
+     */
+    fun analyzeEmotionDetailed(text: String): EmotionInference {
+        val moodTag = extractMoodTag(text)
+        if (moodTag != null) {
+            val emotion = moodToEmotion(moodTag.key)
+            if (emotion != null) {
+                // 显式 mood 标签始终视为强信号。
+                return EmotionInference(emotion, isExplicit = true)
+            }
+        }
+        return inferEmotionDetailed(text)
     }
     
     /**
