@@ -11,14 +11,24 @@ import com.ai.assistance.operit.core.tools.UIActionResultData
 import com.ai.assistance.operit.core.tools.UIPageResultData
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardUITools
 import com.ai.assistance.operit.data.model.AITool
+import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.data.repository.UIHierarchyManager
 import com.ai.assistance.operit.util.OperitPaths
+import com.ai.assistance.operit.api.chat.EnhancedAIService
+import com.ai.assistance.operit.api.chat.llmprovider.AIService
+import com.ai.assistance.operit.core.chat.hooks.PromptTurn
+import com.ai.assistance.operit.core.chat.hooks.PromptTurnKind
+import com.ai.assistance.operit.data.model.FunctionType
+import com.ai.assistance.operit.data.model.ModelParameter
+import com.ai.assistance.operit.data.preferences.FunctionalConfigManager
+import com.ai.assistance.operit.data.preferences.ModelConfigManager
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.ai.assistance.operit.util.ImagePoolManager
 import java.io.StringReader
+import org.json.JSONArray
 import org.json.JSONObject
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
@@ -31,6 +41,12 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
         private const val TAG = "AccessibilityUITools"
         private const val MAX_RETRY_COUNT = 3
         private const val RETRY_DELAY_MS = 300L
+
+        // Bounds for the multi-step UI sub-agent loop. Defaults are intentionally small; the hard cap
+        // prevents runaways even if a caller passes a large max_steps.
+        private const val DEFAULT_SUBAGENT_STEPS = 8
+        private const val MAX_SUBAGENT_STEPS = 12
+        private const val SUBAGENT_STEP_SETTLE_MS = 400L
     }
 
     /**
@@ -76,20 +92,71 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
     }
 
     /**
-     * UI automation sub-agent over the AccessibilityService transport.
+     * The single next UI action a decider chose, in the accessibility vocabulary.
+     *
+     * `type` is the normalized action kind. `DONE` ends the loop. `UNKNOWN` marks a reply that could
+     * not be parsed into a valid action and also ends the loop with the raw text preserved for the
+     * transcript. All coordinate/selector fields are optional and interpreted per [type].
+     */
+    private data class UiAction(
+        val type: UiActionType,
+        val by: String? = null,
+        val value: String? = null,
+        val index: Int = 0,
+        val text: String? = null,
+        val x: Int? = null,
+        val y: Int? = null,
+        val startX: Int? = null,
+        val startY: Int? = null,
+        val endX: Int? = null,
+        val endY: Int? = null,
+        val key: String? = null,
+        val reason: String? = null,
+        val raw: String = ""
+    )
+
+    private enum class UiActionType {
+        CLICK, SET_TEXT, TAP, LONG_PRESS, SWIPE, PRESS_KEY, WAIT, DONE, UNKNOWN
+    }
+
+    /**
+     * The decision seam: given the task, the current on-screen observation, the step number and the
+     * running history, return the single next [UiAction]. The default implementation is model-backed
+     * ([modelNextActionDecider]); a scripted implementation ([scriptedNextActionDecider]) replays an
+     * explicit action list supplied by the caller. Keeping this as a seam lets the loop be exercised
+     * off-device/offline (scripted) and swaps in the real model-in-the-loop when the call path is
+     * clean — which it is (mirrors StandardFileSystemTools.runGrepModel over FunctionType).
+     */
+    private fun interface NextActionDecider {
+        suspend fun decide(
+            task: String,
+            observation: String,
+            step: Int,
+            maxSteps: Int,
+            history: List<String>
+        ): UiAction
+    }
+
+    /**
+     * Bounded multi-step UI automation sub-agent over the AccessibilityService transport.
      *
      * This is the live replacement for the removed Shower/Shizuku sub-agent (docs/THREAT_MODEL.md
      * § 4.4). It uses ONLY accessibility primitives — no shell `input`/`am`, no root, no adb.
      *
-     * Scope of this brick: a bounded, single accessibility action. When the service is enabled it
-     * returns the current page snapshot plus the catalog of available accessibility actions, so the
-     * calling agent can plan and drive the next concrete step (tap / click_element / set_input_text /
-     * swipe / press_key / long_press / get_page_info). A full multi-step autonomous loop is a
-     * follow-up; critically, this no longer returns the dead "transports removed" error.
+     * Loop: given a natural-language `intent`, up to `max_steps` (bounded 1..[MAX_SUBAGENT_STEPS],
+     * default [DEFAULT_SUBAGENT_STEPS]) times it (1) observes the current UI via [getPageInfo],
+     * (2) asks a [NextActionDecider] for the SINGLE next action as a small JSON object, (3) executes
+     * it through an existing accessibility primitive, and (4) records a transcript line. It stops when
+     * the decider returns DONE, when the step budget is exhausted, or when a step fails — always
+     * returning a readable partial transcript plus the final page state. No step can crash the loop.
      *
-     * When the service is NOT enabled it returns a clear, actionable message pointing the user to the
-     * Tracendroid accessibility service in system settings (the same target as the in-app
-     * AccessibilityOnboardingScreen, which fires Settings.ACTION_ACCESSIBILITY_SETTINGS).
+     * Decider selection: if the caller supplies an explicit `actions` JSON array the loop replays it
+     * deterministically (scripted decider — useful for tests and offline runs); otherwise it uses the
+     * live model over [FunctionType.UI_CONTROLLER] (model-in-the-loop).
+     *
+     * When the service is NOT enabled it returns the same clear, actionable "enable accessibility"
+     * message as brick 1 (points at the Tracendroid accessibility service in system settings, the same
+     * target as the in-app AccessibilityOnboardingScreen).
      */
     override suspend fun runUiSubAgent(tool: AITool): ToolResult {
         return try {
@@ -102,34 +169,31 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
                 )
             }
 
-            val intent = tool.parameters.find { it.name == "intent" }?.value.orEmpty()
-
-            // Bounded single action: observe the current screen so the caller can plan the next step.
-            val pageInfo = getPageInfo(tool)
-            if (!pageInfo.success) {
+            val task = tool.parameters.find { it.name == "intent" }?.value.orEmpty().trim()
+            if (task.isEmpty()) {
                 return ToolResult(
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = context.getString(
-                        R.string.ui_subagent_observation_failed,
-                        pageInfo.error ?: ""
-                    )
+                    error = context.getString(R.string.ui_subagent_loop_empty_intent)
                 )
             }
 
-            val observation = context.getString(
-                R.string.ui_subagent_observation_header,
-                intent,
-                pageInfo.result.toString()
+            val maxSteps = resolveMaxSteps(tool)
+
+            // Choose the decider. An explicit `actions` array => deterministic scripted replay
+            // (offline/testable); otherwise the live model-in-the-loop over UI_CONTROLLER.
+            val scriptedActions = parseScriptedActions(
+                tool.parameters.find { it.name == "actions" }?.value
             )
-            ToolResult(
-                toolName = tool.name,
-                success = true,
-                result = StringResultData(observation),
-                error = ""
-            )
+            val decider: NextActionDecider =
+                if (scriptedActions != null) scriptedNextActionDecider(scriptedActions)
+                else modelNextActionDecider()
+
+            runUiSubAgentLoop(tool, task, maxSteps, decider)
         } catch (e: Exception) {
+            // Defensive outer guard: the loop already guards each step, but never let the sub-agent
+            // crash the tool call.
             AppLogger.e(TAG, "Error running UI sub-agent", e)
             ToolResult(
                 toolName = tool.name,
@@ -141,6 +205,418 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
                 )
             )
         }
+    }
+
+    /** Clamp the caller's `max_steps` into a safe budget; default when absent/invalid. */
+    private fun resolveMaxSteps(tool: AITool): Int {
+        val requested = tool.parameters.find { it.name == "max_steps" }?.value?.toIntOrNull()
+        return (requested ?: DEFAULT_SUBAGENT_STEPS).coerceIn(1, MAX_SUBAGENT_STEPS)
+    }
+
+    /**
+     * The bounded observe/decide/act loop. Fully guarded: any thrown or failed step ends the loop and
+     * returns the partial transcript collected so far. Always succeeds at the ToolResult level (the
+     * transcript reports partial progress); it only surfaces `success = false` when it could not take
+     * even the first observation.
+     */
+    private suspend fun runUiSubAgentLoop(
+        tool: AITool,
+        task: String,
+        maxSteps: Int,
+        decider: NextActionDecider
+    ): ToolResult {
+        val transcript = StringBuilder()
+        transcript.append(context.getString(R.string.ui_subagent_loop_transcript_header, task))
+        transcript.append('\n')
+
+        val history = mutableListOf<String>()
+        var lastPageInfo: ToolResult? = null
+        var finished = false
+
+        var step = 1
+        while (step <= maxSteps) {
+            // 1) OBSERVE
+            val pageInfo = try {
+                getPageInfo(tool)
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "Sub-agent observe failed at step $step", e)
+                null
+            }
+            if (pageInfo == null || !pageInfo.success) {
+                val reason = pageInfo?.error ?: "observation returned no result"
+                // On the very first step a failed observation is a hard failure (nothing to report).
+                if (step == 1) {
+                    return ToolResult(
+                        toolName = tool.name,
+                        success = false,
+                        result = StringResultData(""),
+                        error = context.getString(R.string.ui_subagent_observation_failed, reason)
+                    )
+                }
+                appendStep(transcript, step, "observe", reason)
+                break
+            }
+            lastPageInfo = pageInfo
+            val observation = pageInfo.result.toString()
+
+            // 2) DECIDE
+            val action = try {
+                decider.decide(task, observation, step, maxSteps, history.toList())
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "Sub-agent decider failed at step $step", e)
+                appendStep(
+                    transcript,
+                    step,
+                    "decide",
+                    context.getString(
+                        R.string.ui_subagent_loop_decider_failed,
+                        step,
+                        e.message ?: "unknown error"
+                    )
+                )
+                break
+            }
+
+            if (action.type == UiActionType.DONE) {
+                val reason = action.reason.orEmpty()
+                transcript.append(context.getString(R.string.ui_subagent_loop_done, reason, step - 1))
+                transcript.append('\n')
+                finished = true
+                break
+            }
+
+            if (action.type == UiActionType.UNKNOWN) {
+                appendStep(
+                    transcript,
+                    step,
+                    "decide",
+                    context.getString(R.string.ui_subagent_loop_parse_failed, action.raw)
+                )
+                break
+            }
+
+            // 3) ACT
+            val actResult = try {
+                executeUiAction(action)
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "Sub-agent act failed at step $step", e)
+                ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = e.message ?: "action threw"
+                )
+            }
+
+            // 4) RECORD
+            val actionLabel = describeAction(action)
+            val resultLabel =
+                if (actResult.success) actResult.result.toString().ifBlank { "ok" }
+                else "FAILED: ${actResult.error ?: "unknown error"}"
+            appendStep(transcript, step, actionLabel, resultLabel)
+            history.add("$actionLabel -> $resultLabel")
+
+            // A failed action ends the loop with the partial transcript (never crash / never spin).
+            if (!actResult.success) break
+
+            // Let the UI settle before the next observation.
+            delay(SUBAGENT_STEP_SETTLE_MS)
+            step++
+        }
+
+        if (!finished && step > maxSteps) {
+            transcript.append(context.getString(R.string.ui_subagent_loop_max_steps, maxSteps))
+            transcript.append('\n')
+        }
+
+        // Append the final page state for the caller.
+        val finalPage = lastPageInfo?.result?.toString()
+        if (!finalPage.isNullOrBlank()) {
+            transcript.append('\n')
+            transcript.append(context.getString(R.string.ui_subagent_loop_final_page_header))
+            transcript.append('\n')
+            transcript.append(finalPage)
+        }
+
+        return ToolResult(
+            toolName = tool.name,
+            success = true,
+            result = StringResultData(transcript.toString()),
+            error = ""
+        )
+    }
+
+    private fun appendStep(sb: StringBuilder, step: Int, action: String, result: String) {
+        sb.append(context.getString(R.string.ui_subagent_loop_step_line, step, action, result))
+        sb.append('\n')
+    }
+
+    /** Human-readable one-line label for a chosen action (for the transcript + history). */
+    private fun describeAction(action: UiAction): String {
+        return when (action.type) {
+            UiActionType.CLICK ->
+                "click(by=${action.by ?: "?"}, value=${action.value ?: "?"}, index=${action.index})"
+            UiActionType.SET_TEXT -> "set_text(\"${action.text ?: ""}\")"
+            UiActionType.TAP -> "tap(${action.x},${action.y})"
+            UiActionType.LONG_PRESS -> "long_press(${action.x},${action.y})"
+            UiActionType.SWIPE ->
+                "swipe(${action.startX},${action.startY}->${action.endX},${action.endY})"
+            UiActionType.PRESS_KEY -> "press_key(${action.key ?: "?"})"
+            UiActionType.WAIT -> "wait"
+            UiActionType.DONE -> "done"
+            UiActionType.UNKNOWN -> "unknown"
+        }
+    }
+
+    /**
+     * Dispatch a parsed [UiAction] to the matching accessibility primitive by constructing a synthetic
+     * [AITool] with the parameter names those primitives already expect. This reuses the existing,
+     * accessibility-only implementations (clickElement / setInputText / tap / longPress / swipe /
+     * pressKey) — no new transport is introduced.
+     */
+    private suspend fun executeUiAction(action: UiAction): ToolResult {
+        return when (action.type) {
+            UiActionType.CLICK -> {
+                val params = mutableListOf<ToolParameter>()
+                when (action.by?.lowercase()) {
+                    "id", "resourceid" -> action.value?.let { params.add(ToolParameter("resourceId", it)) }
+                    "desc", "contentdesc" -> action.value?.let { params.add(ToolParameter("contentDesc", it)) }
+                    "class", "classname" -> action.value?.let { params.add(ToolParameter("className", it)) }
+                    "bounds" -> action.value?.let { params.add(ToolParameter("bounds", it)) }
+                    // Default / "text": match by visible text via the accessibility node's content-desc
+                    // is not equivalent, so fall back to resourceId-style contains match on text is not
+                    // supported by clickElement; use contentDesc which findNodesInXml matches. When the
+                    // selector is plain text we pass it as contentDesc (best-effort) — the model is told
+                    // to prefer id/desc. Callers wanting exact text should provide bounds.
+                    else -> action.value?.let { params.add(ToolParameter("contentDesc", it)) }
+                }
+                params.add(ToolParameter("index", action.index.toString()))
+                clickElement(AITool(name = "click_element", parameters = params))
+            }
+            UiActionType.SET_TEXT ->
+                setInputText(
+                    AITool(
+                        name = "set_input_text",
+                        parameters = listOf(ToolParameter("text", action.text ?: ""))
+                    )
+                )
+            UiActionType.TAP ->
+                tap(
+                    AITool(
+                        name = "tap",
+                        parameters = listOf(
+                            ToolParameter("x", (action.x ?: 0).toString()),
+                            ToolParameter("y", (action.y ?: 0).toString())
+                        )
+                    )
+                )
+            UiActionType.LONG_PRESS ->
+                longPress(
+                    AITool(
+                        name = "long_press",
+                        parameters = listOf(
+                            ToolParameter("x", (action.x ?: 0).toString()),
+                            ToolParameter("y", (action.y ?: 0).toString())
+                        )
+                    )
+                )
+            UiActionType.SWIPE ->
+                swipe(
+                    AITool(
+                        name = "swipe",
+                        parameters = listOf(
+                            ToolParameter("start_x", (action.startX ?: 0).toString()),
+                            ToolParameter("start_y", (action.startY ?: 0).toString()),
+                            ToolParameter("end_x", (action.endX ?: 0).toString()),
+                            ToolParameter("end_y", (action.endY ?: 0).toString())
+                        )
+                    )
+                )
+            UiActionType.PRESS_KEY ->
+                pressKey(
+                    AITool(
+                        name = "press_key",
+                        parameters = listOf(ToolParameter("key_code", normalizeKeyCode(action.key)))
+                    )
+                )
+            UiActionType.WAIT -> {
+                delay(SUBAGENT_STEP_SETTLE_MS)
+                ToolResult(
+                    toolName = "wait",
+                    success = true,
+                    result = StringResultData("waited"),
+                    error = ""
+                )
+            }
+            UiActionType.DONE, UiActionType.UNKNOWN ->
+                ToolResult(
+                    toolName = "noop",
+                    success = true,
+                    result = StringResultData(""),
+                    error = ""
+                )
+        }
+    }
+
+    /** Map a short key name (BACK/HOME/…) to the KEYCODE_* string [pressKey] understands. */
+    private fun normalizeKeyCode(key: String?): String {
+        val k = key?.trim()?.uppercase().orEmpty()
+        return if (k.startsWith("KEYCODE_")) k else "KEYCODE_$k"
+    }
+
+    /**
+     * Model-backed decider: builds a strict prompt (system contract + task + current screen + history)
+     * and asks the UI_CONTROLLER-configured model for a single JSON action, then parses it. Mirrors the
+     * proven tool-calls-the-LLM path in StandardFileSystemTools.runGrepModel.
+     */
+    private fun modelNextActionDecider(): NextActionDecider = NextActionDecider { task, observation, step, maxSteps, history ->
+        val historyText =
+            if (history.isEmpty()) context.getString(R.string.ui_subagent_loop_history_none)
+            else history.mapIndexed { i, h -> "${i + 1}. $h" }.joinToString("\n")
+        val userPrompt = context.getString(
+            R.string.ui_subagent_loop_user_prompt,
+            task,
+            step,
+            maxSteps,
+            observation,
+            historyText
+        )
+        val systemPrompt = context.getString(R.string.ui_subagent_loop_system_prompt)
+        val reply = runUiControllerModel(systemPrompt, userPrompt)
+        parseAction(reply)
+    }
+
+    /**
+     * Scripted decider (fallback / offline / test): replays a pre-parsed explicit action list, one per
+     * step, and returns DONE once the list is exhausted. Deterministic; makes no model call.
+     */
+    private fun scriptedNextActionDecider(actions: List<UiAction>): NextActionDecider =
+        NextActionDecider { _, _, step, _, _ ->
+            val idx = step - 1
+            if (idx < actions.size) actions[idx]
+            else UiAction(type = UiActionType.DONE, reason = "scripted action list exhausted")
+        }
+
+    /**
+     * Invoke the currently-active UI-automation model for a single decision and collect the full reply.
+     * Uses the same clean path StandardFileSystemTools uses for GREP: resolve the service + model
+     * parameters by [FunctionType], send a one-shot (system + user) prompt with streaming disabled, and
+     * concatenate the streamed chunks into a String. No shell, no root — a plain LLM call.
+     */
+    private suspend fun runUiControllerModel(systemPrompt: String, userPrompt: String): String {
+        val service: AIService =
+            EnhancedAIService.getAIServiceForFunction(context, FunctionType.UI_CONTROLLER)
+        val modelParameters: List<ModelParameter<*>> = getUiControllerModelParameters()
+        val sb = StringBuilder()
+        val stream = service.sendMessage(
+            context = context,
+            chatHistory = listOf(
+                PromptTurn(kind = PromptTurnKind.SYSTEM, content = systemPrompt),
+                PromptTurn(kind = PromptTurnKind.USER, content = userPrompt)
+            ),
+            modelParameters = modelParameters,
+            enableThinking = false,
+            stream = false,
+            availableTools = null
+        )
+        stream.collect { chunk -> sb.append(chunk) }
+        return sb.toString().trim()
+    }
+
+    private suspend fun getUiControllerModelParameters(): List<ModelParameter<*>> {
+        val functionalConfigManager = FunctionalConfigManager(context)
+        functionalConfigManager.initializeIfNeeded()
+        val modelConfigManager = ModelConfigManager(context)
+        val mapping = functionalConfigManager.getConfigMappingForFunction(FunctionType.UI_CONTROLLER)
+        return modelConfigManager.getModelParametersForConfig(mapping.configId)
+    }
+
+    /**
+     * Parse a model reply into a [UiAction]. Tolerant: extracts the first {...} object from the text
+     * (models sometimes wrap JSON in prose/fences). An unrecognized or unparseable reply becomes
+     * [UiActionType.UNKNOWN], which ends the loop cleanly with the raw text preserved.
+     */
+    private fun parseAction(reply: String): UiAction {
+        val json = extractFirstJsonObject(reply) ?: return UiAction(type = UiActionType.UNKNOWN, raw = reply)
+        return uiActionFromJson(json, reply)
+    }
+
+    private fun uiActionFromJson(json: JSONObject, raw: String): UiAction {
+        val type = when (json.optString("action").trim().lowercase()) {
+            "click", "click_element" -> UiActionType.CLICK
+            "set_text", "settext", "set_input_text", "input", "type" -> UiActionType.SET_TEXT
+            "tap" -> UiActionType.TAP
+            "long_press", "longpress" -> UiActionType.LONG_PRESS
+            "swipe" -> UiActionType.SWIPE
+            "press_key", "presskey", "key" -> UiActionType.PRESS_KEY
+            "wait" -> UiActionType.WAIT
+            "done", "finish", "complete" -> UiActionType.DONE
+            else -> UiActionType.UNKNOWN
+        }
+        if (type == UiActionType.UNKNOWN) {
+            return UiAction(type = UiActionType.UNKNOWN, raw = raw)
+        }
+        return UiAction(
+            type = type,
+            by = json.optStringOrNull("by"),
+            value = json.optStringOrNull("value"),
+            index = json.optInt("index", 0),
+            text = json.optStringOrNull("text"),
+            x = json.optIntOrNull("x"),
+            y = json.optIntOrNull("y"),
+            startX = json.optIntOrNull("start_x"),
+            startY = json.optIntOrNull("start_y"),
+            endX = json.optIntOrNull("end_x"),
+            endY = json.optIntOrNull("end_y"),
+            key = json.optStringOrNull("key"),
+            reason = json.optStringOrNull("reason"),
+            raw = raw
+        )
+    }
+
+    /** Extract the first balanced-ish JSON object from free text; null if none parses. */
+    private fun extractFirstJsonObject(text: String): JSONObject? {
+        val start = text.indexOf('{')
+        val end = text.lastIndexOf('}')
+        if (start < 0 || end <= start) return null
+        return try {
+            JSONObject(text.substring(start, end + 1))
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Parse the optional caller-supplied `actions` param (a JSON array of action objects) into a
+     * scripted list. Returns null when the param is absent/blank (=> use the model). Returns an empty
+     * list only if the array is empty (=> loop finishes immediately as DONE). Any unparseable entry is
+     * kept as an UNKNOWN action so the scripted run surfaces it rather than silently skipping.
+     */
+    private fun parseScriptedActions(raw: String?): List<UiAction>? {
+        if (raw.isNullOrBlank()) return null
+        return try {
+            val arr = JSONArray(raw)
+            (0 until arr.length()).map { i ->
+                val obj = arr.optJSONObject(i)
+                if (obj == null) UiAction(type = UiActionType.UNKNOWN, raw = arr.optString(i))
+                else uiActionFromJson(obj, obj.toString())
+            }
+        } catch (e: Exception) {
+            AppLogger.w(TAG, "Failed to parse scripted actions param; ignoring and using model", e)
+            null
+        }
+    }
+
+    // --- small JSONObject null-tolerant helpers (org.json returns "" / 0, we want null) ---
+    private fun JSONObject.optStringOrNull(name: String): String? {
+        if (!has(name) || isNull(name)) return null
+        val v = optString(name, "")
+        return v.ifBlank { null }
+    }
+
+    private fun JSONObject.optIntOrNull(name: String): Int? {
+        if (!has(name) || isNull(name)) return null
+        return if (has(name)) optInt(name) else null
     }
 
     /** Gets the current UI page/window information */

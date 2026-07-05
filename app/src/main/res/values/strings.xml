@@ -5538,6 +5538,18 @@
     <string name="ui_subagent_accessibility_disabled">UI 自动化需要 Tracendroid 无障碍服务，但该服务当前未启用。请前往 系统设置 &gt; 无障碍，启用 Tracendroid 的无障碍服务后重试（应用内的无障碍引导页会打开同一系统设置页面）。</string>
     <string name="ui_subagent_observation_header">UI 自动化子代理（无障碍通道）——本次为单步观测。目标意图：%1$s。\n以下为当前界面快照与可用的无障碍动作，请据此规划下一步，并通过 tap / click_element / set_input_text / swipe / press_key / long_press / get_page_info 等工具逐步执行。\n可用动作：tap(x,y)、long_press(x,y)、swipe(start_x,start_y,end_x,end_y)、click_element(resourceId|className|contentDesc|bounds)、set_input_text(text)、press_key(KEYCODE_BACK|HOME|RECENTS|NOTIFICATIONS|QUICK_SETTINGS|POWER_DIALOG)、get_page_info、capture_screenshot。\n（说明：完整的多步自动执行循环为后续增量，本步返回当前界面信息供上层代理驱动。）\n\n当前界面：\n%2$s</string>
     <string name="ui_subagent_observation_failed">UI 自动化子代理（无障碍通道）已就绪，但读取当前界面信息失败：%1$s。请确认 Tracendroid 无障碍服务正在运行，然后重试。</string>
+    <!-- UI 子代理多步循环（观测/决策/执行） -->
+    <string name="ui_subagent_loop_system_prompt">你是一个手机界面自动化子代理，只能通过 Android 无障碍服务操作屏幕（没有 root、adb 或 shell 权限）。给定用户任务、当前界面快照以及历史步骤，请只输出下一步要执行的单个动作，用一个 JSON 对象表示，禁止输出多余文字或解释。\n允许的动作（每次仅选一个）：\n{\"action\":\"click\",\"by\":\"text|id|desc|bounds\",\"value\":\"...\",\"index\":0} —— 按文本/资源 id 尾缀/内容描述/边界点击元素；index 可选，默认 0。\n{\"action\":\"set_text\",\"text\":\"...\"} —— 向当前获得焦点的输入框写入文本（请先点击目标输入框）。\n{\"action\":\"tap\",\"x\":0,\"y\":0} —— 在坐标处轻触。\n{\"action\":\"long_press\",\"x\":0,\"y\":0} —— 在坐标处长按。\n{\"action\":\"swipe\",\"start_x\":0,\"start_y\":0,\"end_x\":0,\"end_y\":0} —— 滑动。\n{\"action\":\"press_key\",\"key\":\"BACK|HOME|RECENTS|NOTIFICATIONS|QUICK_SETTINGS|POWER_DIALOG\"} —— 系统按键。\n{\"action\":\"wait\"} —— 等待界面稳定后重新观测。\n{\"action\":\"done\",\"reason\":\"...\"} —— 任务已完成或无法继续时结束。\n坐标来自元素 bounds（格式 [left,top][right,bottom]），可取其中心点。优先使用 click 的 text/id/desc 而非绝对坐标。仅输出 JSON。</string>
+    <string name="ui_subagent_loop_user_prompt">任务：%1$s\n\n当前界面（第 %2$d/%3$d 步）：\n%4$s\n\n历史步骤：\n%5$s\n\n请输出下一步的单个动作 JSON。</string>
+    <string name="ui_subagent_loop_history_none">（无，这是第一步）</string>
+    <string name="ui_subagent_loop_transcript_header">UI 自动化子代理（无障碍通道）多步执行记录。目标任务：%1$s。</string>
+    <string name="ui_subagent_loop_step_line">第 %1$d 步：%2$s -&gt; %3$s</string>
+    <string name="ui_subagent_loop_done">子代理判定任务完成：%1$s（共 %2$d 步）。</string>
+    <string name="ui_subagent_loop_max_steps">已达到最大步数上限 %1$d，停止。任务可能尚未完成。</string>
+    <string name="ui_subagent_loop_decider_failed">第 %1$d 步：向模型请求下一步动作失败：%2$s。停止并返回已完成的部分记录。</string>
+    <string name="ui_subagent_loop_parse_failed">无法从模型回复中解析出有效动作 JSON：%1$s</string>
+    <string name="ui_subagent_loop_final_page_header">最终界面状态：</string>
+    <string name="ui_subagent_loop_empty_intent">未提供任务意图（intent 参数为空），无法运行 UI 自动化子代理。</string>
     <string name="toolreg_set_input_text_desc">设置输入文本: %1$s</string>
     <string name="toolreg_press_key_desc">按下按键: %1$s</string>
     <string name="toolreg_swipe_desc">滑动: (%1$s,%2$s) -&gt; (%3$s,%4$s)</string>
