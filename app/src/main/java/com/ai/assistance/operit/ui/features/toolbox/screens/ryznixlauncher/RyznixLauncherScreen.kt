@@ -436,10 +436,12 @@ private fun ConsoleCard(
             }
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "Embedded-terminal path (dependency, not yet auto-wired): run " +
-                    "'ssh -p 8022 <termux-user>@127.0.0.1' from Tracendroid's embedded terminal, " +
-                    "then '~/ryzvm/ryzctl console'. Requires Termux sshd running and an ssh key " +
-                    "provisioned — not configured by this screen.",
+                text = "Embedded-terminal path (now wired): open Tracendroid's embedded terminal " +
+                    "and pick the 'ryznix' profile. It SSHes into Termux (127.0.0.1:8022) with an " +
+                    "app-private key, then runs '~/ryzvm/ryzctl console' (starting the VM first if " +
+                    "it is down). One-time setup: in that terminal tap 'Authorize in Termux' " +
+                    "(installs the key + starts sshd). This screen's Termux console button remains " +
+                    "as an alternative that opens the console inside Termux itself.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontFamily = FontFamily.Monospace,

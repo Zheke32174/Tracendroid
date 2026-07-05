@@ -436,6 +436,19 @@ dependencies {
     
     // BouncyCastle - explicitly include jdk18on version to avoid conflicts
     implementation("org.bouncycastle:bcprov-jdk18on:1.78")
+    // bcpkix (PKIX/PEM/PKCS) is pulled transitively by sshj; force the jdk18on 1.78 variant so it
+    // matches bcprov above (BC prov/pkix must share a version) and never resolves the jdk15to18 one.
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.78")
+
+    // sshj — pure-JVM SSH client that backs the embedded terminal's Termux + ryznix profiles
+    // (interactive PTY shell over SSH to Termux's sshd on 127.0.0.1:8022). Supply-chain-sound:
+    // checksummed Maven Central artifact, no prebuilt ssh/dropbear binary blob. We exclude its
+    // transitive bouncycastle so the app's forced bcprov/bcpkix-jdk18on:1.78 win (the project also
+    // globally excludes bcprov-jdk15to18); eddsa + asn-one come in transitively and are needed.
+    implementation(libs.sshj) {
+        exclude(group = "org.bouncycastle", module = "bcprov-jdk18on")
+        exclude(group = "org.bouncycastle", module = "bcpkix-jdk18on")
+    }
 
     // Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")

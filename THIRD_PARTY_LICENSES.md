@@ -54,3 +54,31 @@ but that reintroduces exactly the external-app dependency this change was made t
 This is a deliberate, documented trade-off, not an oversight.
 
 Full GPLv3 text: https://www.gnu.org/licenses/gpl-3.0.txt
+
+---
+
+## Embedded terminal SSH transport: `com.hierynomus:sshj` (Maven dependency)
+
+**What it is:** a pure-JVM SSH2 client. It backs the dual-rigged embedded terminal's
+**Termux** and **ryznix** profiles, which open an interactive PTY shell over SSH to
+Termux's own sshd on `127.0.0.1:8022` (the only on-phone environment with a real
+package manager, `pkg`/`apt`). This is a **Maven Central dependency, not vendored
+source** — no prebuilt `ssh`/`dropbear` binary blob is bundled. Declared in
+`gradle/libs.versions.toml` (`sshj = "0.38.0"`) and wired in `app/build.gradle.kts`.
+
+**License: Apache License 2.0** (https://github.com/hierynomus/sshj).
+
+**Transitive dependencies it pulls (all from Maven Central):**
+
+- `org.slf4j:slf4j-api` — MIT. (Already used elsewhere in the app.)
+- `org.bouncycastle:bcprov-jdk18on` / `bcpkix-jdk18on` — Bouncy Castle License (MIT-style).
+  The app **forces version 1.78** of both (matching the existing `bcprov-jdk18on:1.78`)
+  and **excludes sshj's transitive Bouncy Castle** so a single, consistent BC version
+  wins; the project also globally excludes the legacy `bcprov-jdk15to18` variant.
+- `net.i2p.crypto:eddsa` — CC0 1.0 (public domain dedication). Used for the app-private
+  Ed25519 client identity (`SshKeyManager`).
+- `com.hierynomus:asn-one` — Apache License 2.0.
+
+Apache-2.0 and CC0 are permissive and compatible with the app's licensing; they impose
+no additional copyleft on the distributed APK beyond the GPLv3 already noted above for
+the vendored terminal modules.

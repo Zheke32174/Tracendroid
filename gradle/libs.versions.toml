@@ -76,6 +76,7 @@ animationAndroid = "1.10.4"
 uiAndroid = "1.10.4"
 glance = "1.0.0"
 activityKtx = "1.7.1"
+sshj = "0.38.0"
  ui = "1.10.4"
  animation = "1.10.4"
 
@@ -239,6 +240,12 @@ objectbox-processor = { group = "io.objectbox", name = "objectbox-processor", ve
 
 # WorkManager
 work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
+
+# SSH client (pure-JVM, checksummed on Maven Central; no bundled ssh/dropbear binary).
+# Backs the dual-rigged embedded terminal's Termux + ryznix profiles (SSH to 127.0.0.1:8022).
+# Pulls slf4j-api, bcprov-jdk18on, bcpkix-jdk18on, asn-one, eddsa — bouncycastle is aligned with
+# the app's existing bcprov-jdk18on:1.78 via app/build.gradle.kts (transitive BC excluded there).
+sshj = { group = "com.hierynomus", name = "sshj", version.ref = "sshj" }
 
 
  androidx-ui-text-android = { group = "androidx.compose.ui", name = "ui-text-android", version.ref = "uiTextAndroid" }
