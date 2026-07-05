@@ -13,13 +13,24 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-/** Per-provider OAuth 2.0 + PKCE endpoints and client identity. No client secret — mobile is public. */
+/**
+ * Per-provider OAuth 2.0 endpoints and client identity.
+ *
+ * Most mobile flows are pure PKCE (no secret). Two real-world exceptions the CLIs use are modeled here:
+ *  - [clientSecret]: Google's "installed app" flow ships a PUBLIC client secret (not a real secret by
+ *    Google's own convention) and its default loopback path uses NO PKCE, so the secret is mandatory.
+ *  - [extraAuthorizeParams]: vendor-specific authorize-URL params (Anthropic `code=true`,
+ *    Codex `originator=codex_cli_rs` / `codex_cli_simplified_flow=true`, Google `access_type=offline`).
+ */
 data class ModelOAuthConfig(
     val authorizeEndpoint: String,
     val tokenEndpoint: String,
     val clientId: String,
     val redirectUri: String,
     val scopes: List<String> = emptyList(),
+    val clientSecret: String? = null,
+    val extraAuthorizeParams: Map<String, String> = emptyMap(),
+    val usePkce: Boolean = true,
 )
 
 /** Standard RFC 6749 token-endpoint response. Unknown fields are ignored so any provider parses. */
@@ -63,18 +74,21 @@ class ModelOAuthClient(
      * state and calls [exchangeCode] with the returned code and this verifier.
      */
     fun buildAuthorizeRequest(config: ModelOAuthConfig, state: String): OAuthAuthorizeRequest {
-        val verifier = PkceCodeGenerator.generateCodeVerifier()
-        val challenge = PkceCodeGenerator.computeCodeChallenge(verifier)
+        val verifier = if (config.usePkce) PkceCodeGenerator.generateCodeVerifier() else ""
         val builder = config.authorizeEndpoint.toHttpUrl().newBuilder()
             .addQueryParameter("response_type", "code")
             .addQueryParameter("client_id", config.clientId)
             .addQueryParameter("redirect_uri", config.redirectUri)
             .addQueryParameter("state", state)
-            .addQueryParameter("code_challenge", challenge)
-            .addQueryParameter("code_challenge_method", "S256")
+        if (config.usePkce) {
+            builder.addQueryParameter("code_challenge", PkceCodeGenerator.computeCodeChallenge(verifier))
+                .addQueryParameter("code_challenge_method", "S256")
+        }
         if (config.scopes.isNotEmpty()) {
             builder.addQueryParameter("scope", config.scopes.joinToString(" "))
         }
+        // Vendor-specific params (Anthropic code=true, Codex originator/simplified-flow, Google access_type).
+        config.extraAuthorizeParams.forEach { (name, value) -> builder.addQueryParameter(name, value) }
         return OAuthAuthorizeRequest(builder.build().toString(), verifier, state)
     }
 
@@ -85,16 +99,14 @@ class ModelOAuthClient(
         code: String,
         codeVerifier: String,
     ): Result<OAuthTokenResponse> {
-        val result = tokenRequest(
-            config,
-            FormBody.Builder()
-                .add("grant_type", "authorization_code")
-                .add("code", code)
-                .add("redirect_uri", config.redirectUri)
-                .add("client_id", config.clientId)
-                .add("code_verifier", codeVerifier)
-                .build(),
-        )
+        val form = FormBody.Builder()
+            .add("grant_type", "authorization_code")
+            .add("code", code)
+            .add("redirect_uri", config.redirectUri)
+            .add("client_id", config.clientId)
+        if (config.usePkce && codeVerifier.isNotEmpty()) form.add("code_verifier", codeVerifier)
+        config.clientSecret?.takeIf { it.isNotEmpty() }?.let { form.add("client_secret", it) }
+        val result = tokenRequest(config, form.build())
         result.getOrNull()?.let { persist(configId, it) }
         return result
     }
@@ -103,14 +115,12 @@ class ModelOAuthClient(
     suspend fun refresh(configId: String, config: ModelOAuthConfig): Result<OAuthTokenResponse> {
         val refreshToken = tokenStore.refreshToken(configId)
             ?: return Result.failure(IllegalStateException("No refresh token stored for this config."))
-        val result = tokenRequest(
-            config,
-            FormBody.Builder()
-                .add("grant_type", "refresh_token")
-                .add("refresh_token", refreshToken)
-                .add("client_id", config.clientId)
-                .build(),
-        )
+        val form = FormBody.Builder()
+            .add("grant_type", "refresh_token")
+            .add("refresh_token", refreshToken)
+            .add("client_id", config.clientId)
+        config.clientSecret?.takeIf { it.isNotEmpty() }?.let { form.add("client_secret", it) }
+        val result = tokenRequest(config, form.build())
         // Providers may omit a new refresh token on refresh — keep the existing one if so.
         result.getOrNull()?.let { persist(configId, it, fallbackRefresh = refreshToken) }
         return result

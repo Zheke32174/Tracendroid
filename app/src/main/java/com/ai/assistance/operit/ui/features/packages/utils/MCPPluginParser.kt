@@ -40,7 +40,7 @@ object MCPPluginParser {
     fun parsePluginInfo(issue: GitHubIssue): ParsedPluginInfo {
         val body = issue.body ?: return ParsedPluginInfo(
             title = issue.title,
-            description = "无描述信息"
+            description = "No description"
         )
 
         // 尝试解析 JSON 元数据
@@ -52,7 +52,7 @@ object MCPPluginParser {
             ParsedPluginInfo(
                 title = issue.title,
                 description = sanitizeMcpDescription(metadata.description)
-                    .ifBlank { extractedDescription.ifBlank { "无描述信息" } },
+                    .ifBlank { extractedDescription.ifBlank { "No description" } },
                 repositoryUrl = metadata.repositoryUrl,
                 installConfig = metadata.installConfig,
                 category = metadata.category,
@@ -63,7 +63,7 @@ object MCPPluginParser {
         } else {
             ParsedPluginInfo(
                 title = issue.title,
-                description = extractedDescription.ifBlank { "无描述信息" },
+                description = extractedDescription.ifBlank { "No description" },
                 repositoryUrl = "",
                 repositoryOwner = ""
             )

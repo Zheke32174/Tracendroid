@@ -1072,7 +1072,7 @@ class ChatHistoryDelegate(
     /** 删除单条消息 */
     fun deleteMessage(index: Int) {
         coroutineScope.launch {
-            runCurrentChatDestructiveHistoryMutation("删除消息时当前会话已变化，放弃操作") { chatId ->
+            runCurrentChatDestructiveHistoryMutation("Session changed while deleting message; aborting") { chatId ->
                 val currentMessages = _chatHistory.value.toMutableList()
                 if (index < 0 || index >= currentMessages.size) {
                     return@runCurrentChatDestructiveHistoryMutation false

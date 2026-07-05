@@ -7,6 +7,7 @@ import com.ai.assistance.operit.core.chat.hooks.PromptTurn
 import com.ai.assistance.operit.core.chat.hooks.PromptTurnKind
 import com.ai.assistance.operit.core.chat.hooks.toPromptTurns
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ModelAuthMode
 import com.ai.assistance.operit.data.model.ModelOption
 import com.ai.assistance.operit.data.model.ModelParameter
 import com.ai.assistance.operit.data.model.ToolPrompt
@@ -44,7 +45,8 @@ class ClaudeProvider(
     private val client: OkHttpClient,
     private val customHeaders: Map<String, String> = emptyMap(),
     private val providerType: ApiProviderType = ApiProviderType.ANTHROPIC,
-    private val enableToolCall: Boolean = false // 是否启用Tool Call接口（预留，Claude有原生tool支持）
+    private val enableToolCall: Boolean = false, // 是否启用Tool Call接口（预留，Claude有原生tool支持）
+    private val authMode: ModelAuthMode = ModelAuthMode.API_KEY // OAuth = Claude Pro/Max subscription token
 ) : AIService {
     // private val client: OkHttpClient = HttpClientFactory.instance
 
@@ -1125,11 +1127,18 @@ class ClaudeProvider(
 
     // 创建请求
     private suspend fun createRequest(requestBody: RequestBody): Request {
-        val authStrategy: AuthStrategy = HeaderKeyAuth(
+        val isOAuth = authMode == ModelAuthMode.OAUTH
+        // Claude Pro/Max subscription OAuth carries the access token as `Authorization: Bearer`
+        // (x-api-key MUST be absent), whereas an API key uses the x-api-key header.
+        val authStrategy: AuthStrategy = if (isOAuth) {
+            BearerAuth(credentialProvider = { apiKeyProvider.getApiKey() })
+        } else {
+            HeaderKeyAuth(
                 headerName = "x-api-key",
                 credentialProvider = { apiKeyProvider.getApiKey() },
                 extraHeaders = mapOf("anthropic-version" to ANTHROPIC_VERSION),
-        )
+            )
+        }
         val credential = authStrategy.resolveCredential()
         val completedEndpoint = EndpointCompleter.completeEndpoint(apiEndpoint, providerType)
         val builder =
@@ -1138,6 +1147,11 @@ class ClaudeProvider(
                         .post(requestBody)
                         .addHeader("Content-Type", "application/json")
         authStrategy.applyHeaders(builder, credential)
+        if (isOAuth) {
+            // The subscription endpoint requires the version + the OAuth beta flag.
+            builder.addHeader("anthropic-version", ANTHROPIC_VERSION)
+            builder.addHeader("anthropic-beta", "oauth-2025-04-20")
+        }
 
         // 添加自定义请求头
         customHeaders.forEach { (key, value) ->

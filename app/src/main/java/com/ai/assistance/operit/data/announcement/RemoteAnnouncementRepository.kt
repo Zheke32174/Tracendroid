@@ -94,6 +94,8 @@ class RemoteAnnouncementRepository(
         .build()
 
     suspend fun fetchDisplayableAnnouncement(locale: Locale = Locale.getDefault()): RemoteAnnouncementDisplay? {
+        // Tracendroid: upstream (operit.app) announcement phone-home disabled — do not fetch/show the vendor's notices.
+        return null
         return withContext(Dispatchers.IO) {
             runCatching {
                 val pointer = fetchPointer()

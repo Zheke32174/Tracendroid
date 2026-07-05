@@ -288,7 +288,11 @@ object AIServiceFactory {
         // 根据配置决定凭证来源：OAuth 访问令牌 / 多API Key轮询 / 单个API Key
         val apiKeyProvider: ApiKeyProvider = when {
             config.authMode == ModelAuthMode.OAUTH ->
-                OAuthCredentialProvider(config.id, ModelOAuthTokenStore(context))
+                OAuthCredentialProvider(
+                    config.id,
+                    ModelOAuthTokenStore(context),
+                    ModelOAuthConfigRegistry.configFor(providerType)
+                )
             config.useMultipleApiKeys ->
                 MultiApiKeyProvider(config.id, modelConfigManager)
             else ->
@@ -346,7 +350,8 @@ object AIServiceFactory {
                     httpClient,
                     customHeaders,
                     providerType,
-                    enableToolCall
+                    enableToolCall,
+                    config.authMode
                 )
 
             // Gemini格式，支持Google Gemini系列及通用Gemini端点

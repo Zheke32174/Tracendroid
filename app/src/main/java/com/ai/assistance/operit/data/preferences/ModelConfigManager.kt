@@ -52,7 +52,7 @@ class ModelConfigManager(private val context: Context) {
         const val DEFAULT_CONFIG_NAME = "model_config_default_name"
 
         // Default API provider type
-        private val DEFAULT_API_PROVIDER_TYPE = ApiProviderType.DEEPSEEK
+        private val DEFAULT_API_PROVIDER_TYPE = ApiProviderType.OPENAI_GENERIC
 
         /** § 4.9 vault store name. Per-config keys live under cfg:<id>:apiKey etc. */
         private const val VAULT_STORE = "model_config_credentials"
