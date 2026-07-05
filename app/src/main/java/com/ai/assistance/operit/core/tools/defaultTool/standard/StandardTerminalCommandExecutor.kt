@@ -4,6 +4,7 @@ import android.content.Context
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.*
+import com.ai.assistance.operit.core.tools.defaultTool.TerminalCommandExecutor
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.core.tools.system.Terminal
@@ -15,7 +16,7 @@ import kotlinx.coroutines.flow.flow
 import java.util.concurrent.ConcurrentHashMap
 
 /** 终端命令执行工具 - 非流式输出版本 执行终端命令并一次性收集全部输出后返回 */
-class StandardTerminalCommandExecutor(private val context: Context) {
+class StandardTerminalCommandExecutor(private val context: Context) : TerminalCommandExecutor {
 
     private val TAG = "TerminalCommandExecutor"
 
@@ -26,7 +27,7 @@ class StandardTerminalCommandExecutor(private val context: Context) {
 
 
     /** 创建或获取一个终端会话 */
-    fun createOrGetSession(tool: AITool): ToolResult {
+    override fun createOrGetSession(tool: AITool): ToolResult {
         return runBlocking {
             try {
                 val sessionName = tool.parameters.find { it.name == "session_name" }?.value
@@ -83,7 +84,7 @@ class StandardTerminalCommandExecutor(private val context: Context) {
     }
 
     /** 在指定的终端会话中执行命令 */
-    fun executeCommandInSession(tool: AITool): ToolResult {
+    override fun executeCommandInSession(tool: AITool): ToolResult {
         return runBlocking {
             try {
                 val command = tool.parameters.find { param -> param.name == "command" }?.value ?: ""
@@ -195,7 +196,7 @@ class StandardTerminalCommandExecutor(private val context: Context) {
     }
 
     /** 在指定的终端会话中执行命令并流式返回输出 */
-    fun executeCommandInSessionStream(tool: AITool): Flow<ToolResult> = flow {
+    override fun executeCommandInSessionStream(tool: AITool): Flow<ToolResult> = flow {
         try {
             val command = tool.parameters.find { param -> param.name == "command" }?.value ?: ""
             val sessionId = tool.parameters.find { param -> param.name == "session_id" }?.value
@@ -343,7 +344,7 @@ class StandardTerminalCommandExecutor(private val context: Context) {
     }
 
     /** 在隐藏终端执行器中执行命令 */
-    fun executeHiddenCommand(tool: AITool): ToolResult {
+    override fun executeHiddenCommand(tool: AITool): ToolResult {
         return runBlocking {
             try {
                 val command = tool.parameters.find { it.name == "command" }?.value ?: ""
@@ -424,7 +425,7 @@ class StandardTerminalCommandExecutor(private val context: Context) {
     }
 
     /** 向指定的终端会话写入输入 */
-    fun inputInSession(tool: AITool): ToolResult {
+    override fun inputInSession(tool: AITool): ToolResult {
         return runBlocking {
             val sessionId = tool.parameters.find { it.name == "session_id" }?.value
             try {
@@ -503,7 +504,7 @@ class StandardTerminalCommandExecutor(private val context: Context) {
     }
 
     /** 关闭一个终端会话 */
-    fun closeSession(tool: AITool): ToolResult {
+    override fun closeSession(tool: AITool): ToolResult {
         return runBlocking {
             val sessionId = tool.parameters.find { it.name == "session_id" }?.value
             try {
@@ -544,7 +545,7 @@ class StandardTerminalCommandExecutor(private val context: Context) {
     }
 
     /** 获取终端会话当前屏幕内容（不包含历史滚动缓冲） */
-    fun getSessionScreen(tool: AITool): ToolResult {
+    override fun getSessionScreen(tool: AITool): ToolResult {
         return runBlocking {
             val sessionId = tool.parameters.find { it.name == "session_id" }?.value
             try {
