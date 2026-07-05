@@ -4,6 +4,9 @@ name: debug-apk
 # the pipeline compiles -> native-builds -> assembles -> emits an installable APK.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - "tracendroid/debug-apk-proof"
 
 permissions:
   contents: read
