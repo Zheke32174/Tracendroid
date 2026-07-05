@@ -191,15 +191,24 @@ class DragonBonesAvatarController(
     }
 
     /**
-     * Maps the current [emotionIntensity] to a fade-in time in seconds: a high-intensity
-     * mood snaps in quickly (short fade), a subtle one eases in (longer fade). Used by the
-     * intensity-aware playback path so callers get emphatic transitions without any new
-     * native capability.
+     * Maps the current [emotionIntensity] to a crossfade time in seconds for the next
+     * emotion / trigger change. The DragonBones native [Animation::fadeIn] path derives its
+     * fade-*out* time from this same fade-in value, so a positive fade-in blends the new
+     * animation over the previously-playing one — i.e. this is a true crossfade, not just a
+     * fade-from-nothing. Consecutive emotions (HAPPY -> SAD) therefore blend smoothly.
+     *
+     * Intensity still modulates the feel: a high-intensity mood eases in a touch quicker
+     * (shorter fade) and a subtle one lingers (longer fade). Crucially the result is clamped
+     * to at least [MIN_FADE_IN_SECONDS] — the smooth-crossfade floor — so even the snappiest,
+     * max-intensity change never hard-cuts, and rapid successive emotion switches always
+     * blend rather than snap.
      */
     private fun intensityFadeInSeconds(): Float {
-        // intensity 1f -> MIN fade (snappy); intensity 0f -> MAX fade (gentle).
-        return MAX_FADE_IN_SECONDS -
+        // intensity 1f -> floor fade (snappy but still smooth); intensity 0f -> MAX fade (gentle).
+        val scaled = MAX_FADE_IN_SECONDS -
             (emotionIntensity.coerceIn(0f, 1f) * (MAX_FADE_IN_SECONDS - MIN_FADE_IN_SECONDS))
+        // Never drop below the smooth-crossfade floor, whatever the intensity.
+        return scaled.coerceIn(MIN_FADE_IN_SECONDS, MAX_FADE_IN_SECONDS)
     }
 
     override fun updateSettings(settings: Map<String, Any>) {
@@ -317,8 +326,17 @@ class DragonBonesAvatarController(
         /** Neutral emotion intensity used until a caller sets one. */
         const val DEFAULT_EMOTION_INTENSITY = 0.5f
 
-        /** Fade-in bounds (seconds) mapped from emotion intensity. */
-        const val MIN_FADE_IN_SECONDS = 0.08f
+        /**
+         * Crossfade bounds (seconds) mapped from emotion intensity.
+         *
+         * [MIN_FADE_IN_SECONDS] is the smooth-crossfade *floor*: even a max-intensity change
+         * fades in over this window (and, because native `fadeIn` derives fade-out from it,
+         * blends out the prior emotion over the same window). Kept at 0.22s (~220ms) so an
+         * emphatic HAPPY -> SAD switch still visibly blends instead of hard-cutting. This is
+         * deliberately well above the old 0.08s (~80ms) near-snap value. [MAX_FADE_IN_SECONDS]
+         * (~450ms) is the gentlest, lowest-intensity ease-in.
+         */
+        const val MIN_FADE_IN_SECONDS = 0.22f
         const val MAX_FADE_IN_SECONDS = 0.45f
     }
 }
