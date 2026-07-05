@@ -1669,6 +1669,19 @@ object SystemToolPromptsInternal {
                                         default = "5000"
                                     )
                                 )
+                        ),
+                        ToolPrompt(
+                            name = "fill_form",
+                            description = "Fill one or more on-screen form inputs in a single call via the accessibility service (query + type; does NOT submit). For each field it finds the matching editable input on the current screen, focuses it and types the given value. Use it to populate a form before you tap the submit/next button yourself with click_element/tap. Requires the accessibility service to be enabled.",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "fields",
+                                        type = "object",
+                                        description = "JSON object mapping a field identifier to the value to type. The identifier is matched (substring-tolerant) against each input's label / hint / content-description / nearby text / resource-id, e.g. {\"Email\": \"a@b.com\", \"password\": \"secret\"}.",
+                                        required = true
+                                    )
+                                )
                         )
                     )
             ),
@@ -4390,6 +4403,19 @@ object SystemToolPromptsInternal {
                                         description = "可选，最长等待时间（毫秒，默认 5000，上限 30000）",
                                         required = false,
                                         default = "5000"
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "fill_form",
+                            description = "通过无障碍服务在一次调用中填写屏幕上的一个或多个表单输入框（查找并输入；不会提交）。对每个字段，在当前屏幕上找到匹配的可编辑输入框，聚焦并输入给定的值。用于在你自己用 click_element/tap 点击提交/下一步按钮之前先填好表单。需要已启用无障碍服务。",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "fields",
+                                        type = "object",
+                                        description = "JSON 对象，将字段标识映射到要输入的值。标识会（容许子串匹配）与每个输入框的标签/提示文本/内容描述/邻近文本/资源 ID 进行匹配，例如 {\"Email\": \"a@b.com\", \"password\": \"secret\"}。",
+                                        required = true
                                     )
                                 )
                         )

@@ -56,6 +56,7 @@ object ModelListFetcher {
                     ApiProviderType.OPENAI_LOCAL -> "${extractBaseUrl(apiEndpoint)}/v1/models"
                     ApiProviderType.ANTHROPIC,
                     ApiProviderType.ANTHROPIC_GENERIC -> "${extractBaseUrl(apiEndpoint)}/v1/models"
+                    ApiProviderType.AZURE_OPENAI -> extractAzureModelsUrl(apiEndpoint)
                     ApiProviderType.GOOGLE,
                     ApiProviderType.GEMINI_GENERIC -> {
                         // 对于Gemini API，直接使用提供的端点或默认端点
@@ -150,6 +151,46 @@ object ModelListFetcher {
     }
 
     /**
+     * 从用户配置的 Azure OpenAI 部署 URL 派生模型列表 URL。
+     *
+     * Azure 的模型列表接口是 `<scheme>://<host>/openai/models?api-version=<v>`，其中
+     * `api-version` 必须沿用用户端点上的取值（这也是 Azure 请求成功的必要参数）。这里从用户
+     * 端点的查询串中解析出 `api-version` 并保留。
+     *
+     * @return 正确的 Azure 模型列表 URL；若无法从端点解析出 `api-version`（或 URL 非法），
+     *   返回空字符串，调用方据此优雅跳过自动拉取（下拉框保持手动填写），而不是发出错误请求。
+     */
+    private fun extractAzureModelsUrl(apiEndpoint: String): String {
+        return try {
+            val url = URL(apiEndpoint)
+            // 从查询串中提取 api-version（大小写不敏感），例如 "api-version=2024-02-01"。
+            val apiVersion =
+                    url.query
+                            ?.split("&")
+                            ?.mapNotNull { part ->
+                                val idx = part.indexOf('=')
+                                if (idx <= 0) null
+                                else part.substring(0, idx) to part.substring(idx + 1)
+                            }
+                            ?.firstOrNull { it.first.equals("api-version", ignoreCase = true) }
+                            ?.second
+                            ?.takeIf { it.isNotBlank() }
+            if (apiVersion == null) {
+                // 无法确定 api-version：优雅跳过而非发出错误请求。
+                AppLogger.w(TAG, "Azure 端点缺少 api-version，跳过模型列表自动拉取: $apiEndpoint")
+                ""
+            } else {
+                val modelsUrl = "${url.protocol}://${url.authority}/openai/models?api-version=$apiVersion"
+                AppLogger.d(TAG, "从 $apiEndpoint 派生 Azure 模型列表URL: $modelsUrl")
+                modelsUrl
+            }
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "Azure URL解析错误: $e")
+            ""
+        }
+    }
+
+    /**
      * 获取模型列表
      *
      * @param context Android Context
@@ -186,6 +227,12 @@ object ModelListFetcher {
 
                     // 根据提供商类型获取模型列表URL
                     val modelsUrl = getModelsListUrl(completedEndpoint, apiProviderType)
+                    // Azure OpenAI: 若无法从用户端点派生出带 api-version 的模型列表URL，
+                    // 优雅跳过（返回空列表，下拉框保持手动），而不是发出一个错误的请求。
+                    if (apiProviderType == ApiProviderType.AZURE_OPENAI && modelsUrl.isBlank()) {
+                        AppLogger.w(TAG, "Azure 模型列表URL不可用，跳过自动拉取并返回空列表")
+                        return@withContext Result.success(emptyList())
+                    }
                     val providerRequiresApiKey =
                             ApiProviderConfigs.requiresApiKey(apiProviderType, completedEndpoint)
                     AppLogger.d(TAG, "准备发送请求到: $modelsUrl, 尝试次数: ${retryCount + 1}/${maxRetries + 1}")
@@ -233,6 +280,14 @@ object ModelListFetcher {
                                 requestBuilder.addHeader("x-api-key", apiKey)
                             }
                             requestBuilder.addHeader("anthropic-version", ANTHROPIC_VERSION)
+                        }
+                        ApiProviderType.AZURE_OPENAI -> {
+                            // Azure OpenAI 使用 `api-key: <key>` 头，而非 Bearer
+                            // （与 OpenAIProvider.resolveAuthStrategy 的 HeaderKeyAuth("api-key") 一致）。
+                            AppLogger.d(TAG, "使用Azure api-key认证方式")
+                            if (apiKey.isNotBlank()) {
+                                requestBuilder.addHeader("api-key", apiKey)
+                            }
                         }
                         else -> {
                             if (apiKey.isNotBlank()) {
