@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.AutoMode
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DataObject
+import androidx.compose.material.icons.filled.DeveloperBoard
 import androidx.compose.material.icons.filled.DeviceHub
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Html
@@ -296,6 +297,17 @@ object ScreenRouteRegistry {
                 descriptionResId = R.string.tool_embedded_terminal_desc,
                 icon = Icons.Default.Terminal,
                 order = 85
+            ),
+            // ryznix OS launcher (cornerstone #2): boot/stop/console the on-phone second-OS
+            // (QEMU guest over bare-metal Android) via Termux RUN_COMMAND bridge.
+            hostEntryDefinition(
+                entryId = "toolbox.ryznix_launcher",
+                screen = Screen.RyznixLauncher,
+                surface = NavigationSurface.TOOLBOX,
+                titleResId = R.string.tool_ryznix_launcher,
+                descriptionResId = R.string.tool_ryznix_launcher_desc,
+                icon = Icons.Default.DeveloperBoard,
+                order = 87
             ),
             hostEntryDefinition(
                 entryId = "toolbox.ui_debugger",

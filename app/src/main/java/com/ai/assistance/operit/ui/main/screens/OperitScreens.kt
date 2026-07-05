@@ -79,6 +79,7 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.StreamMarkdownDemoSc
 import com.ai.assistance.operit.ui.features.toolbox.screens.TerminalAutoConfigToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.TerminalToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.EmbeddedTerminalToolScreen
+import com.ai.assistance.operit.ui.features.toolbox.screens.RyznixLauncherToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.ToolboxScreen
 import com.ai.assistance.operit.ui.common.composedsl.ToolPkgComposeDslToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.UIDebuggerToolScreen
@@ -1304,6 +1305,26 @@ sealed class Screen(
                 onGestureConsumed: (Boolean) -> Unit
         ) {
             EmbeddedTerminalToolScreen(navController = navController)
+        }
+    }
+
+    // Tracendroid cornerstone #2: ryznix OS launcher. Boots/stops/checks/consoles the ryznix v1
+    // second-OS (a QEMU guest over bare-metal Android) by driving the on-phone ~/ryzvm/ryzctl
+    // backend through Termux's RUN_COMMAND intent bridge. Honest about its real dependencies
+    // (Termux + RUN_COMMAND permission + the ryznix ~/ryzvm artifacts); never fakes a running VM.
+    data object RyznixLauncher :
+            Screen(navItem = NavItem.Toolbox, titleRes = R.string.screen_title_ryznix_launcher) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            RyznixLauncherToolScreen(navController = navController)
         }
     }
 

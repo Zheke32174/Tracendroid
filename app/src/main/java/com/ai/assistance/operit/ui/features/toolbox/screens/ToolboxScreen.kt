@@ -31,6 +31,7 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.FileMana
 import com.ai.assistance.operit.ui.features.toolbox.screens.logcat.LogcatScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.shellexecutor.ShellExecutorScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.embeddedterminal.EmbeddedTerminalScreen
+import com.ai.assistance.operit.ui.features.toolbox.screens.ryznixlauncher.RyznixLauncherScreen
 import com.ai.assistance.operit.terminal.main.TerminalScreen as TerminalViewScreen
 // import com.ai.assistance.operit.ui.features.toolbox.screens.terminalconfig.TerminalAutoConfigScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.uidebugger.UIDebuggerScreen
@@ -230,6 +231,23 @@ fun EmbeddedTerminalToolScreen(navController: NavController) {
         CustomScaffold() { paddingValues ->
                 Box(modifier = Modifier.padding(paddingValues)) {
                         EmbeddedTerminalScreen()
+                }
+        }
+}
+
+/**
+ * ryznix OS launcher (Tracendroid cornerstone #2). Control surface that boots / stops / checks /
+ * consoles the ryznix v1 second-OS (a QEMU guest over bare-metal Android) by driving the on-phone
+ * backend ~/ryzvm/ryzctl through Termux's RUN_COMMAND intent bridge. Honest about its real
+ * dependencies (Termux + RUN_COMMAND permission + the ryznix artifacts). See
+ * RyznixLauncherScreen.kt / RyznixBridge.kt for the scope + bridge contract.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RyznixLauncherToolScreen(navController: NavController) {
+        CustomScaffold() { paddingValues ->
+                Box(modifier = Modifier.padding(paddingValues)) {
+                        RyznixLauncherScreen()
                 }
         }
 }

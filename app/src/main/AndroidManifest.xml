@@ -63,9 +63,15 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
+    <!-- ryznix launcher bridge: run ~/ryzvm/ryzctl inside Termux via its public RUN_COMMAND
+         service. Termux enforces this permission on com.termux.app.RunCommandService. -->
+    <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
+
     <queries>
         <!-- 允许查询和绑定到无障碍服务提供者应用 -->
         <package android:name="com.ai.assistance.operit.provider" />
+        <!-- ryznix launcher: query Termux so we can detect it and target its RunCommandService. -->
+        <package android:name="com.termux" />
     </queries>
 
     <application

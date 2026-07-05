@@ -1962,6 +1962,9 @@
     <string name="tool_embedded_terminal">内置终端</string>
     <string name="tool_embedded_terminal_desc">进程内 PTY 终端，无需外部终端应用</string>
     <string name="screen_title_embedded_terminal">内置终端</string>
+    <string name="tool_ryznix_launcher">ryznix 启动器</string>
+    <string name="tool_ryznix_launcher_desc">通过 Termux 启动 / 关闭 / 控制台连接 ryznix 第二操作系统（QEMU 客机）</string>
+    <string name="screen_title_ryznix_launcher">ryznix 启动器</string>
     <string name="tool_terminal_auto_config">终端自动配置</string>
     <string name="tool_terminal_auto_config_desc">自动安装配置Python、PIP等开发工具</string>
     <string name="tool_terminal_auto_config_under_construction">终端自动配置功能正在重构中...</string>
