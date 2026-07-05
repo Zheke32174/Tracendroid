@@ -37,10 +37,19 @@ All gitignored + currently empty (`.keep` only). Source: the Google-Drive links 
 - `app/libs/` — prebuilt `.aar`/`.jar`
 - `app/src/main/assets/pets/` — avatar/pet models (the "wifeu" assets)
 
-## 3. Pre-build asset generation (scriptable — should move into CI, task #8)
-- **web-chat:** `cd web-chat && pnpm i && pnpm build` → `web-chat/dist` → copy to
-  `app/src/main/assets/web-chat/` (both gitignored/generated).
-- **example packages:** `python sync_example_packages.py` (see its `--help`; syncs `.toolpkg`/`.js`).
+## 3. Pre-build asset generation (scriptable — NOW AUTOMATED IN CI, task #8 ✅)
+These two generated asset trees are gitignored and reproducible from source; `release.yml`
+regenerates them (Node LTS + Python 3, npm — the repo has **no lockfile**, so `npm install`)
+before the Gradle build. Commands, if you build locally, match `docs/BUILDING.md`:
+- **web-chat:** `npm install && npm --prefix web-chat install && npm run build:webchat`.
+  `build:webchat` runs the Vite build **and** `sync:android-assets`, which copies
+  `web-chat/dist` → `app/src/main/assets/web-chat/` — so no manual copy step is needed.
+- **example packages:** `python3 sync_example_packages.py --no-hot-reload` (CI passes
+  `--no-hot-reload` since there is no adb device; syncs `.toolpkg`/`.js` per
+  `packages_whitelist.txt` into `app/src/main/assets/packages/`).
+
+Only the §2 **hand-provisioned vendored blobs** (Google-Drive) remain manual; `release.yml`
+adds a soft warning if `jniLibs`/`models`/`libs`/`pets` hold only their `.keep` placeholder.
 
 ## 4. Off-box build (Linux — no MAX_PATH limit)
 Either **push** the branch and let `release.yml` run, or build on the codespace:
@@ -66,7 +75,8 @@ unexercised in this fork's CI — expect iteration.
 - Avatar: confirm emotion/mood/touch reactions; tap the About logo ×7 for the homage.
 
 ## 7. Known follow-ups (tracked)
-- CI build-input automation (§3) — task #8.
+- ~~CI build-input automation (§3) — task #8.~~ **DONE**: `release.yml` now builds web-chat
+  and syncs example packages before Gradle (authored on-box; needs a real CI run to validate).
 - Avatar: TTS→lipsync + user-loadable model gallery (need `AvatarController` interface work).
 - Phone-pilot: form-autofill, notification-listener read tool, scheduled execution.
 - Subscription-OAuth: implement the CLI-token-recycle credential source for ChatGPT/Claude/Gemini.

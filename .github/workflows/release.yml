@@ -121,6 +121,88 @@ jobs:
           java -version
           ./gradlew --version
 
+      # ---------------------------------------------------------------------
+      # Provision the SCRIPTABLE build inputs (task #8). Two generated,
+      # gitignored asset trees must exist BEFORE Gradle packages the APK/AAB:
+      #   1. app/src/main/assets/web-chat/  (built from web-chat/, React+Vite)
+      #   2. app/src/main/assets/packages/  (.toolpkg synced from examples/)
+      # These are reproducible from source, so CI regenerates them here rather
+      # than committing build outputs. The HAND-provisioned vendored blobs
+      # (jniLibs / assets/models / app/libs / assets/pets from the Google-Drive
+      # links in docs/BUILDING.md) are NOT scriptable and are checked below.
+      #
+      # Package manager: npm. There is NO lockfile anywhere in the repo
+      # (no pnpm-lock.yaml / package-lock.json), and docs/BUILDING.md drives
+      # the build with `npm install` + `npm run build:webchat`, so we use
+      # `npm install` (NOT `npm ci`, which requires a committed lockfile).
+      # The stray pnpm-workspace.yaml is not backed by a lockfile and is not
+      # used by the documented build path.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # Root deps (typescript/esbuild) are what sync_example_packages.py's
+      # prebuild step shells out to (`tsc`, per-example `npm run build`).
+      # web-chat deps drive its own Vite build. No lockfile => plain install.
+      - name: Install JS deps (root + web-chat)
+        run: |
+          set -euo pipefail
+          npm install
+          npm --prefix web-chat install
+
+      # `build:webchat` = `npm --prefix web-chat run build` (Vite) followed by
+      # `npm --prefix web-chat run sync:android-assets`, which copies
+      # web-chat/dist -> app/src/main/assets/web-chat/. The copy is part of
+      # this script (see web-chat/scripts/sync-to-android-assets.mjs), so we
+      # do NOT add a separate dist-copy step — that would double-copy.
+      - name: Build web-chat + sync to Android assets
+        run: npm run build:webchat
+
+      # Prebuilds examples/ (.js via tsc, folder packages via `npm run build`)
+      # and packs/copies whitelisted items (packages_whitelist.txt) into
+      # app/src/main/assets/packages/ as .toolpkg/.js. --no-hot-reload disables
+      # the post-sync adb push (no device on CI; it would otherwise be a no-op
+      # but we make the CI intent explicit). Non-zero exit if a whitelisted
+      # package fails to resolve, which correctly fails the build here rather
+      # than shipping an APK with missing tool packages.
+      - name: Sync example packages
+        run: python3 ./sync_example_packages.py --no-hot-reload
+
+      # Soft check for the HAND-provisioned vendored blobs. These come from the
+      # Google-Drive links in docs/BUILDING.md and CANNOT be fetched in CI, so
+      # this does NOT fail the job — the Gradle build will fail later with its
+      # own precise error if a blob a given module needs is truly missing. We
+      # only warn + point at the docs so a maintainer knows what to provision.
+      # (jniLibs is also partly produced by the NDK build, so an "empty" dir
+      # here is not necessarily fatal.)
+      - name: Verify vendored blobs present (soft)
+        run: |
+          set -uo pipefail
+          missing=0
+          for dir in \
+            app/src/main/jniLibs \
+            app/src/main/assets/models \
+            app/libs \
+            app/src/main/assets/pets; do
+            # Count tracked/real content, ignoring the .keep placeholder.
+            count=$(find "$dir" -type f ! -name '.keep' 2>/dev/null | wc -l)
+            if [ "$count" -eq 0 ]; then
+              echo "::warning::Vendored blob dir '$dir' contains only its .keep placeholder — no operator-provided files."
+              missing=1
+            else
+              echo "OK: '$dir' has $count vendored file(s)."
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "::warning::One or more vendored blob dirs are empty. If the build fails on a missing .so/.aar/model/pet, provision them per docs/BUILDING.md (Google-Drive links) and docs/SHIP-CHECKLIST.md §2. This step is informational and does not fail the build."
+          fi
+
       # AAB for Play + APK for direct sideload. --stacktrace so the first-run
       # native/link failures (see NDK note above) are diagnosable.
       - name: Build release (bundle + assemble)
