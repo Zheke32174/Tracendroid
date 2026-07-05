@@ -1,9 +1,9 @@
 package com.ai.assistance.operit.core.tools.defaultTool.admin
 
 import android.content.Context
-import com.ai.assistance.operit.core.tools.defaultTool.debugger.DebuggerSystemOperationTools
+import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardSystemOperationTools
 
 /** 管理员级别的系统操作工具，继承调试版本 */
-open class AdminSystemOperationTools(context: Context) : DebuggerSystemOperationTools(context) {
+open class AdminSystemOperationTools(context: Context) : StandardSystemOperationTools(context) {
     // 当前阶段不添加新功能，仅继承调试实现
 }
