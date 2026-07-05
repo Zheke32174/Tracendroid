@@ -675,17 +675,21 @@ class FloatingFullscreenModeViewModel(
                 }
                 lastHandledVoiceAvatarMessageKey = messageKey
 
-                val triggerName = AvatarEmotionManager.extractMoodTagValue(message.content)
+                val emotion = AvatarEmotionManager.analyzeEmotion(message.content)
+                val moodTag = AvatarEmotionManager.extractMoodTag(message.content)
+                val triggerName = moodTag?.key
                 if (!triggerName.isNullOrBlank()) {
+                    // moodTag.weight is parsed and available here, but the AvatarController
+                    // interface has no strength/blend-weight parameter, so we do not thread it
+                    // through yet (see AvatarEmotionManager.extractMoodTag TODO).
                     pushVoiceAvatarMotion(
-                        emotion = AvatarEmotionManager.analyzeEmotion(message.content),
+                        emotion = emotion,
                         triggerName = triggerName,
                         playOnce = true
                     )
                     return
                 }
 
-                val emotion = AvatarEmotionManager.analyzeEmotion(message.content)
                 if (emotion == AvatarEmotion.IDLE) {
                     resetVoiceAvatarToIdle()
                 } else {
