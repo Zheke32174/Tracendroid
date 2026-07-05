@@ -2616,3 +2616,36 @@ data class ModelConfigConnectionTestResultData(
         return "Model config connection test: $configId, success=$success, passed=$passedTests/$totalTests"
     }
 }
+
+/**
+ * 读取应用自身日志的结果（read_app_logs）。
+ *
+ * Result of read_app_logs: the app's own recent log lines so the agent can self-diagnose
+ * failures. On a non-rooted device an app can only read its OWN process logs, so this never
+ * exposes another app's output. [source] records where the lines came from ("logcat" from the
+ * per-pid logcat buffer, or "file" from the app's persisted AppLogger log when logcat is
+ * unavailable), [count] is the number of lines returned, and [truncated] is true when older
+ * lines were dropped to honour the requested `lines` cap. An empty [lines] with [note] set is
+ * the normal "no logs available" outcome — never a crash.
+ */
+@Serializable
+data class AppLogsResultData(
+    val lines: List<String>,
+    val count: Int,
+    val truncated: Boolean,
+    val source: String,
+    val note: String? = null
+) : ToolResultData() {
+    override fun toString(): String {
+        val header = if (lines.isEmpty()) {
+            note ?: "No app logs available"
+        } else {
+            "App logs ($count line${if (count == 1) "" else "s"} from $source${if (truncated) ", truncated" else ""})"
+        }
+        return if (lines.isEmpty()) {
+            header
+        } else {
+            header + "\n" + lines.joinToString("\n")
+        }
+    }
+}

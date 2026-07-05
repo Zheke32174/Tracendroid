@@ -2737,6 +2737,32 @@ object SystemToolPromptsInternal {
                                         required = false
                                     )
                                 )
+                        ),
+                        ToolPrompt(
+                            name = "read_app_logs",
+                            description = "Read THIS app's own recent log lines so you can self-diagnose a failure. Safe on non-rooted devices: Android restricts logcat to the caller's own process, so this only ever returns this app's logs (no root/Shizuku, no other app's output). Prefers the app's own logcat buffer and falls back to the persisted app log file; returns an empty result with a note if no logs are available.",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "lines",
+                                        type = "integer",
+                                        description = "optional, max number of most-recent lines to return (1-1000)",
+                                        required = false,
+                                        default = "200"
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "level",
+                                        type = "string",
+                                        description = "optional minimum level filter: V, D, I, W, or E (returns that level and above)",
+                                        required = false
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "tag",
+                                        type = "string",
+                                        description = "optional, only return lines whose log tag contains this substring (case-insensitive)",
+                                        required = false
+                                    )
+                                )
                         )
                     )
             )
@@ -5470,6 +5496,32 @@ object SystemToolPromptsInternal {
                                         name = "video_codec",
                                         type = "string",
                                         description = "可选，H.264 编码请使用 h264",
+                                        required = false
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "read_app_logs",
+                            description = "读取本应用自身最近的日志，用于自我诊断失败。在未 root 的设备上是安全的：Android 将 logcat 限制为调用者自身进程，因此只会返回本应用的日志（无需 root/Shizuku，也不会读取其他应用的输出）。优先读取本应用的 logcat 缓冲区，若不可用则回退到持久化的应用日志文件；若无可用日志则返回带说明的空结果。",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "lines",
+                                        type = "integer",
+                                        description = "可选，返回的最近日志行数上限（1-1000）",
+                                        required = false,
+                                        default = "200"
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "level",
+                                        type = "string",
+                                        description = "可选，最低级别过滤：V、D、I、W 或 E（返回该级别及以上）",
+                                        required = false
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "tag",
+                                        type = "string",
+                                        description = "可选，仅返回日志标签包含该子串的行（不区分大小写）",
                                         required = false
                                     )
                                 )

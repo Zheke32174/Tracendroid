@@ -5226,6 +5226,7 @@
     <string name="toolreg_execute_intent_action_desc">Execute intent: %1$s (type: %2$s)</string>
     <string name="toolreg_execute_android_intent_desc">Execute Android intent (type: %1$s)</string>
     <string name="toolreg_device_info_desc">Get device info</string>
+    <string name="toolreg_read_app_logs_desc">Read app logs (lines: %1$s, level: %2$s)</string>
     <string name="toolreg_trigger_tasker_event_desc">Trigger Tasker event: %1$s (%2$s)</string>
     <string name="toolreg_missing_required_param">Missing required param: %1$s</string>
     <string name="toolreg_tasker_event_triggered_result">Triggered Tasker event: %1$s</string>

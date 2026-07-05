@@ -5450,6 +5450,7 @@
     <string name="toolreg_execute_intent_action_desc">执行Intent: %1$s (类型: %2$s)</string>
     <string name="toolreg_execute_android_intent_desc">执行Android Intent (类型: %1$s)</string>
     <string name="toolreg_device_info_desc">获取设备信息</string>
+    <string name="toolreg_read_app_logs_desc">读取本应用日志（行数: %1$s, 级别: %2$s）</string>
     <string name="toolreg_trigger_tasker_event_desc">触发Tasker事件: %1$s (%2$s)</string>
     <string name="toolreg_missing_required_param">缺少必需参数: %1$s</string>
     <string name="toolreg_tasker_event_triggered_result">已触发Tasker事件: %1$s</string>

@@ -114,6 +114,10 @@ object JsCapabilityClassifier {
         // System read / write
         put("device_info", JsCapabilityClass.SYSTEM_READ)
         put("list_apps", JsCapabilityClass.SYSTEM_READ)
+        // Reads the app's OWN process logs (logcat --pid / AppLogger file) for self-diagnosis.
+        // Non-rooted Android restricts logcat to the caller's own UID, so this only exposes this
+        // app's device/system log output — a read of system state, hence SYSTEM_READ.
+        put("read_app_logs", JsCapabilityClass.SYSTEM_READ)
         put("modify_software_settings", JsCapabilityClass.SYSTEM_WRITE)
         put("send_broadcast", JsCapabilityClass.SYSTEM_WRITE)
         put("send_sms", JsCapabilityClass.SYSTEM_WRITE)
