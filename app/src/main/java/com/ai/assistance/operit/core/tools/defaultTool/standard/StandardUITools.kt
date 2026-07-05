@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjection
+import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.core.config.FunctionalPrompts
 import com.ai.assistance.operit.core.tools.SimplifiedUINode
@@ -390,17 +391,24 @@ open class StandardUITools(protected val context: Context) {
     }
 
     /**
-     * UI automation subagent loop. The previous implementation drove PhoneAgent over
-     * the Shower display + ADB transport, both removed per docs/SECURITY.md § 8.
-     * Replacement landing as part of docs/AGENT_CORE.md and docs/SHELL_REBUILD.md.
-     * Until then, the tool is unavailable.
+     * UI automation subagent entry point.
+     *
+     * The previous implementation drove PhoneAgent over the Shower display + ADB transport, both
+     * removed per docs/THREAT_MODEL.md § 4.4. On stock, non-rooted devices the only safe UI-automation
+     * transport is the AccessibilityService, so the functional implementation lives in
+     * [com.ai.assistance.operit.core.tools.defaultTool.accessbility.AccessibilityUITools.runUiSubAgent],
+     * which is selected by [ToolGetter.getUITools] when the preferred permission level is ACCESSIBILITY.
+     *
+     * This STANDARD-tier base intentionally does NOT attempt any shell `input`/`am` UI control (that
+     * would require Shizuku/adb/root, which this fork removed). Instead it returns an honest, actionable
+     * message telling the caller to switch to the accessibility transport.
      */
     open suspend fun runUiSubAgent(tool: AITool): ToolResult {
         return ToolResult(
             toolName = tool.name,
             success = false,
             result = StringResultData(""),
-            error = "UI automation subagent is offline: Shower/Shizuku transports have been removed (see docs/THREAT_MODEL.md § 4.4). Replacement on the Accessibility channel is tracked in docs/AGENT_CORE.md."
+            error = context.getString(R.string.ui_subagent_standard_unavailable)
         )
     }
 

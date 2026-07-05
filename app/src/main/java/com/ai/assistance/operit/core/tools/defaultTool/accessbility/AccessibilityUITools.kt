@@ -3,6 +3,7 @@ package com.ai.assistance.operit.core.tools.defaultTool.accessbility
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import com.ai.assistance.operit.R
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.SimplifiedUINode
 import com.ai.assistance.operit.core.tools.StringResultData
@@ -72,6 +73,74 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
         
         AppLogger.w(TAG, "获取UI层次结构失败，已重试${MAX_RETRY_COUNT}次")
         return uiXml
+    }
+
+    /**
+     * UI automation sub-agent over the AccessibilityService transport.
+     *
+     * This is the live replacement for the removed Shower/Shizuku sub-agent (docs/THREAT_MODEL.md
+     * § 4.4). It uses ONLY accessibility primitives — no shell `input`/`am`, no root, no adb.
+     *
+     * Scope of this brick: a bounded, single accessibility action. When the service is enabled it
+     * returns the current page snapshot plus the catalog of available accessibility actions, so the
+     * calling agent can plan and drive the next concrete step (tap / click_element / set_input_text /
+     * swipe / press_key / long_press / get_page_info). A full multi-step autonomous loop is a
+     * follow-up; critically, this no longer returns the dead "transports removed" error.
+     *
+     * When the service is NOT enabled it returns a clear, actionable message pointing the user to the
+     * Tracendroid accessibility service in system settings (the same target as the in-app
+     * AccessibilityOnboardingScreen, which fires Settings.ACTION_ACCESSIBILITY_SETTINGS).
+     */
+    override suspend fun runUiSubAgent(tool: AITool): ToolResult {
+        return try {
+            if (!isAccessibilityServiceEnabled()) {
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = context.getString(R.string.ui_subagent_accessibility_disabled)
+                )
+            }
+
+            val intent = tool.parameters.find { it.name == "intent" }?.value.orEmpty()
+
+            // Bounded single action: observe the current screen so the caller can plan the next step.
+            val pageInfo = getPageInfo(tool)
+            if (!pageInfo.success) {
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = context.getString(
+                        R.string.ui_subagent_observation_failed,
+                        pageInfo.error ?: ""
+                    )
+                )
+            }
+
+            val observation = context.getString(
+                R.string.ui_subagent_observation_header,
+                intent,
+                pageInfo.result.toString()
+            )
+            ToolResult(
+                toolName = tool.name,
+                success = true,
+                result = StringResultData(observation),
+                error = ""
+            )
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "Error running UI sub-agent", e)
+            ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = context.getString(
+                    R.string.ui_subagent_observation_failed,
+                    e.message ?: ""
+                )
+            )
+        }
     }
 
     /** Gets the current UI page/window information */

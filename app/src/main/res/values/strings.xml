@@ -5533,6 +5533,11 @@
     <string name="toolreg_run_ui_subagent_desc">运行UI子代理以完成任务: %1$s (最多执行 %2$s 步)</string>
     <string name="toolreg_agent_id_suffix"> (agent_id=%1$s)</string>
     <string name="toolreg_run_ui_subagent_hint">。建议在多次调用中尽量复用同一个 agent_id，以持续操作同一虚拟屏幕会话（可沿用上一次返回的 agentId 作为 agent_id）。</string>
+    <!-- UI 子代理（无障碍通道）运行时消息 -->
+    <string name="ui_subagent_standard_unavailable">UI 自动化子代理需要无障碍通道。当前工具运行在“标准”权限级别下，无法驱动界面。请在设置中将首选权限级别切换为“无障碍”，并启用 Tracendroid 无障碍服务后重试。</string>
+    <string name="ui_subagent_accessibility_disabled">UI 自动化需要 Tracendroid 无障碍服务，但该服务当前未启用。请前往 系统设置 &gt; 无障碍，启用 Tracendroid 的无障碍服务后重试（应用内的无障碍引导页会打开同一系统设置页面）。</string>
+    <string name="ui_subagent_observation_header">UI 自动化子代理（无障碍通道）——本次为单步观测。目标意图：%1$s。\n以下为当前界面快照与可用的无障碍动作，请据此规划下一步，并通过 tap / click_element / set_input_text / swipe / press_key / long_press / get_page_info 等工具逐步执行。\n可用动作：tap(x,y)、long_press(x,y)、swipe(start_x,start_y,end_x,end_y)、click_element(resourceId|className|contentDesc|bounds)、set_input_text(text)、press_key(KEYCODE_BACK|HOME|RECENTS|NOTIFICATIONS|QUICK_SETTINGS|POWER_DIALOG)、get_page_info、capture_screenshot。\n（说明：完整的多步自动执行循环为后续增量，本步返回当前界面信息供上层代理驱动。）\n\n当前界面：\n%2$s</string>
+    <string name="ui_subagent_observation_failed">UI 自动化子代理（无障碍通道）已就绪，但读取当前界面信息失败：%1$s。请确认 Tracendroid 无障碍服务正在运行，然后重试。</string>
     <string name="toolreg_set_input_text_desc">设置输入文本: %1$s</string>
     <string name="toolreg_press_key_desc">按下按键: %1$s</string>
     <string name="toolreg_swipe_desc">滑动: (%1$s,%2$s) -&gt; (%3$s,%4$s)</string>
