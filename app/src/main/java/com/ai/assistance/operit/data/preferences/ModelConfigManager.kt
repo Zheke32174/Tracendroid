@@ -307,7 +307,15 @@ class ModelConfigManager(private val context: Context) {
                         name = name,
                         apiProviderType = ApiProviderType.OPENAI_GENERIC,
                         apiProviderTypeId = ApiProviderType.OPENAI_GENERIC.name,
-                        enableToolCall = true
+                        // Default OFF. Native OpenAI tool-calling (the `tools` request field)
+                        // is rejected by many free/proxy models — e.g. opencode_zen's
+                        // deepseek-v4-flash-free returns HTTP 400 invalid_request when `tools`
+                        // is present, which silently kills every tool call the companion makes.
+                        // The XML tool path (enableToolCall = false) describes tools in the
+                        // prompt and is parsed back out, working on ANY text model. New configs
+                        // therefore start universally compatible; users on a known
+                        // tool-capable model can opt into native calling in model settings.
+                        enableToolCall = false
                 )
 
         // 保存新配置

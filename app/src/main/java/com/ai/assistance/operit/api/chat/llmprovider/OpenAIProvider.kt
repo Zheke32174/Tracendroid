@@ -2334,7 +2334,21 @@ open class OpenAIProvider(
                             )
                             // 4xx错误仍保留单独的异常类型，具体是否重试由统一策略决定
                             if (response.code in 400..499) {
-                                throw NonRetriableException(context.getString(R.string.openai_error_api_request_failed_with_status, response.code, errorBody))
+                                // A 400 that mentions tools/invalid_request usually means the
+                                // model or proxy rejected the native `tools` field (many free
+                                // models, e.g. opencode_zen deepseek-free, don't support native
+                                // function-calling). Point the user at the exact fix instead of
+                                // surfacing an opaque "Upstream request failed".
+                                val looksLikeToolRejection = response.code == 400 &&
+                                    (errorBody.contains("tool", ignoreCase = true) ||
+                                        errorBody.contains("invalid_request", ignoreCase = true))
+                                val hint = if (looksLikeToolRejection) {
+                                    "\n\nHint: this model may not support native function/tool " +
+                                        "calling. Turn OFF \"Tool Call\" in this model's settings — " +
+                                        "the app will then describe tools in the prompt (XML tool " +
+                                        "path), which works on any text model."
+                                } else ""
+                                throw NonRetriableException(context.getString(R.string.openai_error_api_request_failed_with_status, response.code, errorBody) + hint)
                             }
                             // 对于5xx等服务端错误，允许重试
                             throw IOException(context.getString(R.string.openai_error_api_request_failed_with_status, response.code, errorBody))
