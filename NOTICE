@@ -1,0 +1,20 @@
+Tracendroid
+Copyright (C) 2023-2026 Operit AI Project Team and contributors
+Licensed under the GNU Lesser General Public License v3.0 (see LICENSE).
+
+This product bundles third-party software. See THIRD_PARTY_LICENSES.md for details.
+
+------------------------------------------------------------------------------
+terminal-emulator/  and  terminal-view/
+------------------------------------------------------------------------------
+In-process pseudo-terminal (PTY) terminal emulator and Android view.
+
+Derived from the Termux project (https://github.com/termux/termux-app),
+vendored via Xed-Editor (https://github.com/Xed-Editor/Xed-Editor).
+
+Licensed under the GNU General Public License, version 3 (GPL-3.0).
+  Termux:      Copyright (C) Fredrik Fornwall and Termux contributors.
+  Xed-Editor:  Copyright (C) 2025 Rohit Kushvaha.
+
+NOTE: Building these GPLv3 modules into the Tracendroid application means the
+distributed APK is conveyed under GPLv3 terms. See THIRD_PARTY_LICENSES.md.

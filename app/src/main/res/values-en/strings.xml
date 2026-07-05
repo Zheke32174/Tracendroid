@@ -1878,6 +1878,9 @@
     <string name="tool_default_assistant_guide_desc">Set Operit voice floating as system default assistant</string>
     <string name="tool_terminal">Command Terminal</string>
     <string name="tool_terminal_desc">Powerful command-line terminal for executing system commands</string>
+    <string name="tool_embedded_terminal">Embedded Terminal</string>
+    <string name="tool_embedded_terminal_desc">In-process PTY terminal — no external terminal app required</string>
+    <string name="screen_title_embedded_terminal">Embedded Terminal</string>
     <string name="tool_terminal_auto_config">Terminal Auto Configuration</string>
     <string name="tool_terminal_auto_config_desc">Automatically install and configure Python, PIP and other development tools</string>
     <string name="tool_terminal_auto_config_under_construction">Terminal auto configuration feature is being refactored...</string>
