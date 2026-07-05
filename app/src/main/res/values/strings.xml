@@ -1959,6 +1959,9 @@
     <string name="tool_default_assistant_guide_desc">设置Operit语音悬浮为系统默认助手</string>
     <string name="tool_terminal">命令终端</string>
     <string name="tool_terminal_desc">功能强大的命令行终端，执行系统指令</string>
+    <string name="tool_embedded_terminal">内置终端</string>
+    <string name="tool_embedded_terminal_desc">进程内 PTY 终端，无需外部终端应用</string>
+    <string name="screen_title_embedded_terminal">内置终端</string>
     <string name="tool_terminal_auto_config">终端自动配置</string>
     <string name="tool_terminal_auto_config_desc">自动安装配置Python、PIP等开发工具</string>
     <string name="tool_terminal_auto_config_under_construction">终端自动配置功能正在重构中...</string>

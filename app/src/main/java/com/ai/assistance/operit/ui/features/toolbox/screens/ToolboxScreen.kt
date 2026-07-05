@@ -30,6 +30,7 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.ffmpegtoolbox.FFmpeg
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.FileManagerScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.logcat.LogcatScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.shellexecutor.ShellExecutorScreen
+import com.ai.assistance.operit.ui.features.toolbox.screens.embeddedterminal.EmbeddedTerminalScreen
 import com.ai.assistance.operit.terminal.main.TerminalScreen as TerminalViewScreen
 // import com.ai.assistance.operit.ui.features.toolbox.screens.terminalconfig.TerminalAutoConfigScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.uidebugger.UIDebuggerScreen
@@ -209,6 +210,27 @@ fun TerminalToolScreen(navController: NavController, forceShowSetup: Boolean = f
         val terminalEnv = rememberTerminalEnv(terminalManager = terminalManager, forceShowSetup = forceShowSetup)
         CustomScaffold() { paddingValues ->
                 Box(modifier = Modifier.padding(paddingValues)) { TerminalViewScreen(env = terminalEnv) }
+        }
+}
+
+/**
+ * Self-contained embedded terminal (Termux-derived in-process PTY, vendored from Xed-Editor).
+ *
+ * This is the PRIMARY, dependency-free terminal path: it spawns a real shell inside this
+ * app's own process and needs NO external OperitTerminal companion app and NO pnpm/pip env
+ * setup stream. The older external-app terminal ([TerminalToolScreen]) is left intact and
+ * still available, but is no longer required to get a working shell.
+ *
+ * NOTE: this delivers the embedded TERMINAL only — the full code editor / code studio is a
+ * deliberate follow-up cornerstone. See EmbeddedTerminalScreen.kt for the scope statement.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EmbeddedTerminalToolScreen(navController: NavController) {
+        CustomScaffold() { paddingValues ->
+                Box(modifier = Modifier.padding(paddingValues)) {
+                        EmbeddedTerminalScreen()
+                }
         }
 }
 

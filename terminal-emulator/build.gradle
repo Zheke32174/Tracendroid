@@ -1,0 +1,60 @@
+// Vendored from Xed-Editor (https://github.com/Xed-Editor/Xed-Editor), which in
+// turn derives this module from the Termux project (https://github.com/termux/termux-app).
+// Termux terminal-emulator is licensed under the GNU GPL v3. See THIRD_PARTY_LICENSES.md
+// and NOTICE at the repository root for attribution.
+//
+// This build file has been RECONCILED to Tracendroid's toolchain:
+//   * compileSdk 37 -> 36 (matches the Tracendroid app compileSdk)
+//   * Java 21 -> 17 (Tracendroid uses JDK 17 on CI; the Termux Java sources compile under 17)
+//   * removed the `maven-publish` plugin and sourceJar task (not needed for an in-tree module)
+//   * dropped the pinned ndkVersion (was 28.2.13676358) so it inherits the app/root NDK (29.0.x)
+//   * replaced version-catalog aliases (libs.androidx.annotation / libs.junit) with explicit
+//     coordinates so this module does not require those aliases in Tracendroid's catalog
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 36
+    namespace = "com.termux.terminal"
+
+    defaultConfig {
+        minSdkVersion 26
+        externalNativeBuild {
+            ndkBuild {
+                cFlags "-std=c11", "-Wall", "-Wextra", "-Werror", "-Os", "-fno-stack-protector", "-Wl,--gc-sections"
+            }
+        }
+
+        ndk {
+            // The native lib is cheap to build for all four ABIs; the app-level
+            // abiFilters (arm64-v8a only) decide what actually ships in the APK.
+            abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    externalNativeBuild {
+        ndkBuild {
+            path "src/main/jni/Android.mk"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+dependencies {
+    implementation 'androidx.annotation:annotation:1.7.1'
+    testImplementation 'junit:junit:4.13.2'
+}

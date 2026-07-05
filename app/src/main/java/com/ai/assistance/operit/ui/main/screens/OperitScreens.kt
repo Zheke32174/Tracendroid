@@ -78,6 +78,7 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.ShellExecutorToolScr
 import com.ai.assistance.operit.ui.features.toolbox.screens.StreamMarkdownDemoScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.TerminalAutoConfigToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.TerminalToolScreen
+import com.ai.assistance.operit.ui.features.toolbox.screens.EmbeddedTerminalToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.ToolboxScreen
 import com.ai.assistance.operit.ui.common.composedsl.ToolPkgComposeDslToolScreen
 import com.ai.assistance.operit.ui.features.toolbox.screens.UIDebuggerToolScreen
@@ -1283,6 +1284,26 @@ sealed class Screen(
                 onGestureConsumed: (Boolean) -> Unit
         ) {
             TerminalToolScreen(navController = navController, forceShowSetup = true)
+        }
+    }
+
+    // Self-contained embedded terminal: an in-process PTY shell (Termux-derived, vendored from
+    // Xed-Editor) that needs no external OperitTerminal companion app. This is the primary path;
+    // the external-app Terminal above is kept but no longer required. Terminal brick only —
+    // the full code editor is a follow-up cornerstone.
+    data object EmbeddedTerminal :
+            Screen(navItem = NavItem.Toolbox, titleRes = R.string.screen_title_embedded_terminal) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            EmbeddedTerminalToolScreen(navController = navController)
         }
     }
 

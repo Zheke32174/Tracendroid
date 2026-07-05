@@ -190,6 +190,11 @@ dependencies {
     implementation(project(":mmd"))
     implementation(project(":fbx"))
     implementation(project(":quickjs"))
+    // Self-contained embedded terminal (Termux-derived PTY, vendored from Xed-Editor).
+    // :terminal-view pulls in :terminal-emulator transitively via its `api` dependency.
+    // This is what lets EmbeddedTerminalScreen run a shell in-process, with no external
+    // OperitTerminal companion app required. See THIRD_PARTY_LICENSES.md for GPLv3 notice.
+    implementation(project(":terminal-view"))
 
     // glTF runtime rendering (Filament)
     implementation("com.google.android.filament:filament-android:1.69.2")
