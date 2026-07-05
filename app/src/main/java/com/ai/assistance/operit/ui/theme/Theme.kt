@@ -61,8 +61,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+// com.kyant.backdrop removed (breaks KAPT stub generation) — see LiquidGlass.kt
 import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.rememberLiquidState
 
@@ -351,15 +350,14 @@ fun OperitTheme(content: @Composable () -> Unit) {
 
     // 应用主题和自定义背景
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val liquidGlassBackdrop = rememberLayerBackdrop()
         val waterGlassState = if (isWaterGlassSupported()) rememberLiquidState() else null
 
         CompositionLocalProvider(
-            LocalLiquidGlassBackdrop provides liquidGlassBackdrop,
+            LocalLiquidGlassBackdrop provides null,
             LocalWaterGlassState provides waterGlassState,
         ) {
             Box(
-                modifier = Modifier.fillMaxSize().layerBackdrop(liquidGlassBackdrop)
+                modifier = Modifier.fillMaxSize()
             ) {
                 Box(
                     modifier =

@@ -14,15 +14,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
-import com.kyant.backdrop.highlight.Highlight
-import com.kyant.backdrop.shadow.Shadow
 
-val LocalLiquidGlassBackdrop = compositionLocalOf<Backdrop?> { null }
+// The com.kyant.backdrop "liquid glass" refraction/blur was removed: its
+// Compose-typed API cannot be processed by KAPT stub generation (this module
+// runs Room/ObjectBox annotation processing through KAPT, not KSP), which broke
+// the whole app build ("cannot access Backdrop"). liquidGlass() now always
+// renders the built-in fallback (shadow + border + translucent tint + gloss) —
+// which was already the designed no-backdrop path, so every caller is unchanged.
+// LocalLiquidGlassBackdrop is retained as a nullable Any? for source
+// compatibility with Theme.kt. Restoring the true blur needs a KSP migration.
+val LocalLiquidGlassBackdrop = compositionLocalOf<Any?> { null }
 
 private const val LiquidGlassMinApi = Build.VERSION_CODES.TIRAMISU
 
@@ -43,85 +44,39 @@ fun Modifier.liquidGlass(
         return this
     }
 
-    val backdrop = if (isLiquidGlassSupported()) LocalLiquidGlassBackdrop.current else null
     val isLightGlass = containerColor.luminance() >= 0.5f
-    if (backdrop == null) {
-        val fallbackBorderColor =
-            if (isLightGlass) {
-                Color.White.copy(alpha = 0.28f)
-            } else {
-                Color.White.copy(alpha = 0.16f)
-            }
-        val fallbackShadow = shadowElevation.coerceAtLeast(10.dp)
-        val fallbackSurfaceTint =
-            if (isLightGlass) {
-                containerColor.copy(alpha = 0.16f)
-            } else {
-                containerColor.copy(alpha = 0.24f)
-            }
-        val fallbackGloss =
-            if (isLightGlass) {
-                Color.White.copy(alpha = 0.12f)
-            } else {
-                Color.White.copy(alpha = 0.06f)
-            }
-
-        return this
-            .shadow(
-                elevation = fallbackShadow,
-                shape = shape,
-                clip = false,
-                ambientColor = Color.Black.copy(alpha = if (isLightGlass) 0.10f else 0.18f),
-                spotColor = Color.Black.copy(alpha = if (isLightGlass) 0.10f else 0.18f),
-            )
-            .border(width = borderWidth.coerceAtLeast(0.6.dp), color = fallbackBorderColor, shape = shape)
-            .background(color = fallbackSurfaceTint, shape = shape)
-            .drawWithContent {
-                drawContent()
-                drawRect(fallbackGloss)
-            }
-    }
-    val baseTintAlpha = if (isLightGlass) 0.16f else 0.23f
-    val surfaceTint =
-        containerColor.copy(alpha = (baseTintAlpha + overlayAlphaBoost).coerceIn(0f, 0.48f))
-    val edgeWidth = borderWidth.coerceAtLeast(0.2.dp)
-    val shadowRadius = shadowElevation.coerceAtLeast(12.dp)
-    val shadowColor =
+    val fallbackBorderColor =
         if (isLightGlass) {
-            Color.Black.copy(alpha = 0.10f)
+            Color.White.copy(alpha = 0.28f)
         } else {
-            Color.Black.copy(alpha = 0.18f)
+            Color.White.copy(alpha = 0.16f)
+        }
+    val fallbackShadow = shadowElevation.coerceAtLeast(10.dp)
+    val fallbackSurfaceTint =
+        if (isLightGlass) {
+            containerColor.copy(alpha = (0.16f + overlayAlphaBoost).coerceIn(0f, 0.48f))
+        } else {
+            containerColor.copy(alpha = (0.24f + overlayAlphaBoost).coerceIn(0f, 0.48f))
+        }
+    val fallbackGloss =
+        if (isLightGlass) {
+            Color.White.copy(alpha = 0.12f)
+        } else {
+            Color.White.copy(alpha = 0.06f)
         }
 
-    return this.drawBackdrop(
-        backdrop = backdrop,
-        shape = { shape },
-        effects = {
-            vibrancy()
-            blur(blurRadius.toPx())
-            if (enableLens) {
-                lens(
-                    refractionHeight = 12.dp.toPx(),
-                    refractionAmount = 18.dp.toPx(),
-                    chromaticAberration = true,
-                )
-            }
-        },
-        highlight = {
-            Highlight(
-                width = edgeWidth,
-                blurRadius = edgeWidth * 2.4f,
-                alpha = if (isLightGlass) 0.62f else 0.50f,
-            )
-        },
-        shadow = {
-            Shadow(
-                radius = shadowRadius,
-                color = shadowColor,
-            )
-        },
-        onDrawSurface = {
-            drawRect(surfaceTint)
-        },
-    )
+    return this
+        .shadow(
+            elevation = fallbackShadow,
+            shape = shape,
+            clip = false,
+            ambientColor = Color.Black.copy(alpha = if (isLightGlass) 0.10f else 0.18f),
+            spotColor = Color.Black.copy(alpha = if (isLightGlass) 0.10f else 0.18f),
+        )
+        .border(width = borderWidth.coerceAtLeast(0.6.dp), color = fallbackBorderColor, shape = shape)
+        .background(color = fallbackSurfaceTint, shape = shape)
+        .drawWithContent {
+            drawContent()
+            drawRect(fallbackGloss)
+        }
 }
