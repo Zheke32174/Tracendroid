@@ -7371,7 +7371,7 @@
     <string name="mcp_market_install_failed_with_error">Install failed: %1$s</string>
     <string name="mcp_uninstall_failed">Uninstall failed</string>
     <string name="skillmarket_install_failed">Install failed: %1$s</string>
-    <string name="tool_ui_debugger_desc">Inspect the current screen's UI hierarchy.</string>
+    <string name="tool_ui_debugger_desc">Inspect the current screen&#39;s UI hierarchy.</string>
     <string name="ui_debugger_description">Inspect on-screen UI elements and activities.</string>
     <string name="ui_debugger_launch_floating">Launch floating inspector</string>
     <string name="ui_debugger_title">UI Debugger</string>
