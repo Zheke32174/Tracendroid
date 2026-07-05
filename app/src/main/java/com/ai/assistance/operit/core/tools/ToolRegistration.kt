@@ -2299,6 +2299,22 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             }
     )
 
+    // 轮询等待某个屏幕元素出现（仅查询，不点击）——为界面加载/切换/动画提供韧性
+    handler.registerTool(
+            name = "wait_for_element",
+            descriptionGenerator = { tool ->
+                val matcher = tool.parameters.find { it.name == "matcher" }?.value
+                        ?: tool.parameters.find { it.name == "query" }?.value ?: ""
+                val timeout = tool.parameters.find { it.name == "timeout_ms" }?.value ?: "5000"
+                s(R.string.toolreg_wait_for_element_desc, matcher, timeout)
+            },
+            executor = { tool ->
+                runBlocking(Dispatchers.IO) {
+                    executeUiToolWithVisibility(tool) { uiTools.waitForElement(it) }
+                }
+            }
+    )
+
     // 在输入框中设置文本
     handler.registerTool(
             name = "set_input_text",

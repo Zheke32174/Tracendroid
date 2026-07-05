@@ -5316,6 +5316,7 @@
     <string name="toolreg_dump_ui_tree_desc">Dump current UI hierarchy (format: %1$s)</string>
     <string name="toolreg_find_ui_element_desc">Find on-screen element: \"%1$s\" (by %2$s)</string>
     <string name="toolreg_fill_form_desc">Autofill form inputs (set only, no submit): %1$s</string>
+    <string name="toolreg_wait_for_element_desc">Wait for on-screen element (query only, no click): \"%1$s\" (timeout %2$s ms)</string>
     <string name="toolreg_schedule_task_desc">Schedule/cancel a workflow: %1$s (action: %2$s)</string>
     <!-- UI sub-agent (accessibility transport) runtime messages -->
     <string name="ui_subagent_standard_unavailable">The UI automation sub-agent requires the accessibility transport. This tool is currently running at the STANDARD permission level and cannot drive the UI. Switch the preferred permission level to ACCESSIBILITY in settings and enable the Tracendroid accessibility service, then retry.</string>

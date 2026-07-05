@@ -12,6 +12,7 @@ import com.ai.assistance.operit.core.tools.UIActionResultData
 import com.ai.assistance.operit.core.tools.UIElementMatchData
 import com.ai.assistance.operit.core.tools.UIPageResultData
 import com.ai.assistance.operit.core.tools.UITreeResultData
+import com.ai.assistance.operit.core.tools.WaitForElementResultData
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardUITools
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
@@ -50,6 +51,29 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
         private const val DEFAULT_SUBAGENT_STEPS = 8
         private const val MAX_SUBAGENT_STEPS = 12
         private const val SUBAGENT_STEP_SETTLE_MS = 400L
+
+        // --- Loop resilience (brick 5) ---
+        // After each action the loop waits for the screen to stop changing before the next observe,
+        // so decisions run against a settled UI. waitForStableScreen polls the hierarchy every
+        // STABLE_POLL_INTERVAL_MS and returns once two consecutive snapshots are equal (the screen has
+        // been quiet for at least STABLE_QUIET_MS) or SUBAGENT_STABLE_TIMEOUT_MS elapses. All values are
+        // small and hard-bounded so the settle step can never dominate the loop's wall-clock.
+        private const val STABLE_POLL_INTERVAL_MS = 120L
+        private const val STABLE_QUIET_MS = 240L
+        private const val SUBAGENT_STABLE_TIMEOUT_MS = 2500L
+        private const val MAX_STABLE_TIMEOUT_MS = 15000L
+
+        // Bounded retry/backoff for the transient-failure-prone accessibility ops the loop drives
+        // (observe + act). A step that comes back empty/failed is retried up to
+        // SUBAGENT_OP_MAX_ATTEMPTS times with a growing delay before the loop gives up on it. This only
+        // adds resilience around each existing step — it never widens the loop's own step budget.
+        private const val SUBAGENT_OP_MAX_ATTEMPTS = 3
+        private const val SUBAGENT_OP_BACKOFF_BASE_MS = 150L
+
+        // Bounds for the wait_for_element tool's polling loop.
+        private const val WAIT_ELEMENT_DEFAULT_TIMEOUT_MS = 5000L
+        private const val WAIT_ELEMENT_MAX_TIMEOUT_MS = 30000L
+        private const val WAIT_ELEMENT_POLL_INTERVAL_MS = 200L
     }
 
     /**
@@ -92,6 +116,129 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
         
         AppLogger.w(TAG, "获取UI层次结构失败，已重试${MAX_RETRY_COUNT}次")
         return uiXml
+    }
+
+    /**
+     * Outcome of a [waitForStableScreen] poll: whether the screen settled (two consecutive equal
+     * snapshots seen) within the timeout, how many polls it took, and the last hierarchy snapshot so a
+     * caller can reuse it without re-reading.
+     */
+    private data class StableScreenResult(
+        val stabilized: Boolean,
+        val polls: Int,
+        val elapsedMs: Long,
+        val lastHierarchy: String
+    )
+
+    /**
+     * Poll the live accessibility hierarchy until the screen settles — two consecutive snapshots are
+     * byte-for-byte equal (the UI has been quiet for at least [quietMs]) — or [timeoutMs] elapses.
+     *
+     * Used by the sub-agent loop to let the UI settle AFTER each action before the next observation, so
+     * decisions run against a stable screen instead of a mid-animation/mid-load one. It replaces the
+     * old fixed inter-step sleep with an adaptive wait that returns as soon as the screen is quiet (and
+     * caps out at [timeoutMs] so a screen that never settles — a spinner, a video — cannot stall the
+     * loop).
+     *
+     * Fully guarded: a failed/empty read is treated as "not yet settled" and simply retried on the next
+     * poll; it never throws. Returns [StableScreenResult.stabilized] = false when the timeout is hit
+     * without two equal consecutive snapshots (the caller proceeds anyway with the latest snapshot).
+     *
+     * Accessibility-only: the sole side-effect-free primitive it calls is [getUIHierarchyWithRetry].
+     */
+    private suspend fun waitForStableScreen(
+        timeoutMs: Long = SUBAGENT_STABLE_TIMEOUT_MS,
+        quietMs: Long = STABLE_QUIET_MS
+    ): StableScreenResult {
+        val budget = timeoutMs.coerceIn(0L, MAX_STABLE_TIMEOUT_MS)
+        val start = System.currentTimeMillis()
+        var previous: String? = null
+        var last = ""
+        var polls = 0
+        // How long the current snapshot has been unchanged; we require it to reach quietMs.
+        var quietSince = -1L
+
+        while (true) {
+            val current = try {
+                getUIHierarchyWithRetry()
+            } catch (e: Exception) {
+                AppLogger.w(TAG, "waitForStableScreen read failed; treating as unsettled", e)
+                ""
+            }
+            polls++
+            if (current.isNotEmpty()) {
+                last = current
+                if (previous != null && current == previous) {
+                    if (quietSince < 0L) quietSince = System.currentTimeMillis()
+                    // Two consecutive equal reads AND the screen has been quiet long enough.
+                    if (System.currentTimeMillis() - quietSince >= quietMs) {
+                        return StableScreenResult(
+                            stabilized = true,
+                            polls = polls,
+                            elapsedMs = System.currentTimeMillis() - start,
+                            lastHierarchy = last
+                        )
+                    }
+                } else {
+                    // Screen changed (or first read) — reset the quiet window.
+                    quietSince = -1L
+                }
+                previous = current
+            }
+
+            val elapsed = System.currentTimeMillis() - start
+            if (elapsed >= budget) {
+                return StableScreenResult(
+                    stabilized = false,
+                    polls = polls,
+                    elapsedMs = elapsed,
+                    lastHierarchy = last
+                )
+            }
+            // Sleep, but never past the remaining budget.
+            delay(minOf(STABLE_POLL_INTERVAL_MS, (budget - elapsed).coerceAtLeast(1L)))
+        }
+    }
+
+    /**
+     * Bounded retry/backoff wrapper for the transient-failure-prone accessibility ops the loop drives
+     * (observe + act). Runs [op] up to [maxAttempts] times; if an attempt returns null or a
+     * [ToolResult] with `success == false` (an empty/failed step, the usual transient case — the
+     * hierarchy briefly unavailable, a node not yet laid out), it waits a growing delay
+     * ([SUBAGENT_OP_BACKOFF_BASE_MS] * attempt) and retries, returning the first successful result. If
+     * every attempt fails it returns the LAST result so the caller sees a real error rather than a
+     * silent null. A thrown exception is caught and, on the final attempt, surfaced as a failed
+     * [ToolResult] via [onError]; earlier throws just trigger a backoff+retry.
+     *
+     * This only adds resilience AROUND each existing step. It does not change the action vocabulary,
+     * the decider contract, or the loop's own step cap — the loop still counts one step regardless of
+     * how many internal attempts a step took.
+     */
+    private suspend fun retryTransientOp(
+        maxAttempts: Int = SUBAGENT_OP_MAX_ATTEMPTS,
+        label: String,
+        onError: (Throwable) -> ToolResult,
+        op: suspend () -> ToolResult?
+    ): ToolResult? {
+        val attempts = maxAttempts.coerceAtLeast(1)
+        var lastResult: ToolResult? = null
+        for (attempt in 1..attempts) {
+            val result = try {
+                op()
+            } catch (e: Exception) {
+                AppLogger.w(TAG, "retryTransientOp[$label] attempt $attempt threw", e)
+                if (attempt >= attempts) return onError(e)
+                delay(SUBAGENT_OP_BACKOFF_BASE_MS * attempt)
+                continue
+            }
+            if (result != null && result.success) return result
+            lastResult = result
+            if (attempt < attempts) {
+                AppLogger.d(TAG, "retryTransientOp[$label] attempt $attempt not successful; backing off")
+                delay(SUBAGENT_OP_BACKOFF_BASE_MS * attempt)
+            }
+        }
+        return lastResult
     }
 
     /**
@@ -238,13 +385,20 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
 
         var step = 1
         while (step <= maxSteps) {
-            // 1) OBSERVE
-            val pageInfo = try {
-                getPageInfo(tool)
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "Sub-agent observe failed at step $step", e)
-                null
-            }
+            // 1) OBSERVE — retry/backoff around the transient-failure-prone page read. This does not
+            // consume extra loop steps; it only makes a single observe robust to a briefly-unavailable
+            // hierarchy.
+            val pageInfo = retryTransientOp(
+                label = "observe",
+                onError = { e ->
+                    ToolResult(
+                        toolName = tool.name,
+                        success = false,
+                        result = StringResultData(""),
+                        error = e.message ?: "observation threw"
+                    )
+                }
+            ) { getPageInfo(tool) }
             if (pageInfo == null || !pageInfo.success) {
                 val reason = pageInfo?.error ?: "observation returned no result"
                 // On the very first step a failed observation is a hard failure (nothing to report).
@@ -298,17 +452,39 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
                 break
             }
 
-            // 3) ACT
-            val actResult = try {
-                executeUiAction(action)
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "Sub-agent act failed at step $step", e)
-                ToolResult(
+            // 3) ACT — retry/backoff around the action primitive. WAIT/DONE/UNKNOWN are pure and not
+            // worth retrying, so only the transient-failure-prone actions (that actually touch the
+            // AccessibilityService) go through the wrapper; a null from the wrapper is normalized to a
+            // failed ToolResult. Retries never consume extra loop steps.
+            val actResult: ToolResult = if (isRetriableAction(action.type)) {
+                retryTransientOp(
+                    label = "act:${action.type}",
+                    onError = { e ->
+                        ToolResult(
+                            toolName = tool.name,
+                            success = false,
+                            result = StringResultData(""),
+                            error = e.message ?: "action threw"
+                        )
+                    }
+                ) { executeUiAction(action) } ?: ToolResult(
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = e.message ?: "action threw"
+                    error = "action returned no result"
                 )
+            } else {
+                try {
+                    executeUiAction(action)
+                } catch (e: Exception) {
+                    AppLogger.e(TAG, "Sub-agent act failed at step $step", e)
+                    ToolResult(
+                        toolName = tool.name,
+                        success = false,
+                        result = StringResultData(""),
+                        error = e.message ?: "action threw"
+                    )
+                }
             }
 
             // 4) RECORD
@@ -322,8 +498,11 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
             // A failed action ends the loop with the partial transcript (never crash / never spin).
             if (!actResult.success) break
 
-            // Let the UI settle before the next observation.
-            delay(SUBAGENT_STEP_SETTLE_MS)
+            // Let the UI settle before the next observation: wait until the screen stops changing (two
+            // consecutive equal snapshots) or the settle budget elapses, so the next observe/decide runs
+            // against a stable UI. Adaptive replacement for the old fixed inter-step sleep; guarded so a
+            // never-settling screen simply proceeds after the timeout.
+            waitForStableScreen()
             step++
         }
 
@@ -369,6 +548,25 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
             UiActionType.DONE -> "done"
             UiActionType.UNKNOWN -> "unknown"
         }
+    }
+
+    /**
+     * Whether an action is worth retrying on transient failure. The actions that actually touch the
+     * AccessibilityService (and so can fail transiently — hierarchy briefly unavailable, node not yet
+     * laid out) are retriable; the pure/no-op actions (WAIT, and the terminal DONE/UNKNOWN which never
+     * reach [executeUiAction] as a real op) are not. This is a resilience classification only — it does
+     * NOT alter the action vocabulary or how any action executes.
+     */
+    private fun isRetriableAction(type: UiActionType): Boolean = when (type) {
+        UiActionType.CLICK,
+        UiActionType.SET_TEXT,
+        UiActionType.TAP,
+        UiActionType.LONG_PRESS,
+        UiActionType.SWIPE,
+        UiActionType.PRESS_KEY -> true
+        UiActionType.WAIT,
+        UiActionType.DONE,
+        UiActionType.UNKNOWN -> false
     }
 
     /**
@@ -1087,6 +1285,163 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
                 error = "Error finding UI element: ${e.message}"
             )
         }
+    }
+
+    /**
+     * Poll for an on-screen element until it appears or a timeout elapses (the `wait_for_element`
+     * tool) — the resilience counterpart to [findUiElement] for automation that must wait for a screen
+     * to catch up (after a navigation, a load, an animation).
+     *
+     * Contract: given a `matcher` (substring, checked against visible text / content-description /
+     * resource-id, the same fields [findUiElement] uses; a `by` param can restrict to one field) and an
+     * optional `timeout_ms` (default [WAIT_ELEMENT_DEFAULT_TIMEOUT_MS], hard-capped at
+     * [WAIT_ELEMENT_MAX_TIMEOUT_MS]), it re-reads the live hierarchy every
+     * [WAIT_ELEMENT_POLL_INTERVAL_MS] and returns as soon as a match is found — reusing the exact same
+     * [findNodesInXml] matching path — or reports `found = false` when the budget runs out. It performs
+     * NO click or other action; it only waits and reports the first match's bounds + center.
+     *
+     * Fully guarded: a failed/empty read on any poll is treated as "not found yet" and retried; the
+     * tool result is successful whether or not the element eventually appeared (a timeout is a normal
+     * `found = false` outcome, not an error). Gated by the accessibility check with the same honest
+     * "enable the Tracendroid accessibility service" message the other accessibility tools use.
+     */
+    override suspend fun waitForElement(tool: AITool): ToolResult {
+        return try {
+            if (!isAccessibilityServiceEnabled()) {
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = context.getString(R.string.ui_subagent_accessibility_disabled)
+                )
+            }
+
+            // Accept `matcher` (preferred) or `query` (alias, mirrors find_ui_element) for the needle.
+            val matcher = (tool.parameters.find { it.name == "matcher" }?.value
+                ?: tool.parameters.find { it.name == "query" }?.value)
+                ?.trim().orEmpty()
+            if (matcher.isEmpty()) {
+                return ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = "Missing required parameter: matcher (visible text, content-description, or resource-id substring to wait for)."
+                )
+            }
+
+            // `by` restricts which field the substring must appear in. Default "any" checks all three
+            // (same vocabulary as find_ui_element).
+            val by = when (tool.parameters.find { it.name == "by" }?.value?.trim()?.lowercase()) {
+                "text" -> "text"
+                "desc", "content-desc", "contentdesc" -> "desc"
+                "id", "resourceid", "resource-id" -> "id"
+                else -> "any"
+            }
+            val timeoutMs = (tool.parameters.find { it.name == "timeout_ms" }?.value?.toLongOrNull()
+                ?: WAIT_ELEMENT_DEFAULT_TIMEOUT_MS).coerceIn(0L, WAIT_ELEMENT_MAX_TIMEOUT_MS)
+
+            val needle = matcher.lowercase()
+            val start = System.currentTimeMillis()
+            var polls = 0
+
+            while (true) {
+                polls++
+                val match = pollForElement(needle, by)
+                if (match != null) {
+                    val resultData = WaitForElementResultData(
+                        matcher = matcher,
+                        matchBy = by,
+                        found = true,
+                        waitedMs = System.currentTimeMillis() - start,
+                        polls = polls,
+                        match = match
+                    )
+                    return ToolResult(toolName = tool.name, success = true, result = resultData, error = "")
+                }
+
+                val elapsed = System.currentTimeMillis() - start
+                if (elapsed >= timeoutMs) {
+                    val resultData = WaitForElementResultData(
+                        matcher = matcher,
+                        matchBy = by,
+                        found = false,
+                        waitedMs = elapsed,
+                        polls = polls,
+                        match = null
+                    )
+                    // Not finding the element within the timeout is a normal outcome, not an error.
+                    return ToolResult(toolName = tool.name, success = true, result = resultData, error = "")
+                }
+                delay(minOf(WAIT_ELEMENT_POLL_INTERVAL_MS, (timeoutMs - elapsed).coerceAtLeast(1L)))
+            }
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "Error waiting for UI element", e)
+            ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = "Error waiting for UI element: ${e.message}"
+            )
+        }
+    }
+
+    /**
+     * One poll of [waitForElement]: read the live hierarchy and return the first node whose
+     * text/desc/id (restricted by [by]) contains [needle], or null if the read failed or nothing
+     * matched. Reuses [findNodesInXml] — the same matcher [findUiElement]/[clickElement] use — so the
+     * find/match logic is shared, not re-implemented.
+     */
+    private suspend fun pollForElement(
+        needle: String,
+        by: String
+    ): WaitForElementResultData.Match? {
+        val uiXml = try {
+            getUIHierarchyWithRetry()
+        } catch (e: Exception) {
+            AppLogger.w(TAG, "wait_for_element poll read failed; treating as no-match", e)
+            ""
+        }
+        if (uiXml.isEmpty()) return null
+
+        var found: WaitForElementResultData.Match? = null
+        findNodesInXml(uiXml) { parser ->
+            if (found != null) return@findNodesInXml false
+
+            val text = parser.getAttributeValue(null, "text")
+            val desc = parser.getAttributeValue(null, "content-desc")
+            val id = parser.getAttributeValue(null, "resource-id")
+            val className = parser.getAttributeValue(null, "class")?.substringAfterLast('.')
+            val bounds = parser.getAttributeValue(null, "bounds")
+
+            val matchesText = !text.isNullOrEmpty() && text.lowercase().contains(needle)
+            val matchesDesc = !desc.isNullOrEmpty() && desc.lowercase().contains(needle)
+            val matchesId = !id.isNullOrEmpty() && id.lowercase().contains(needle)
+
+            val hit = when (by) {
+                "text" -> matchesText
+                "desc" -> matchesDesc
+                "id" -> matchesId
+                else -> matchesText || matchesDesc || matchesId
+            }
+            if (!hit) return@findNodesInXml false
+
+            val (cx, cy) = if (!bounds.isNullOrBlank()) {
+                val rect = parseBounds(bounds)
+                if (rect.isEmpty) null to null else rect.centerX() to rect.centerY()
+            } else null to null
+
+            found = WaitForElementResultData.Match(
+                text = text,
+                contentDesc = desc,
+                resourceId = id,
+                className = className,
+                bounds = bounds,
+                centerX = cx,
+                centerY = cy
+            )
+            true
+        }
+        return found
     }
 
     /**

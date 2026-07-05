@@ -104,6 +104,9 @@ object JsCapabilityClassifier {
         // carry the UI_AUTOMATION capability rather than a weaker read class.
         put("dump_ui_tree", JsCapabilityClass.UI_AUTOMATION)
         put("find_ui_element", JsCapabilityClass.UI_AUTOMATION)
+        // Poll-until-present element wait: read-only (no click), but polling the live UI hierarchy
+        // exposes the same on-screen surface as the other UI reads, so it carries UI_AUTOMATION.
+        put("wait_for_element", JsCapabilityClass.UI_AUTOMATION)
         // Query-and-set autofill: locates editable inputs and writes text into them via the
         // AccessibilityService (no submit/click). Driving inputs is UI automation.
         put("fill_form", JsCapabilityClass.UI_AUTOMATION)

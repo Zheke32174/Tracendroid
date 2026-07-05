@@ -412,6 +412,25 @@ open class StandardUITools(protected val context: Context) {
         )
     }
 
+    /**
+     * Polls the live UI hierarchy until an element matching a text / content-description / resource-id
+     * appears (or a timeout elapses), returning whether it was found plus its bounds/center — the
+     * resilience counterpart to [findUiElement] for automation loops that must wait for a screen to
+     * catch up. Read-only (no click). Needs the AccessibilityService transport, so the functional
+     * implementation lives in
+     * [com.ai.assistance.operit.core.tools.defaultTool.accessbility.AccessibilityUITools.waitForElement].
+     * The STANDARD tier cannot read the live hierarchy safely and returns an honest "not supported"
+     * message.
+     */
+    open suspend fun waitForElement(tool: AITool): ToolResult {
+        return ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = OPERATION_NOT_SUPPORTED
+        )
+    }
+
     /** Sets text in an input field */
     open suspend fun setInputText(tool: AITool): ToolResult {
                 return ToolResult(

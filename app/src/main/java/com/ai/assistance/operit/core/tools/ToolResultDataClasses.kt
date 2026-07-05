@@ -928,6 +928,60 @@ data class UIElementMatchData(
 }
 
 /**
+ * Result of a poll-until-present element wait (the `wait_for_element` tool).
+ *
+ * The resilience counterpart to [UIElementMatchData]: instead of a one-shot search it reports whether
+ * an element matching the requested substring appeared within the timeout ([found]), how long it
+ * waited ([waitedMs]) and how many polls it took ([polls]), plus the first matching node ([match],
+ * null on timeout). Read-only — like [find_ui_element] it NEVER clicks; it only waits and reports.
+ * A timeout is a normal `found = false` result, not an error.
+ */
+@Serializable
+data class WaitForElementResultData(
+        val matcher: String,
+        val matchBy: String,
+        val found: Boolean,
+        val waitedMs: Long,
+        val polls: Int,
+        val match: Match?
+) : ToolResultData() {
+    @Serializable
+    data class Match(
+            val text: String?,
+            val contentDesc: String?,
+            val resourceId: String?,
+            val className: String?,
+            val bounds: String?,
+            val centerX: Int?,
+            val centerY: Int?
+    )
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        if (!found || match == null) {
+            sb.appendLine(
+                    "wait_for_element: \"$matcher\" (by $matchBy) NOT found after ${waitedMs}ms ($polls poll(s))."
+            )
+            return sb.toString()
+        }
+        sb.appendLine(
+                "wait_for_element: \"$matcher\" (by $matchBy) found after ${waitedMs}ms ($polls poll(s)):"
+        )
+        sb.append("-")
+        match.text?.takeIf { it.isNotBlank() }?.let { sb.append(" T:\"$it\"") }
+        match.contentDesc?.takeIf { it.isNotBlank() }?.let { sb.append(" D:\"$it\"") }
+        match.resourceId?.takeIf { it.isNotBlank() }?.let { sb.append(" ID:$it") }
+        match.className?.takeIf { it.isNotBlank() }?.let { sb.append(" [$it]") }
+        match.bounds?.let { sb.append(" bounds:$it") }
+        if (match.centerX != null && match.centerY != null) {
+            sb.append(" center:(${match.centerX},${match.centerY})")
+        }
+        sb.appendLine()
+        return sb.toString()
+    }
+}
+
+/**
  * Result of a query-and-set form autofill pass (the `fill_form` tool).
  *
  * For each requested field the tool reports whether the matching editable node was found and its
