@@ -6,7 +6,7 @@ import java.io.File
 import java.time.Duration
 import org.apache.sshd.client.SshClient
 import org.apache.sshd.client.keyverifier.AcceptAllServerKeyVerifier
-import org.apache.sshd.common.config.keys.loader.FileKeyPairProvider
+import org.apache.sshd.common.keyprovider.FileKeyPairProvider
 
 /**
  * [ShellTransport] backed by SSH into the phone's own "ryznix" Termux/Ubuntu userland.
