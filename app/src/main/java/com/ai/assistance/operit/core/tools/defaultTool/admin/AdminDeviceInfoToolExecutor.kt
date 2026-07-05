@@ -1,9 +1,14 @@
 package com.ai.assistance.operit.core.tools.defaultTool.admin
 
 import android.content.Context
-import com.ai.assistance.operit.core.tools.defaultTool.debugger.DebuggerDeviceInfoToolExecutor
+import com.ai.assistance.operit.core.tools.defaultTool.accessbility.AccessibilityDeviceInfoToolExecutor
 
-/** 管理员级别的设备信息工具，继承调试版本 */
-open class AdminDeviceInfoToolExecutor(context: Context) : DebuggerDeviceInfoToolExecutor(context) {
-    // 当前阶段不添加新功能，仅继承调试实现
+/**
+ * 管理员级别的设备信息工具。
+ *
+ * 原继承已被安全加固移除的 DebuggerDeviceInfoToolExecutor，现下沉到现存的最高安全层
+ * AccessibilityDeviceInfoToolExecutor（与 AdminUITools 保持一致）。
+ */
+open class AdminDeviceInfoToolExecutor(context: Context) : AccessibilityDeviceInfoToolExecutor(context) {
+    // 调试层移除后不新增功能，直接继承无障碍实现。
 }
