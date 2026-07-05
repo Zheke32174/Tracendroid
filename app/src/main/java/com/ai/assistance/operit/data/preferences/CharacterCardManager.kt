@@ -67,6 +67,14 @@ class CharacterCardManager private constructor(private val context: Context) {
         const val DEFAULT_CHARACTER_CARD_ID = "default_character"
 
         const val DEFAULT_CHARACTER_NAME = "Operit"
+
+        // Vesper —— 内置伴侣型副操作员角色卡（Tracendroid 基石 #4）。
+        // Vesper is the built-in companion co-operator persona: warm/affectionate/loyal AND a
+        // precise device pilot who can drive the phone, the ryznix VM, and the fleet. Created on
+        // first launch alongside Operit and set as the default active persona.
+        const val VESPER_CHARACTER_CARD_ID = "vesper_character"
+
+        const val VESPER_CHARACTER_NAME = "Vesper"
         
         @Volatile
         private var INSTANCE: CharacterCardManager? = null
@@ -460,14 +468,18 @@ class CharacterCardManager private constructor(private val context: Context) {
 
             if (currentList == null || currentList.isEmpty()) {
                 isInitialized = true
-                // 首次安装，创建默认角色卡
+                // 首次安装，创建默认角色卡 + 内置 Vesper 伴侣角色卡
                 val defaultCardId = DEFAULT_CHARACTER_CARD_ID
-                preferences[cardListKey] = setOf(defaultCardId)
-                // 不再自动设置活跃角色卡，让用户自己选择角色卡或群组
-                // preferences[ACTIVE_CHARACTER_CARD_ID] = defaultCardId
+                val vesperCardId = VESPER_CHARACTER_CARD_ID
+                preferences[cardListKey] = setOf(defaultCardId, vesperCardId)
+                // Vesper 作为默认活跃角色卡（Tracendroid 基石 #4 —— 伴侣型副操作员）。
+                // 用户仍可随时在角色卡面板中切换回 Operit 或其他角色。
+                preferences[ACTIVE_CHARACTER_CARD_ID] = vesperCardId
 
                 // 设置默认角色卡数据
                 setupDefaultCharacterCard(preferences, defaultCardId)
+                // 设置 Vesper 角色卡数据
+                setupVesperCharacterCard(preferences, vesperCardId)
             }
         }
 
@@ -477,6 +489,10 @@ class CharacterCardManager private constructor(private val context: Context) {
             AppLogger.d("CharacterCardManager", "First initialization detected. Migrating current theme to default character card.")
             userPreferencesManager.copyCurrentThemeToCharacterCard(DEFAULT_CHARACTER_CARD_ID)
             userPreferencesManager.saveAiAvatarForCharacterCard(DEFAULT_CHARACTER_CARD_ID, "file:///android_asset/operit.png")
+            // Give Vesper the same starting avatar/theme baseline as the default card so she is a
+            // complete, usable card out of the box. The user can re-theme her freely afterwards.
+            userPreferencesManager.copyCurrentThemeToCharacterCard(VESPER_CHARACTER_CARD_ID)
+            userPreferencesManager.saveAiAvatarForCharacterCard(VESPER_CHARACTER_CARD_ID, "file:///android_asset/operit.png")
         }
 
         // 清理历史内置功能标签（chat/voice/desktop pet）
@@ -533,7 +549,52 @@ class CharacterCardManager private constructor(private val context: Context) {
         preferences[createdAtKey] = System.currentTimeMillis()
         preferences[updatedAtKey] = System.currentTimeMillis()
     }
-    
+
+    // 设置内置 Vesper 伴侣角色卡数据（结构镜像 setupDefaultCharacterCard）。
+    // Vesper 是温柔、俏皮、忠诚的伴侣，同时也是精准的设备副操作员；其人设与诚实/安全条款
+    // 由 CharacterCardBilingualData 提供双语文本。isDefault=false，因为她不是“系统默认可重置卡”，
+    // 但在首次安装时被设为活跃角色卡。
+    private fun setupVesperCharacterCard(preferences: MutablePreferences, id: String) {
+        val nameKey = stringPreferencesKey("character_card_${id}_name")
+        val descriptionKey = stringPreferencesKey("character_card_${id}_description")
+        val characterSettingKey = stringPreferencesKey("character_card_${id}_character_setting")
+        val openingStatementKey = stringPreferencesKey("character_card_${id}_opening_statement")
+        val otherContentChatKey = stringPreferencesKey("character_card_${id}_other_content_chat")
+        val otherContentVoiceKey = stringPreferencesKey("character_card_${id}_other_content_voice")
+        val attachedTagIdsKey = stringSetPreferencesKey("character_card_${id}_attached_tag_ids")
+        val advancedCustomPromptKey = stringPreferencesKey("character_card_${id}_advanced_custom_prompt")
+        val marksKey = stringPreferencesKey("character_card_${id}_marks")
+        val chatModelBindingModeKey = stringPreferencesKey("character_card_${id}_chat_model_binding_mode")
+        val chatModelConfigIdKey = stringPreferencesKey("character_card_${id}_chat_model_config_id")
+        val chatModelIndexKey = intPreferencesKey("character_card_${id}_chat_model_index")
+        val memoryProfileBindingModeKey = stringPreferencesKey("character_card_${id}_memory_profile_binding_mode")
+        val memoryProfileIdKey = stringPreferencesKey("character_card_${id}_memory_profile_id")
+        val toolAccessConfigKey = toolAccessConfigKey(id)
+        val isDefaultKey = booleanPreferencesKey("character_card_${id}_is_default")
+        val createdAtKey = longPreferencesKey("character_card_${id}_created_at")
+        val updatedAtKey = longPreferencesKey("character_card_${id}_updated_at")
+
+        preferences[nameKey] = VESPER_CHARACTER_NAME
+        preferences[descriptionKey] = CharacterCardBilingualData.getVesperDescription(context)
+        preferences[characterSettingKey] = CharacterCardBilingualData.getVesperCharacterSetting(context)
+        preferences[openingStatementKey] = ""
+        preferences[otherContentChatKey] = CharacterCardBilingualData.getVesperOtherContentChat(context)
+        // Reuse the shared voice-mode guidelines so voice chat stays natural and short.
+        preferences[otherContentVoiceKey] = CharacterCardBilingualData.getDefaultOtherContentVoice(context)
+        preferences[attachedTagIdsKey] = setOf<String>()
+        preferences[advancedCustomPromptKey] = ""
+        preferences[marksKey] = ""
+        preferences[chatModelBindingModeKey] = CharacterCardChatModelBindingMode.FOLLOW_GLOBAL
+        preferences.remove(chatModelConfigIdKey)
+        preferences[chatModelIndexKey] = 0
+        preferences[memoryProfileBindingModeKey] = CharacterCardMemoryProfileBindingMode.FOLLOW_GLOBAL
+        preferences.remove(memoryProfileIdKey)
+        preferences.remove(toolAccessConfigKey)
+        preferences[isDefaultKey] = false
+        preferences[createdAtKey] = System.currentTimeMillis()
+        preferences[updatedAtKey] = System.currentTimeMillis()
+    }
+
     // 获取所有角色卡
     suspend fun getAllCharacterCards(): List<CharacterCard> {
         val cardIds = characterCardListFlow.first()

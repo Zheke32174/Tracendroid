@@ -13,6 +13,10 @@ import com.ai.assistance.operit.data.preferences.CharacterCardToolAccessResolver
 import com.ai.assistance.operit.data.preferences.ResolvedCharacterCardToolAccess
 import com.ai.assistance.operit.integrations.tasker.triggerAIAgentAction
 import com.ai.assistance.operit.services.FloatingChatService
+import com.ai.assistance.operit.ui.features.toolbox.screens.ryznixlauncher.RyzKsudClient
+import com.ai.assistance.operit.ui.features.toolbox.screens.ryznixlauncher.RyzKsudResult
+import com.ai.assistance.operit.ui.features.toolbox.screens.ryznixlauncher.RyznixBridge
+import com.ai.assistance.operit.ui.features.toolbox.screens.ryznixlauncher.TermuxAvailability
 import com.ai.assistance.operit.util.LocaleUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -2324,6 +2328,189 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             executor = { tool ->
                 val ffmpegConvertTool = ToolGetter.getFFmpegConvertToolExecutor(context)
                 ffmpegConvertTool.invoke(tool)
+            }
+    )
+
+    // ---------------------------------------------------------------------------------------------
+    // Ryznix co-operator tools (Tracendroid cornerstone #4). These let the AI companion (Vesper)
+    // drive the ryznix VM and its VM-scoped SU broker through the HONEST bridges:
+    //   - RyznixBridge  -> Termux RUN_COMMAND -> ~/ryzvm/ryzctl <verb>   (lifecycle)
+    //   - RyzKsudClient -> TCP 127.0.0.1:8710 (only while the guest runs) (status + scoped SU)
+    // Honesty contract: we never fabricate a running VM or a GRANT. If Termux is missing, the
+    // permission is not held, or the guest is not up, the tool surfaces that plainly. A policy DENY
+    // is relayed verbatim, never laundered into success.
+    // ---------------------------------------------------------------------------------------------
+
+    // ryznix_control: start/stop/query the ryznix VM via ryzctl (dispatched through Termux).
+    // ryzctl runs asynchronously in Termux and reports back to the launcher screen, so this tool
+    // honestly reports that the verb was DISPATCHED — it does not claim the VM reached a state it
+    // has not confirmed. For a confirmed running/stopped state, follow up with ryznix_status.
+    handler.registerTool(
+            name = "ryznix_control",
+            descriptionGenerator = { tool ->
+                val verb = tool.parameters.find { it.name == "verb" }?.value ?: ""
+                "Control the ryznix VM via ryzctl: ${verb.ifBlank { "(missing verb)" }}"
+            },
+            executor = { tool ->
+                val verb = tool.parameters.find { it.name == "verb" }?.value?.trim().orEmpty()
+                val allowedVerbs = setOf("start", "stop", "status", "ip", "selftest")
+                if (verb.isBlank()) {
+                    return@registerTool buildToolErrorResult(tool, "Missing required parameter: verb")
+                }
+                if (verb !in allowedVerbs) {
+                    return@registerTool buildToolErrorResult(
+                        tool,
+                        "Unsupported verb '$verb'. Allowed: ${allowedVerbs.sorted().joinToString(", ")}"
+                    )
+                }
+                when (RyznixBridge.availability(context)) {
+                    TermuxAvailability.NOT_INSTALLED ->
+                        buildToolErrorResult(
+                            tool,
+                            "Termux is not installed, so ryzctl cannot be reached. The ryznix VM " +
+                                "lifecycle runs inside Termux (~/ryzvm/ryzctl)."
+                        )
+                    TermuxAvailability.PERMISSION_MISSING ->
+                        buildToolErrorResult(
+                            tool,
+                            "The RUN_COMMAND permission for Termux is not granted, so ryzctl cannot " +
+                                "be dispatched. Grant it in the ryznix launcher screen first."
+                        )
+                    TermuxAvailability.READY -> {
+                        // requestCode namespaces concurrent dispatches; a stable hash of the verb is fine.
+                        val dispatched = RyznixBridge.runBackground(context, verb, verb.hashCode())
+                        if (dispatched) {
+                            ToolResult(
+                                toolName = tool.name,
+                                success = true,
+                                result = StringResultData(
+                                    "Dispatched 'ryzctl $verb' to Termux. It runs asynchronously; its " +
+                                        "stdout/exit code surface in the ryznix launcher screen. This tool " +
+                                        "does NOT itself confirm the resulting VM state — call ryznix_status " +
+                                        "to read the confirmed state from the ryz-ksud broker."
+                                )
+                            )
+                        } else {
+                            buildToolErrorResult(
+                                tool,
+                                "Failed to dispatch 'ryzctl $verb' to Termux (the app may be in the " +
+                                    "background or the permission was revoked). No VM state changed."
+                            )
+                        }
+                    }
+                }
+            }
+    )
+
+    // ryznix_status: query the ryz-ksud broker over 127.0.0.1:8710 (reachable only while the guest
+    // VM is running). Returns the broker's real posture, or an honest 'unreachable' if the VM is down.
+    handler.registerTool(
+            name = "ryznix_status",
+            descriptionGenerator = { _ -> "Query the ryznix ryz-ksud SU broker status (VM must be running)" },
+            executor = { tool ->
+                val result = runBlocking(Dispatchers.IO) { RyzKsudClient.status() }
+                when (result) {
+                    is RyzKsudResult.Unreachable ->
+                        // Not a tool failure — a truthful 'the guest is not reachable' report.
+                        ToolResult(
+                            toolName = tool.name,
+                            success = false,
+                            result = StringResultData(""),
+                            error = result.reason
+                        )
+                    is RyzKsudResult.Reply -> {
+                        val status = RyzKsudClient.parseStatus(result)
+                        if (status == null) {
+                            buildToolErrorResult(tool, "ryz-ksud returned a status reply that could not be parsed.")
+                        } else {
+                            ToolResult(
+                                toolName = tool.name,
+                                success = true,
+                                result = StringResultData(
+                                    "ryz-ksud status:\n" +
+                                        "  ok=${status.ok}\n" +
+                                        "  version=${status.version}\n" +
+                                        "  kernel_present=${status.kernelPresent}\n" +
+                                        "  enforced=${status.enforced}\n" +
+                                        "  mode=${status.mode}\n" +
+                                        "  policy_version=${status.policyVersion}\n" +
+                                        "  uid=${status.uid}\n" +
+                                        "  host=${status.host}\n" +
+                                        "  profiles=${status.profiles.joinToString(", ").ifBlank { "(none)" }}"
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+    )
+
+    // ryznix_su: request a VM-scoped, policy-enforced root command inside the guest via ryz-ksud.
+    // The broker's Yojimbo policy decides GRANT/DENY; this tool relays that decision VERBATIM and
+    // never synthesizes a GRANT. `key` is the profile key; `argv` is a JSON array string of the
+    // command + args (e.g. ["id"]). This is real root ONLY inside the VM — the Android host stays
+    // unrooted. Destructive commands should be confirmed with the user before invocation.
+    handler.registerTool(
+            name = "ryznix_su",
+            descriptionGenerator = { tool ->
+                val key = tool.parameters.find { it.name == "key" }?.value ?: ""
+                val argv = tool.parameters.find { it.name == "argv" }?.value ?: ""
+                "Run a VM-scoped SU command via ryz-ksud: key=${key.ifBlank { "(missing)" }} argv=$argv"
+            },
+            executor = { tool ->
+                val key = tool.parameters.find { it.name == "key" }?.value?.trim().orEmpty()
+                val argvRaw = tool.parameters.find { it.name == "argv" }?.value?.trim().orEmpty()
+                if (key.isBlank()) {
+                    return@registerTool buildToolErrorResult(tool, "Missing required parameter: key")
+                }
+                if (argvRaw.isBlank()) {
+                    return@registerTool buildToolErrorResult(
+                        tool,
+                        "Missing required parameter: argv (a JSON array string, e.g. [\"id\"])"
+                    )
+                }
+                val argv: List<String> = try {
+                    val arr = JSONArray(argvRaw)
+                    (0 until arr.length()).map { arr.get(it).toString() }
+                } catch (e: Exception) {
+                    return@registerTool buildToolErrorResult(
+                        tool,
+                        "argv must be a valid JSON array string, e.g. [\"id\"] or [\"ls\", \"/data\"]"
+                    )
+                }
+                if (argv.isEmpty()) {
+                    return@registerTool buildToolErrorResult(tool, "argv must contain at least one element (the command).")
+                }
+
+                val result = runBlocking(Dispatchers.IO) { RyzKsudClient.su(key, argv) }
+                when (result) {
+                    is RyzKsudResult.Unreachable ->
+                        ToolResult(
+                            toolName = tool.name,
+                            success = false,
+                            result = StringResultData(""),
+                            error = result.reason
+                        )
+                    is RyzKsudResult.Reply -> {
+                        val su = RyzKsudClient.parseSu(result)
+                        if (su == null) {
+                            buildToolErrorResult(tool, "ryz-ksud returned an su reply that could not be parsed.")
+                        } else {
+                            // A DENY is a real, truthful outcome — relay it verbatim, not as an error.
+                            ToolResult(
+                                toolName = tool.name,
+                                success = su.granted && su.rc == 0,
+                                result = StringResultData(
+                                    "ryz-ksud su decision: ${su.decision}\n" +
+                                        "  rc=${su.rc}\n" +
+                                        "  stdout=${su.stdout}\n" +
+                                        "  stderr=${su.stderr}"
+                                ),
+                                error = if (su.granted) null else "Policy decision: ${su.decision} (relayed verbatim from ryz-ksud)"
+                            )
+                        }
+                    }
+                }
             }
     )
 }

@@ -2638,6 +2638,51 @@ object SystemToolPromptsInternal {
                                 )
                         )
                     )
+            ),
+            SystemToolPromptCategory(
+                categoryName = "Ryznix Co-operator Tools",
+                categoryHeader =
+                    "Drive the ryznix VM and its VM-scoped SU broker. HONEST CONTRACT: the Android host is UNROOTED (device-admin at most); real root exists ONLY inside the ryznix VM via ryz-ksud. Never claim a running VM or a GRANT that a tool did not return. Confirm irreversible/destructive commands with the user before invoking ryznix_su.",
+                tools =
+                    listOf(
+                        ToolPrompt(
+                            name = "ryznix_control",
+                            description = "Control the ryznix VM lifecycle via ryzctl (dispatched through Termux). Async: reports that the verb was dispatched, not the resulting VM state. Follow up with ryznix_status for a confirmed state.",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "verb",
+                                        type = "string",
+                                        description = "one of: start | stop | status | ip | selftest",
+                                        required = true
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "ryznix_status",
+                            description = "Query the ryz-ksud SU broker status over 127.0.0.1:8710. Reachable ONLY while the guest VM is running; returns an honest 'unreachable' report if it is not.",
+                            parametersStructured = listOf()
+                        ),
+                        ToolPrompt(
+                            name = "ryznix_su",
+                            description = "Request a VM-scoped, policy-enforced root command inside the ryznix guest via ryz-ksud. The GRANT/DENY decision is relayed VERBATIM; a GRANT is never synthesized. Real root ONLY inside the VM — the host stays unrooted. Confirm destructive commands with the user first.",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "key",
+                                        type = "string",
+                                        description = "the ryz-ksud profile key requesting SU",
+                                        required = true
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "argv",
+                                        type = "string",
+                                        description = "JSON array string of the command and args, e.g. [\"id\"] or [\"ls\", \"/data\"]",
+                                        required = true
+                                    )
+                                )
+                        )
+                    )
             )
         )
 
@@ -5269,6 +5314,51 @@ object SystemToolPromptsInternal {
                                         type = "string",
                                         description = "可选，H.264 编码请使用 h264",
                                         required = false
+                                    )
+                                )
+                        )
+                    )
+            ),
+            SystemToolPromptCategory(
+                categoryName = "Ryznix 副操作员工具",
+                categoryHeader =
+                    "驱动 ryznix 虚拟机及其虚拟机内的 SU 代理。诚实约定：安卓宿主本身未 root（最高设备管理员级别）；真正的 root 只存在于 ryznix 虚拟机内，由 ryz-ksud 授予并强制约束。绝不谎报虚拟机在运行或谎报工具未返回的 GRANT。调用 ryznix_su 执行不可逆/破坏性命令前，先向用户确认。",
+                tools =
+                    listOf(
+                        ToolPrompt(
+                            name = "ryznix_control",
+                            description = "通过 ryzctl（经由 Termux 分发）控制 ryznix 虚拟机生命周期。异步执行：只报告动词已分发，不报告最终虚拟机状态。需确认状态请随后调用 ryznix_status。",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "verb",
+                                        type = "string",
+                                        description = "取值之一：start | stop | status | ip | selftest",
+                                        required = true
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "ryznix_status",
+                            description = "通过 127.0.0.1:8710 查询 ryz-ksud SU 代理状态。仅在虚拟机运行时可达；否则如实返回“不可达”报告。",
+                            parametersStructured = listOf()
+                        ),
+                        ToolPrompt(
+                            name = "ryznix_su",
+                            description = "通过 ryz-ksud 在 ryznix 虚拟机内请求受策略约束的 root 命令。GRANT/DENY 决策逐字转达，绝不伪造 GRANT。真正的 root 只在虚拟机内，宿主保持未 root。执行破坏性命令前请先向用户确认。",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "key",
+                                        type = "string",
+                                        description = "请求 SU 的 ryz-ksud 配置键（profile key）",
+                                        required = true
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "argv",
+                                        type = "string",
+                                        description = "命令及参数的 JSON 数组字符串，例如 [\"id\"] 或 [\"ls\", \"/data\"]",
+                                        required = true
                                     )
                                 )
                         )
