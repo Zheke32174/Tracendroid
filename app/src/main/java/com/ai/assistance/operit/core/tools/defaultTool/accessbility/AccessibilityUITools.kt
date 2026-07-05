@@ -1306,7 +1306,7 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
      * "enable the Tracendroid accessibility service" message the other accessibility tools use.
      */
     override suspend fun waitForElement(tool: AITool): ToolResult {
-        return try {
+        try {
             if (!isAccessibilityServiceEnabled()) {
                 return ToolResult(
                     toolName = tool.name,
@@ -1376,7 +1376,7 @@ open class AccessibilityUITools(context: Context) : StandardUITools(context) {
             }
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error waiting for UI element", e)
-            ToolResult(
+            return ToolResult(
                 toolName = tool.name,
                 success = false,
                 result = StringResultData(""),
