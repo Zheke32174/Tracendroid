@@ -118,6 +118,14 @@ class FloatingFullscreenModeViewModel(
     val volumeLevelFlow get() = speechManager.volumeLevelFlow
     val recognitionResultFlow get() = speechManager.recognitionResultFlow
 
+    /**
+     * TTS speaking state (true while the voice engine is actively speaking). Drives the
+     * living-portrait "talking" animation on the avatar. HONEST: this is a speaking on/off
+     * signal (utterance start/stop), NOT per-phoneme amplitude — the flat photo has no
+     * mouth rig, so the talking effect is a reactive bob + glow, not lip-sync.
+     */
+    val ttsSpeakingFlow get() = speechManager.voiceService.speakingStateFlow
+
     // ===== 业务逻辑 =====
 
     fun toggleStreamingTtsMuted() {

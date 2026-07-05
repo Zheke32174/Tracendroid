@@ -1,8 +1,12 @@
 package com.ai.assistance.operit.core.avatar.common.control
 
+import com.ai.assistance.operit.core.avatar.common.state.AvatarActivity
+import com.ai.assistance.operit.core.avatar.common.state.AvatarAnimationState
 import com.ai.assistance.operit.core.avatar.common.state.AvatarEmotion
 import com.ai.assistance.operit.core.avatar.common.state.AvatarState
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * A universal interface for controlling an avatar's state and behavior.
@@ -12,6 +16,47 @@ interface AvatarController {
 
     /** A flow representing the current state of the avatar. UI components can collect this flow to react to state changes. */
     val state: StateFlow<AvatarState>
+
+    /**
+     * The living-portrait animation intent (idle / thinking / listening / talking + expression).
+     *
+     * This is the signal the AI/chat layer pushes into via [onSpeakStart]/[onSpeakEnd]/
+     * [onThinking]/[onListening]/[onIdle], and that renderers collect to drive
+     * speech-reactive motion on a flat avatar. Controllers that do not implement a
+     * living-portrait layer (e.g. skeletal 3D renderers with their own animations)
+     * can simply ignore these hooks; the default here keeps a constant IDLE so callers
+     * never crash.
+     *
+     * HONEST: on a single-frame photo this drives reactive motion (breathing / blink /
+     * speaking bob / glow), NOT rigged phoneme lip-sync.
+     */
+    val animationState: StateFlow<AvatarAnimationState>
+        get() = DEFAULT_IDLE_ANIMATION_STATE
+
+    /**
+     * Signals that TTS started speaking. Renderers should switch to a speaking motion.
+     * @param intensity Optional 0f..1f drive amplitude for the speaking motion.
+     */
+    fun onSpeakStart(intensity: Float = DEFAULT_SPEAK_INTENSITY) {}
+
+    /** Signals that TTS stopped speaking. Renderers should relax back toward idle. */
+    fun onSpeakEnd() {}
+
+    /** Signals that the AI is generating / tool-running (contemplative motion). */
+    fun onThinking() {}
+
+    /** Signals that the STT layer is actively listening to the user (attentive motion). */
+    fun onListening() {}
+
+    /** Signals a return to the resting state (breathing + blink only). */
+    fun onIdle() {}
+
+    /**
+     * Sets the current expression key used by the living-portrait layer and as the
+     * extension point for future per-expression image frames. Typically an
+     * [AvatarEmotion] name lowercased or a custom mood key.
+     */
+    fun setExpression(expression: String) {}
 
     /** For skeletal models, this provides a list of all available animation names. For other types, it may be empty. */
     val availableAnimations: List<String>
@@ -92,4 +137,16 @@ interface AvatarController {
      * to model-specific animation names.
      */
     fun updateTriggerAnimationMapping(mapping: Map<String, String>) {}
-} 
+
+    companion object {
+        /** Default speaking drive amplitude when a caller has no real amplitude signal. */
+        const val DEFAULT_SPEAK_INTENSITY = 0.6f
+
+        /**
+         * Shared constant IDLE animation flow for controllers that don't implement a
+         * living-portrait layer. Constant so it allocates once.
+         */
+        val DEFAULT_IDLE_ANIMATION_STATE: StateFlow<AvatarAnimationState> =
+            MutableStateFlow(AvatarAnimationState(activity = AvatarActivity.IDLE)).asStateFlow()
+    }
+}

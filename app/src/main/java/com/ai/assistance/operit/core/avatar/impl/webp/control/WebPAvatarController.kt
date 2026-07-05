@@ -3,6 +3,8 @@ package com.ai.assistance.operit.core.avatar.impl.webp.control
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.ai.assistance.operit.core.avatar.common.control.AvatarController
+import com.ai.assistance.operit.core.avatar.common.state.AvatarActivity
+import com.ai.assistance.operit.core.avatar.common.state.AvatarAnimationState
 import com.ai.assistance.operit.core.avatar.common.state.AvatarEmotion
 import com.ai.assistance.operit.core.avatar.common.state.AvatarMoodTypes
 import com.ai.assistance.operit.core.avatar.common.state.AvatarState
@@ -33,6 +35,11 @@ class WebPAvatarController(
 
     private val _translateY = MutableStateFlow(0.0f)
     val translateY: StateFlow<Float> = _translateY.asStateFlow()
+
+    // Living-portrait animation intent. Drives the reactive motion in WebPRenderer.
+    // HONEST: reactive motion (breathing / blink / speaking bob / glow), not phoneme lip-sync.
+    private val _animationState = MutableStateFlow(AvatarAnimationState())
+    override val animationState: StateFlow<AvatarAnimationState> = _animationState.asStateFlow()
 
     override val availableAnimations: List<String>
         get() = model.availableFiles
@@ -91,6 +98,67 @@ class WebPAvatarController(
 
     override fun lookAt(x: Float, y: Float) {
         // WebP avatars don't support lookAt functionality.
+    }
+
+    // ===== Living-portrait animation hooks =====
+    // These update the reactive-motion intent consumed by WebPRenderer. They are
+    // independent of the emotion/asset selection above: emotion picks *which* image,
+    // these pick *how* it breathes/bobs/glows. HONEST: no phoneme lip-sync here.
+
+    override fun onSpeakStart(intensity: Float) {
+        _animationState.value = _animationState.value.copy(
+            activity = AvatarActivity.TALKING,
+            intensity = intensity.coerceIn(0f, 1f)
+        )
+    }
+
+    override fun onSpeakEnd() {
+        _animationState.value = _animationState.value.copy(
+            activity = AvatarActivity.IDLE,
+            intensity = 0f
+        )
+    }
+
+    override fun onThinking() {
+        _animationState.value = _animationState.value.copy(
+            activity = AvatarActivity.THINKING,
+            intensity = 0f
+        )
+    }
+
+    override fun onListening() {
+        _animationState.value = _animationState.value.copy(
+            activity = AvatarActivity.LISTENING,
+            intensity = 0f
+        )
+    }
+
+    override fun onIdle() {
+        _animationState.value = _animationState.value.copy(
+            activity = AvatarActivity.IDLE,
+            intensity = 0f
+        )
+    }
+
+    override fun setExpression(expression: String) {
+        val normalized = expression.trim().lowercase()
+        if (normalized.isNotEmpty() && normalized != _animationState.value.expression) {
+            _animationState.value = _animationState.value.copy(expression = normalized)
+        }
+    }
+
+    /**
+     * Extension point for future per-expression frames. Today Vesper is a single
+     * flat photo mapped to IDLE, so every expression resolves to the same asset and
+     * differences are conveyed through the reactive motion/glow style. Drop distinct
+     * `*.webp` files into the avatar folder and map them (via the model's
+     * `emotionToFileMap` / trigger mapping) and this begins returning per-expression
+     * assets with no renderer change required.
+     */
+    fun expressionAssetFor(expression: String): String? {
+        val emotion = runCatching { AvatarEmotion.valueOf(expression.trim().uppercase()) }.getOrNull()
+        val file = emotion?.let { model.animationFileForEmotion(it) }
+        return file?.let { model.animationPathFor(it) }
     }
 
     override fun updateSettings(settings: Map<String, Any>) {
@@ -185,6 +253,10 @@ class WebPAvatarController(
             isLooping = isLooping,
             playbackNonce = _state.value.playbackNonce + 1
         )
+
+        // Keep the living-portrait expression in sync with the selected emotion so
+        // the reactive-motion style (and, in future, per-expression frames) follows.
+        setExpression(displayEmotion.name)
     }
 }
 

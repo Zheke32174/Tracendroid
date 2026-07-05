@@ -32,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -54,7 +55,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.core.avatar.common.control.AvatarAnimator
 import com.ai.assistance.operit.core.avatar.common.control.AvatarSettingKeys
+import com.ai.assistance.operit.core.avatar.common.control.LocalAvatarAnimator
 import com.ai.assistance.operit.core.avatar.common.state.AvatarEmotion
 import com.ai.assistance.operit.core.avatar.common.view.AvatarView
 import com.ai.assistance.operit.core.avatar.impl.factory.AvatarControllerFactoryImpl
@@ -312,7 +315,35 @@ fun FloatingFullscreenMode(floatContext: FloatContext) {
             controller.setEmotion(request.emotion)
         }
     }
-    
+
+    // Living-portrait liveness wiring (cornerstone #5).
+    // Collects the REAL TTS speaking signal + AI processing/recording state and pushes a
+    // liveness intent into the avatar so the flat portrait breathes/blinks always and
+    // reacts while Vesper talks / thinks / listens.
+    // HONEST: this drives reactive motion (bob + glow) on TTS start/stop, NOT phoneme lip-sync.
+    // Priority: TALKING (TTS) > THINKING (AI busy) > LISTENING (mic) > IDLE.
+    val ttsSpeaking by viewModel.ttsSpeakingFlow.collectAsState(initial = false)
+    val aiThinking = viewModel.voiceAvatarMotionRequest.emotion == AvatarEmotion.THINKING
+    LaunchedEffect(
+        voiceAvatarController,
+        isVoiceAvatarEnabled,
+        ttsSpeaking,
+        aiThinking,
+        viewModel.isRecording
+    ) {
+        val controller = voiceAvatarController ?: return@LaunchedEffect
+        if (!isVoiceAvatarEnabled) {
+            controller.onIdle()
+            return@LaunchedEffect
+        }
+        when {
+            ttsSpeaking -> controller.onSpeakStart()
+            aiThinking -> controller.onThinking()
+            viewModel.isRecording -> controller.onListening()
+            else -> controller.onSpeakEnd()
+        }
+    }
+
     // 清理资源
     DisposableEffect(Unit) {
         onDispose {
@@ -355,6 +386,13 @@ fun FloatingFullscreenMode(floatContext: FloatContext) {
     val fullscreenScrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = fullscreenBgAlpha)
     val noiseBitmap = rememberNoiseBitmap()
     val topInsetPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    // Expose the avatar's liveness hooks to descendant chat/AI UI via the composition-local.
+    // (The screen already drives the controller directly above; this provides the reusable
+    // hook so other UI under this surface can signal speak/think/idle to the same avatar.)
+    val avatarAnimator = remember(voiceAvatarController) {
+        AvatarAnimator.of(voiceAvatarController)
+    }
+    CompositionLocalProvider(LocalAvatarAnimator provides avatarAnimator) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -628,6 +666,7 @@ fun FloatingFullscreenMode(floatContext: FloatContext) {
             volumeLevel = volumeLevel,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
+    }
     }
 }
 
