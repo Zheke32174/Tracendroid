@@ -18,6 +18,12 @@ data class ProviderApiConfig(
 
 object ApiProviderConfigs {
     private val configs: Map<ApiProviderType, ProviderApiConfig> = listOf(
+        // opencode zen — OpenAI-compatible gateway (one key from opencode.ai/auth). First-run default.
+        ProviderApiConfig(
+            providerType = ApiProviderType.OPENCODE_ZEN,
+            defaultModelName = "grok-code-fast-1",
+            defaultApiEndpoint = "https://opencode.ai/zen/v1/chat/completions"
+        ),
         ProviderApiConfig(
             providerType = ApiProviderType.OPENAI,
             defaultModelName = "gpt-4o",

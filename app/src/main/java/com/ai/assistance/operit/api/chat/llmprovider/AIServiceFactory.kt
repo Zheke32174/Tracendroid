@@ -309,7 +309,10 @@ object AIServiceFactory {
         
         return when (providerType) {
             // OpenAI格式，支持原生和兼容OpenAI API的服务
+            // OPENCODE_ZEN 是 OpenAI 兼容网关（opencode.ai/zen），与 OPENAI_GENERIC 走完全相同的路由
+            // （OpenAIProvider + Bearer 认证 + 自定义端点）。
             ApiProviderType.OPENAI,
+            ApiProviderType.OPENCODE_ZEN,
             ApiProviderType.OPENAI_GENERIC,
             ApiProviderType.OPENAI_LOCAL ->
                 OpenAIProvider(

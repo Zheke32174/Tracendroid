@@ -5,13 +5,18 @@ import kotlinx.serialization.Serializable
 /** API提供商类型枚举 */
 @Serializable
 enum class ApiProviderType {
+        // NOTE: The enum ORDER drives the provider dropdown order (getProviderSelectionOptions uses
+        // values()). Serialization is by NAME (apiProviderTypeId = name), so reordering is safe and does
+        // not migrate existing configs. Lead with the OpenCode Zen default + the three subscription-login
+        // (OAuth) providers so they are the first things the user sees.
+        OPENCODE_ZEN, // opencode zen (OpenAI-compatible gateway, opencode.ai/zen) — first-run default
+        GOOGLE, // Google (Gemini系列)
         OPENAI, // OpenAI (GPT系列)
+        ANTHROPIC, // Anthropic (Claude系列)
         OPENAI_RESPONSES, // OpenAI Responses API
         OPENAI_RESPONSES_GENERIC, // OpenAI Responses通用（自定义端点）
         OPENAI_GENERIC, // OpenAI通用（自定义端点）
-        ANTHROPIC, // Anthropic (Claude系列)
         ANTHROPIC_GENERIC, // Anthropic通用（自定义端点）
-        GOOGLE, // Google (Gemini系列)
         GEMINI_GENERIC, // Gemini通用（自定义端点）
         BAIDU, // 百度 (文心一言系列)
         ALIYUN, // 阿里云 (通义千问系列)

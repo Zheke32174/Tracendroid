@@ -51,8 +51,9 @@ class ModelConfigManager(private val context: Context) {
         const val DEFAULT_CONFIG_ID = "default"
         const val DEFAULT_CONFIG_NAME = "model_config_default_name"
 
-        // Default API provider type
-        private val DEFAULT_API_PROVIDER_TYPE = ApiProviderType.OPENAI_GENERIC
+        // Default API provider type — opencode zen (OpenAI-compatible gateway). Matches
+        // ApiPreferences.DEFAULT_API_ENDPOINT / DEFAULT_MODEL_NAME (opencode.ai/zen, grok-code-fast-1).
+        private val DEFAULT_API_PROVIDER_TYPE = ApiProviderType.OPENCODE_ZEN
 
         /** § 4.9 vault store name. Per-config keys live under cfg:<id>:apiKey etc. */
         private const val VAULT_STORE = "model_config_credentials"

@@ -24,6 +24,8 @@ class ShellBootstrapManager(
     private val downloader: ShellRootfsDownloader = ShellRootfsDownloader(),
     private val verifier: ShellRootfsSignatureVerifier = ShellRootfsSignatureVerifier(),
     private val extractor: ShellRootfsExtractor = ShellRootfsExtractor(),
+    private val bundledInstaller: ShellRootfsBundledInstaller =
+        ShellRootfsBundledInstaller(context, extractor),
 ) {
     companion object {
         private const val TAG = "ShellBootstrapManager"
@@ -51,18 +53,32 @@ class ShellBootstrapManager(
     private val _state = MutableStateFlow<ShellBootstrapState>(ShellBootstrapState.Idle)
     val state: StateFlow<ShellBootstrapState> = _state.asStateFlow()
 
-    /** Inspect on-disk state and transition to Ready or AwaitingConfirmation. */
+    /**
+     * Inspect on-disk state and transition to Ready or AwaitingConfirmation.
+     *
+     * When the rootfs is already extracted, go straight to Ready. Otherwise, when this
+     * build ships a bundled rootfs asset, install it right here (fully offline) so the
+     * user lands on Ready without a confirmation prompt or any network access. Only a
+     * build with no bundled asset falls through to the (legacy) remote-download proposal.
+     */
     suspend fun inspectAndPropose() {
         _state.value = ShellBootstrapState.Inspecting
         val installed = withContext(Dispatchers.IO) { inspect(context) }
-        _state.value = if (installed != null) {
-            ShellBootstrapState.Ready(installed.version, installed.sha256)
-        } else {
-            ShellBootstrapState.AwaitingConfirmation(
-                expectedVersion = ShellRootfsRelease.EXPECTED_VERSION,
-                artifactUrl = ShellRootfsRelease.artifactUrl(),
-            )
+        if (installed != null) {
+            _state.value = ShellBootstrapState.Ready(installed.version, installed.sha256)
+            return
         }
+
+        if (withContext(Dispatchers.IO) { bundledInstaller.isBundlePresent() }) {
+            // Bundled asset present: provision it immediately, no user gate, no network.
+            runBootstrap()
+            return
+        }
+
+        _state.value = ShellBootstrapState.AwaitingConfirmation(
+            expectedVersion = ShellRootfsRelease.EXPECTED_VERSION,
+            artifactUrl = ShellRootfsRelease.artifactUrl(),
+        )
     }
 
     /**
@@ -71,6 +87,14 @@ class ShellBootstrapManager(
      * the pipeline (no fallback path).
      */
     suspend fun runBootstrap() {
+        // Preferred path: install from the APK-bundled asset. Fully offline — no download,
+        // no signature step, no retry loop. This is what fixes the "endless connection
+        // retry" the remote pipeline caused against a release URL that does not exist.
+        if (withContext(Dispatchers.IO) { bundledInstaller.isBundlePresent() }) {
+            runBundledBootstrap()
+            return
+        }
+
         val staging = ShellRootfsLayout.stagingDir(context)
         try {
             staging.mkdirs()
@@ -273,6 +297,47 @@ class ShellBootstrapManager(
             )
         } finally {
             staging.deleteRecursively()
+        }
+    }
+
+    /**
+     * Offline bootstrap from the APK-bundled rootfs asset. Extracts the asset, verifies its
+     * SHA-256 against the build pin (the APK signature is the real trust anchor), provisions
+     * the dispatcher, and writes the manifest. No network, no Ed25519 step, no retry.
+     */
+    private suspend fun runBundledBootstrap() {
+        _state.value = ShellBootstrapState.Extracting(0, 0)
+        val result = withContext(Dispatchers.IO) {
+            bundledInstaller.install(
+                onExtractProgress = { entries, bytes ->
+                    _state.value = ShellBootstrapState.Extracting(entries, bytes)
+                },
+            )
+        }
+        _state.value = when (result) {
+            is ShellRootfsBundledInstaller.Result.Ok ->
+                ShellBootstrapState.Installed(result.version, result.sha256)
+            is ShellRootfsBundledInstaller.Result.AssetMissing ->
+                ShellBootstrapState.Failed(
+                    ShellBootstrapState.Failed.Phase.CONFIGURATION,
+                    "Bundled rootfs asset ${result.name} is not packaged in this build.",
+                )
+            is ShellRootfsBundledInstaller.Result.DigestMismatch ->
+                ShellBootstrapState.Failed(
+                    ShellBootstrapState.Failed.Phase.DIGEST,
+                    "Bundled rootfs SHA-256 mismatch.\nexpected: ${result.expected}\n" +
+                        "actual:   ${result.actual}",
+                )
+            is ShellRootfsBundledInstaller.Result.ExtractionFailed ->
+                ShellBootstrapState.Failed(
+                    ShellBootstrapState.Failed.Phase.EXTRACTION,
+                    result.reason,
+                )
+            is ShellRootfsBundledInstaller.Result.Failed ->
+                ShellBootstrapState.Failed(
+                    ShellBootstrapState.Failed.Phase.UNKNOWN,
+                    result.cause.message ?: result.cause::class.simpleName ?: "bundled install failed",
+                )
         }
     }
 
