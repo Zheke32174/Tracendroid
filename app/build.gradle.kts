@@ -181,6 +181,14 @@ kotlin {
     }
 }
 
+configurations.all {
+    // Two BouncyCastle distributions collide (bc*-jdk15to18 via MINA sshd vs bc*-jdk18on)
+    // -> duplicate classes at checkDuplicateClasses/assemble. Keep modern jdk18on (JDK 21).
+    exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
+    exclude(group = "org.bouncycastle", module = "bcpkix-jdk15to18")
+    exclude(group = "org.bouncycastle", module = "bcutil-jdk15to18")
+}
+
 dependencies {
     implementation("com.github.jelmerk:hnswlib-core:1.2.1")
     implementation(project(":dragonbones"))
