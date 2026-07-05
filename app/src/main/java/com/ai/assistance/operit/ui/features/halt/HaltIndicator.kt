@@ -110,7 +110,6 @@ private fun HaltFab(modifier: Modifier = Modifier) {
 }
 
 @Composable
-@Composable
 private fun HaltedBanner(state: HaltController.State.Halted, modifier: Modifier = Modifier) {
     val audit by HaltController.audit.collectAsState()
     // § 4.7 — surface the AI reasoning snapshot the audit ring captured for this halt
