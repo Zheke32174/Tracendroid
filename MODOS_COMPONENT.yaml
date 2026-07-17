@@ -1,0 +1,37 @@
+apiVersion: modos.pleiades/v1alpha1
+kind: Component
+metadata:
+  name: tracendroid-android-security-build-lane
+  repository: Zheke32174/Tracendroid
+  visibility: public
+  lifecycle: reference
+  defaultBranch: main
+spec:
+  roles:
+    - android-security-build-lane
+    - mobile-compatibility-reference
+    - packaging-and-test-source
+  authority: none
+  inputs:
+    - android-source-artifacts
+    - build-manifests
+    - mobile-security-tests
+  outputs:
+    - build-receipts
+    - compatibility-observations
+    - adapter-candidates
+  capabilitiesProvided:
+    - android.build.reference
+    - compatibility.mobile.evaluate
+    - adapter.android.propose
+  capabilitiesRequired:
+    - workspace.isolated
+    - provenance.preserve
+    - evaluation.mobile.execute
+  dataClasses:
+    - public
+    - internal
+    - untrusted
+  failurePolicy: quarantine
+  promotionPolicy: evidence-gated
+  notes: Tracendroid is a build and compatibility reference. Produced artifacts do not become trusted mobile runtime components without signature and policy review.
