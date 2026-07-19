@@ -1,0 +1,81 @@
+name: publish installable APK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK and NDK components
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865" "cmake;3.22.1"
+      - name: Build debug-signed nightly APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :app:assembleNightly
+      - name: Upload APK workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracendroid-nightly-apk
+          path: app/build/outputs/apk/nightly/*.apk
+      - name: Prepare durable release assets
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY#*/}"
+          apk=$(find app/build/outputs/apk/nightly -type f -name '*.apk' ! -name '*androidTest*' | sort | head -n 1)
+          test -n "$apk" && test -s "$apk"
+          mkdir -p dist
+          cp "$apk" "dist/${repo}-nightly.apk"
+          (cd dist && sha256sum "${repo}-nightly.apk" > "${repo}-nightly.apk.sha256")
+      - name: Publish rolling APK release
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY#*/}"
+          tag="continuous-apk"
+          cat > release-notes.md <<EOF
+          Installable Android nightly build from the current default branch.
+
+          - Signing: Android CI debug key
+          - ABI: arm64-v8a
+          - Source commit: \`${GITHUB_SHA}\`
+          - Integrity: verify with the attached \`.sha256\` file
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "$tag" "$GITHUB_SHA"
+          git push --force origin "refs/tags/$tag"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber
+            gh release edit "$tag" --title "$repo continuous APK" --notes-file release-notes.md --prerelease
+          else
+            gh release create "$tag" dist/* --target "$GITHUB_SHA" --title "$repo continuous APK" --notes-file release-notes.md --prerelease
+          fi
