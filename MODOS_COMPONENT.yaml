@@ -1,0 +1,64 @@
+apiVersion: modos.pleiades/v1alpha1
+kind: Component
+metadata:
+  name: tracendroid-mobile-agent-workbench
+  repository: Zheke32174/Tracendroid
+  visibility: public
+  lifecycle: experimental
+  defaultBranch: main
+  labels:
+    modos.pleiades/subsystem: application-canopy
+    modos.pleiades/organ-class: permission-gated-mobile-agent-workbench
+spec:
+  roles:
+    - android-ai-assistant
+    - permission-gated-tool-runner
+    - mobile-linux-workbench
+    - local-and-provider-model-host
+    - memory-and-workflow-orchestrator
+  authority: local-enforcement
+  inputs:
+    - explicit-user-agent-intent
+    - per-tool-permission-decisions
+    - user-bound-device-and-workspace-resources
+    - local-or-user-configured-model-endpoints
+  outputs:
+    - agent-responses-and-workflow-results
+    - user-approved-local-device-mutations
+    - local-memory-and-workspace-state
+    - permission-and-tool-execution-evidence
+  capabilitiesProvided:
+    - mobile.agent.orchestrate@v1
+    - tool.execute.permission-gated@v1
+    - linux.workbench.local@v1
+    - memory.manage.local@v1
+  capabilitiesRequired:
+    - steward.approval.local-mutation@v1
+    - android.permission.user-mediated@v1
+    - sandbox.imported-application@v1
+  dataClasses:
+    - public
+    - private
+    - secret
+    - untrusted
+    - evidence
+  failurePolicy: quarantine
+  promotionPolicy: evidence-gated
+  relations:
+    - type: derived-from
+      targetRef: repo:AAswordman/Operit
+      scope: lineage
+      required: true
+    - type: subsystem-of
+      targetRef: component:understory-agent-trunk
+      scope: distribution
+      required: false
+  notes: >-
+    Tracendroid is a broad imported Android agent workbench with local Linux,
+    file, network, automation, installation, permission, accessibility, ADB,
+    and optional root-facing surfaces. The manifest records that real local
+    mutation capacity rather than disguising it as proposal-only authority.
+    Every mutating tool remains separately permission-gated and steward-bound;
+    repository inclusion grants no silent execution, root, installation, or
+    production trust. The imported surface stays quarantined until its tool,
+    permission, provenance, and update paths are independently reviewed.
