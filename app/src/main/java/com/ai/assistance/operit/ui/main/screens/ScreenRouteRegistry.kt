@@ -287,6 +287,16 @@ object ScreenRouteRegistry {
                 icon = Icons.Default.Terminal,
                 order = 80
             ),
+            // Self-contained embedded terminal (in-process PTY, no external companion app).
+            hostEntryDefinition(
+                entryId = "toolbox.embedded_terminal",
+                screen = Screen.EmbeddedTerminal,
+                surface = NavigationSurface.TOOLBOX,
+                titleResId = R.string.tool_embedded_terminal,
+                descriptionResId = R.string.tool_embedded_terminal_desc,
+                icon = Icons.Default.Terminal,
+                order = 85
+            ),
             hostEntryDefinition(
                 entryId = "toolbox.ui_debugger",
                 screen = Screen.UIDebugger,

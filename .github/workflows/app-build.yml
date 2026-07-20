@@ -46,6 +46,12 @@ jobs:
           # Kotlin compilation is the heaviest single phase; warm caches drop
           # this job from ~20 minutes to ~6.
           cache-read-only: false
+          # The app bundles a gradle-wrapper.jar as a TEMPLATE ASSET
+          # (app/src/main/assets/templates/android/...) — app content, not this
+          # project's build wrapper, and its checksum trips the default wrapper
+          # validator. Disable here (all wrappers are the operator's own on a
+          # private fork; the check guards against untrusted third-party jars).
+          validate-wrappers: false
 
       - name: Show toolchain
         run: |

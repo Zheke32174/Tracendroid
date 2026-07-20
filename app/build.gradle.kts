@@ -14,6 +14,16 @@ plugins {
     id("kotlin-kapt")
 }
 
+// KAPT generates Java stubs for the whole module before annotation processing.
+// Compose-heavy types (e.g. com.kyant0.backdrop.Backdrop used in LiquidGlass.kt)
+// are not resolvable in the stub-compilation classpath, which surfaced as
+// "cannot access Backdrop" + a cascading "@Composable is not a repeatable
+// annotation type". correctErrorTypes tells KAPT to tolerate those error types
+// during stubbing so the real Kotlin compile (which resolves them) proceeds.
+kapt {
+    correctErrorTypes = true
+}
+
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
@@ -190,6 +200,11 @@ dependencies {
     implementation(project(":mmd"))
     implementation(project(":fbx"))
     implementation(project(":quickjs"))
+    // Self-contained embedded terminal (Termux-derived PTY, vendored from Xed-Editor).
+    // :terminal-view pulls in :terminal-emulator transitively via its `api` dependency.
+    // This is what lets EmbeddedTerminalScreen run a shell in-process, with no external
+    // OperitTerminal companion app required. See THIRD_PARTY_LICENSES.md for GPLv3 notice.
+    implementation(project(":terminal-view"))
 
     // glTF runtime rendering (Filament)
     implementation("com.google.android.filament:filament-android:1.69.2")

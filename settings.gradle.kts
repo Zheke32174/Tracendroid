@@ -25,3 +25,8 @@ include(":llama")
 include(":mmd")
 include(":fbx")
 include(":quickjs")
+// Self-contained, in-process PTY terminal vendored from Xed-Editor (Termux-derived, GPLv3).
+// These give Tracendroid its own embedded terminal so it no longer *requires* the external
+// OperitTerminal companion app. See THIRD_PARTY_LICENSES.md / NOTICE for attribution.
+include(":terminal-emulator")
+include(":terminal-view")

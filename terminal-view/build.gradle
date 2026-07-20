@@ -1,0 +1,37 @@
+// Vendored from Xed-Editor (https://github.com/Xed-Editor/Xed-Editor), which in
+// turn derives this module from the Termux project (https://github.com/termux/termux-app).
+// Termux terminal-view is licensed under the GNU GPL v3. See THIRD_PARTY_LICENSES.md
+// and NOTICE at the repository root for attribution.
+//
+// Reconciled to Tracendroid's toolchain: Java 21 -> 17, removed maven-publish/sourceJar,
+// and replaced version-catalog aliases with explicit coordinates. This module has no
+// native code; it depends (api) on :terminal-emulator for the PTY/session classes.
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 36
+    namespace = "com.termux.view"
+
+    defaultConfig {
+        minSdkVersion 26
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.annotation:annotation:1.7.1'
+    api project(":terminal-emulator")
+    testImplementation 'junit:junit:4.13.2'
+}
