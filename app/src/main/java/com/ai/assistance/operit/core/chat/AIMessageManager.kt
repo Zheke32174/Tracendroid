@@ -1045,7 +1045,7 @@ object AIMessageManager {
         messagesToSummarize: List<ChatMessage>,
         useEnglish: Boolean
     ): String {
-        val title = if (useEnglish) "[Package Warmup]" else "【工具包预热】"
+        val title = if (useEnglish) "[Package Warmup]" else "[Toolkit warm-up]"
         val topPackages = extractTopPackageUsages(messagesToSummarize, limit = 2)
 
         if (topPackages.isEmpty()) {

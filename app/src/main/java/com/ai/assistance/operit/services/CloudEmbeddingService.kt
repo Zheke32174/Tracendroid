@@ -76,7 +76,7 @@ class CloudEmbeddingService(
         httpClient.newCall(request).execute().use { response ->
             val responseBody = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
-                val detail = extractErrorMessage(responseBody).ifBlank { response.message.ifBlank { "请求失败" } }
+                val detail = extractErrorMessage(responseBody).ifBlank { response.message.ifBlank { "Request failed" } }
                 val message = context.getString(R.string.memory_embedding_error_http, response.code, detail)
                 AppLogger.w(TAG, "$message, body=$responseBody")
                 throw CloudEmbeddingException(message)

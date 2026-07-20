@@ -1,0 +1,105 @@
+# Tracendroid — Ship Checklist
+
+Single source of truth for taking `tracendroid/p0-ship-foundation` from "authored" to a
+signed, shippable APK/AAB. Written after the fork's feature build-out; read top to bottom.
+
+## 0. Status caveat (read first)
+Every code brick on this branch was authored + structurally verified on a Windows box with
+**no Android toolchain** — none of it is compiler-verified. The first off-box build WILL
+surface issues (one was already found + fixed pre-emptively: `AdminUITools` → `a09d032`).
+Treat the first green build as the real acceptance gate.
+
+## 1. What was built (branch inventory)
+- **Foundation:** LGPL compliance + Operit/AAswordman attribution (NOTICE, COPYING*), rebrand
+  Operit→Tracendroid, README, Gradle identity, i18n English-fill.
+- **Shell/terminal:** `ShellChannel` seam + MINA-sshd **ryznix** SSH transport; **local-exec
+  tier** (`LocalShellSession`/`LocalTerminalCommandExecutor`) so `execute_*_terminal` tools
+  finally run on any device (ToolGetter defaults to it). proot/ryznix are upgrades.
+- **Providers:** `AuthStrategy` (bearer/header/query) + provider-agnostic `ModelOAuthClient`
+  PKCE + OAuth-mode settings UI; **8 western vendors** (Grok/Groq/Perplexity/Together/
+  Fireworks/DeepInfra/Cohere/Azure). Subscription-OAuth = documented CLI-token-recycle seam
+  (no fabricated endpoints).
+- **Avatar ("wifeu"):** multilingual emotion drive (zh/en/emoji/kaomoji + sentiment fallback),
+  DragonBones tap/idle reactions, and a conversation-aware **mood state machine** (decay +
+  carry-over). No controller-interface changes.
+- **Phone-pilot:** UI automation routed to the live **AccessibilityService** path; `runUiSubAgent`
+  is now a **bounded multi-step observe→decide→act loop** (model wired via `EnhancedAIService`,
+  JSON action vocabulary, ≤12 steps, fully guarded). Accessibility-only (no root/Shizuku/shell).
+- **Homage:** 青出于蓝 easter egg (tap About logo ×7) honoring AAswordman.
+- **CI:** `.github/workflows/release.yml` (signed bundle+assemble, NDK 29.0.14206865, tag-gated
+  draft release) + `docs/RELEASE.md`.
+
+## 2. Provision the vendored blobs (REQUIRED — no build works without these)
+All gitignored + currently empty (`.keep` only). Source: the Google-Drive links in
+`docs/BUILDING.md`. Drop into:
+- `app/src/main/jniLibs/` — prebuilt native `.so` (ncnn/sherpa/proot etc.; some also produced by NDK)
+- `app/src/main/assets/models/` — on-device ML model weights (MNN/llama)
+- `app/libs/` — prebuilt `.aar`/`.jar`
+- `app/src/main/assets/pets/` — avatar/pet models (the "wifeu" assets)
+
+## 3. Pre-build asset generation (scriptable — NOW AUTOMATED IN CI, task #8 ✅)
+These two generated asset trees are gitignored and reproducible from source; `release.yml`
+regenerates them (Node LTS + Python 3, npm — the repo has **no lockfile**, so `npm install`)
+before the Gradle build. Commands, if you build locally, match `docs/BUILDING.md`:
+- **web-chat:** `npm install && npm --prefix web-chat install && npm run build:webchat`.
+  `build:webchat` runs the Vite build **and** `sync:android-assets`, which copies
+  `web-chat/dist` → `app/src/main/assets/web-chat/` — so no manual copy step is needed.
+- **example packages:** `python3 sync_example_packages.py --no-hot-reload` (CI passes
+  `--no-hot-reload` since there is no adb device; syncs `.toolpkg`/`.js` per
+  `packages_whitelist.txt` into `app/src/main/assets/packages/`).
+
+Only the §2 **hand-provisioned vendored blobs** (Google-Drive) remain manual; `release.yml`
+adds a soft warning if `jniLibs`/`models`/`libs`/`pets` hold only their `.keep` placeholder.
+
+## 4. Off-box build (Linux — no MAX_PATH limit)
+Either **push** the branch and let `release.yml` run, or build on the codespace:
+```
+git submodule update --init --recursive        # 10 submodules incl. MNN/llama.cpp/ncnn
+# NDK 29.0.14206865 + cmake 3.22.1 + platforms;android-36 (see release.yml)
+./gradlew :app:bundleRelease :app:assembleRelease --stacktrace
+```
+First run compiling the native modules (MNN/llama/ncnn/sherpa/quickjs/ufbx/saba) is
+unexercised in this fork's CI — expect iteration.
+
+## 5. Signing (for a *signed* artifact)
+`app/build.gradle.kts` reads these from `local.properties` only; CI supplies them from secrets:
+`RELEASE_STORE_FILE`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`
+(+ `GITHUB_CLIENT_ID`). GitHub secrets: `RELEASE_KEYSTORE_BASE64`, `RELEASE_STORE_PASSWORD`,
+`RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`, optional `GH_OAUTH_CLIENT_ID`. Keystore generation
++ agent-vault storage: `docs/RELEASE.md`. Without them the build still yields an UNSIGNED apk.
+
+## 6. Post-compile runtime validation (needs a real device)
+- Terminal: run a command via the agent (local-exec tier) — the original never worked; this must.
+- Phone-pilot: enable the Tracendroid accessibility service, run a `runUiSubAgent` task, watch the loop.
+- Providers: add a western vendor key/OAuth, fetch model list, send a message.
+- Avatar: confirm emotion/mood/touch reactions; tap the About logo ×7 for the homage.
+
+## 7. Known follow-ups (tracked)
+- ~~CI build-input automation (§3) — task #8.~~ **DONE**: `release.yml` now builds web-chat
+  and syncs example packages before Gradle (authored on-box; needs a real CI run to validate).
+- Avatar: TTS→lipsync + user-loadable model gallery (need `AvatarController` interface work).
+- Phone-pilot: form-autofill, notification-listener read tool, scheduled execution.
+- Subscription-OAuth: implement the CLI-token-recycle credential source for ChatGPT/Claude/Gemini.
+
+## Compile verification (done on GitHub CI runners)
+The branch was pushed and compiled on GitHub Actions (app-build.yml, `:app:compileDebugKotlin`,
+JDK 21 + NDK). The fork had NEVER compiled — its CI always died in <25s at Gradle
+wrapper-validation. Fixed, in order, every blocker the real compiler surfaced:
+1. Gradle wrapper-validation on a third-party submodule sample jar (validate-wrappers=false).
+2. PackageManager.kt — lost `catch` clause (syntax error).
+3. kapt→KSP migration for Room (Kotlin 2.2.0/K2).
+4. JDK 17→21 — javac couldn't read the JDK-21-compiled `backdrop` dependency during kapt.
+5. Duplicate `@Composable` on HaltedBanner.
+6. `kapt.use.k2=false` (defensive) — ObjectBox forces kapt (no KSP support).
+7. AccessibilityUITools.waitForElement — try/catch inferred to `Any`.
+8. RyznixTransport — wrong `FileKeyPairProvider` import package.
+9. BroadcastAllowlistScreen — `rememberSaveable` import (runtime.saveable).
+10. MCPMarketViewModel — PKCE `codeVerifier` arg not passed to getAccessToken.
+(Plus the static-audit fixes: 4 Admin* dangling supertypes + 78 undefined strings — the
+compiler would have hit those too.)
+
+RESULT: **the entire Kotlin codebase compiles.** The ONLY remaining unresolved references
+are FFmpegKit (StandardFFmpegTool, FFmpegUtil, StandardFileSystemTools media-info) — these
+come from the vendored `app/libs/ffmpeg-kit` jar (built via tools/ffmpeg/build_ffmpeg_kit_wsl.sh),
+which is a REQUIRED blob absent from CI (§2). Provide app/libs (+ the other blobs) and
+`compileDebugKotlin` goes green; then `assembleRelease` can produce the signed APK.

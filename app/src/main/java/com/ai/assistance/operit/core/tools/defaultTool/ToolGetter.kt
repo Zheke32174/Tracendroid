@@ -6,6 +6,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.admin.*
 import com.ai.assistance.operit.core.tools.defaultTool.standard.*
 import com.ai.assistance.operit.core.tools.system.AndroidPermissionLevel
 import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
+import com.ai.assistance.operit.shell.local.LocalTerminalCommandExecutor
 
 /** 工具获取器 - 根据首选权限级别获取对应的工具实现。 */
 object ToolGetter {
@@ -70,7 +71,29 @@ object ToolGetter {
         return StandardSendBroadcastToolExecutor(context)
     }
 
-    fun getTerminalCommandExecutor(context: Context): StandardTerminalCommandExecutor {
+    /**
+     * Returns the terminal command executor behind the terminal_* tools.
+     *
+     * DEFAULT = [LocalTerminalCommandExecutor]: a reliable local-exec tier that runs commands via
+     * `ProcessBuilder("sh","-c", cmd)` inside the app's own sandbox (see its class doc). It has no
+     * dependency on the :terminal submodule / proot rootfs — which never comes up at runtime — so
+     * terminal tools actually execute on any device.
+     *
+     * Local-exec runs with the app's own privileges (NO escalation), consistent with the fork's
+     * threat model, which removed root/Shizuku/UI-automation, not the app-context shell. The
+     * proot/submodule-backed [StandardTerminalCommandExecutor] stays available via
+     * [getSubmoduleTerminalCommandExecutor] so a later settings toggle can select it.
+     */
+    fun getTerminalCommandExecutor(context: Context): TerminalCommandExecutor {
+        return LocalTerminalCommandExecutor(context)
+    }
+
+    /**
+     * The proot/submodule-backed terminal executor. Kept constructable for a future settings toggle
+     * once the rootfs backend is reliably brought up; not the default (see
+     * [getTerminalCommandExecutor]).
+     */
+    fun getSubmoduleTerminalCommandExecutor(context: Context): TerminalCommandExecutor {
         return StandardTerminalCommandExecutor(context)
     }
 

@@ -48,8 +48,10 @@ import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.api.chat.llmprovider.AIServiceFactory
 import com.ai.assistance.operit.api.chat.llmprovider.LlamaProvider
 import com.ai.assistance.operit.api.chat.llmprovider.ModelListFetcher
+import com.ai.assistance.operit.api.chat.llmprovider.ModelOAuthConfigRegistry
 import com.ai.assistance.operit.data.collects.ApiProviderConfigs
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ModelAuthMode
 import com.ai.assistance.operit.data.model.ModelConfigData
 import com.ai.assistance.operit.data.model.ModelOption
 import com.ai.assistance.operit.data.preferences.ApiPreferences
@@ -59,6 +61,7 @@ import com.ai.assistance.operit.ui.common.input.bringIntoViewOnImeFocus
 import com.ai.assistance.operit.ui.features.settings.DebouncedModelConfigAutoSaveEffect
 import com.ai.assistance.operit.ui.features.settings.ModelConfigSaveCoordinator
 import com.ai.assistance.operit.ui.features.settings.RegisterModelConfigSaveAction
+import com.ai.assistance.operit.ui.features.settings.oauth.ModelOAuthLoginWebViewDialog
 import com.ai.assistance.operit.util.LocationUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -137,6 +140,10 @@ fun ModelApiSettingsSection(
     
     // Tool Call配置状态
     var enableToolCallInput by remember(config.id) { mutableStateOf(config.enableToolCall) }
+
+    // OAuth 凭证模式状态（直接持久化，不走 updateApiSettingsFull 自动保存）
+    var authModeInput by remember(config.id) { mutableStateOf(config.authMode) }
+    var showOAuthDialog by remember(config.id) { mutableStateOf(false) }
 
     data class ApiAutoSaveState(
         val apiEndpoint: String,
@@ -751,6 +758,64 @@ fun ModelApiSettingsSection(
                 onCheckedChange = { enableToolCallInput = it }
             )
 
+            // OAuth 凭证模式：切换 API Key / OAuth，并在配置可用时提供授权入口
+            val oauthConfig = remember(selectedApiProvider) {
+                selectedApiProvider?.let { ModelOAuthConfigRegistry.configFor(it) }
+            }
+            SettingsSwitchRow(
+                title = stringResource(R.string.model_oauth_mode),
+                subtitle = stringResource(R.string.model_oauth_mode_desc),
+                checked = authModeInput == ModelAuthMode.OAUTH,
+                onCheckedChange = { checked ->
+                    authModeInput = if (checked) ModelAuthMode.OAUTH else ModelAuthMode.API_KEY
+                    scope.launch {
+                        configManager.updateAuthMode(config.id, authModeInput)
+                        EnhancedAIService.refreshAllServices(configManager.appContext)
+                    }
+                }
+            )
+
+            if (authModeInput == ModelAuthMode.OAUTH) {
+                OutlinedButton(
+                    onClick = { showOAuthDialog = true },
+                    enabled = oauthConfig != null,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.model_oauth_authorize))
+                }
+                if (oauthConfig == null) {
+                    Text(
+                        text = stringResource(R.string.model_oauth_not_configured),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+        }
+    }
+
+    // OAuth 授权 WebView 对话框
+    if (showOAuthDialog) {
+        val oauthConfigForDialog = remember(selectedApiProvider) {
+            selectedApiProvider?.let { ModelOAuthConfigRegistry.configFor(it) }
+        }
+        if (oauthConfigForDialog != null) {
+            ModelOAuthLoginWebViewDialog(
+                configId = config.id,
+                oauthConfig = oauthConfigForDialog,
+                onDismissRequest = { showOAuthDialog = false },
+                onSuccess = {
+                    showOAuthDialog = false
+                    showNotification(context.getString(R.string.model_oauth_success))
+                },
+                onFailure = { message ->
+                    showOAuthDialog = false
+                    showNotification(context.getString(R.string.model_oauth_failed, message))
+                }
+            )
+        } else {
+            showOAuthDialog = false
         }
     }
 
@@ -1033,6 +1098,7 @@ fun ModelApiSettingsSection(
 
 private fun getBuiltInProviderDisplayName(provider: ApiProviderType, context: android.content.Context): String {
     return when (provider) {
+        ApiProviderType.OPENCODE_ZEN -> context.getString(R.string.provider_opencode_zen)
         ApiProviderType.OPENAI -> context.getString(R.string.provider_openai)
         ApiProviderType.OPENAI_RESPONSES -> context.getString(R.string.provider_openai_responses)
         ApiProviderType.OPENAI_RESPONSES_GENERIC -> context.getString(R.string.provider_openai_responses_generic)
@@ -1065,6 +1131,14 @@ private fun getBuiltInProviderDisplayName(provider: ApiProviderType, context: an
         ApiProviderType.LLAMA_CPP -> context.getString(R.string.provider_llama_cpp)
         ApiProviderType.PPINFRA -> context.getString(R.string.provider_ppinfra)
         ApiProviderType.NOVITA -> context.getString(R.string.provider_novita)
+        ApiProviderType.XAI -> context.getString(R.string.provider_xai)
+        ApiProviderType.GROQ -> context.getString(R.string.provider_groq)
+        ApiProviderType.PERPLEXITY -> context.getString(R.string.provider_perplexity)
+        ApiProviderType.TOGETHER -> context.getString(R.string.provider_together)
+        ApiProviderType.FIREWORKS -> context.getString(R.string.provider_fireworks)
+        ApiProviderType.DEEPINFRA -> context.getString(R.string.provider_deepinfra)
+        ApiProviderType.COHERE -> context.getString(R.string.provider_cohere)
+        ApiProviderType.AZURE_OPENAI -> context.getString(R.string.provider_azure_openai)
         ApiProviderType.OTHER -> context.getString(R.string.provider_other)
     }
 }
@@ -1688,6 +1762,7 @@ private fun getProviderColor(providerTypeId: String): androidx.compose.ui.graphi
         return palette[paletteIndex]
     }
     return when (provider) {
+        ApiProviderType.OPENCODE_ZEN -> MaterialTheme.colorScheme.primary
         ApiProviderType.OPENAI -> MaterialTheme.colorScheme.primary
         ApiProviderType.OPENAI_RESPONSES -> MaterialTheme.colorScheme.primary.copy(alpha = 0.92f)
         ApiProviderType.OPENAI_RESPONSES_GENERIC -> MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
@@ -1720,6 +1795,14 @@ private fun getProviderColor(providerTypeId: String): androidx.compose.ui.graphi
         ApiProviderType.LLAMA_CPP -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f)
         ApiProviderType.PPINFRA -> MaterialTheme.colorScheme.primaryContainer
         ApiProviderType.NOVITA -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.75f)
+        ApiProviderType.XAI -> MaterialTheme.colorScheme.primary.copy(alpha = 0.68f)
+        ApiProviderType.GROQ -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.68f)
+        ApiProviderType.PERPLEXITY -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.68f)
+        ApiProviderType.TOGETHER -> MaterialTheme.colorScheme.primary.copy(alpha = 0.62f)
+        ApiProviderType.FIREWORKS -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.62f)
+        ApiProviderType.DEEPINFRA -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.62f)
+        ApiProviderType.COHERE -> MaterialTheme.colorScheme.primary.copy(alpha = 0.58f)
+        ApiProviderType.AZURE_OPENAI -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.58f)
         ApiProviderType.OTHER -> MaterialTheme.colorScheme.surfaceVariant
     }
 }

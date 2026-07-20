@@ -19,10 +19,24 @@ object ShellRootfsRelease {
     private const val REPO_NAME = "tracendroid"
 
     /** Release tag the app expects. Updated atomically with [EXPECTED_SHA256]. */
-    const val EXPECTED_VERSION: String = "1.0.0-bookworm-arm64-v1"
+    const val EXPECTED_VERSION: String = "1.0.0-alpine-arm64-v1"
 
     /** ABI of the rootfs artifact this build expects. v1 ships arm64-v8a only. */
     const val EXPECTED_ABI: String = "arm64-v8a"
+
+    /**
+     * APK asset path of the rootfs shipped inside this build (relative to `assets/`).
+     *
+     * The terminal is provisioned from this bundled asset — no network download, no
+     * GitHub Release, no signature negotiation. [EXPECTED_SHA256] is the SHA-256 of this
+     * exact asset, so the bundled installer still fails closed on a corrupt asset.
+     *
+     * When present, [ShellBootstrapManager] prefers this asset over [artifactUrl] and
+     * skips the download + signature pipeline entirely (the trust anchor is the signed
+     * APK itself). This is what removes the endless connection-retry the old remote path
+     * produced against a release URL that does not exist.
+     */
+    const val BUNDLED_ASSET: String = "rootfs/operit-rootfs.tar.zst"
 
     /**
      * Lowercase hex SHA-256 of the expected .tar.zst artifact.
@@ -35,7 +49,8 @@ object ShellRootfsRelease {
      * Empty string means the pin has not been wired to a real release yet. Bootstrap
      * refuses to run until this is set.
      */
-    const val EXPECTED_SHA256: String = ""
+    const val EXPECTED_SHA256: String =
+        "6e508c1ab9d1a3b247e0cf25eaa869368bfb95d5af0f6e02f703098b3b4898a2"
 
     /** File name of the .tar.zst asset attached to the release. */
     private fun artifactFileName(): String = "operit-rootfs-$EXPECTED_VERSION.tar.zst"

@@ -1,5 +1,5 @@
  <resources>
-    <string name="app_name">Operit AI</string>
+    <string name="app_name">Tracendroid</string>
     <string name="accessibility_service_description">Used to obtain the UI hierarchy, providing faster interface analysis capabilities for AI assistants, and does not collect or store any personal information.</string>
     
     <!-- Model selector related -->
@@ -399,6 +399,11 @@
     <string name="how_to_import_tap_to_collapse">How to create and import models? (tap to collapse)</string>
     <string name="avatar_config_supported_formats">Supported: DragonBones (.json + _tex.json + _tex.png), WebP (.webp), MP4 (.mp4), MMD (.pmx/.pmd + optional .vmd), glTF (.glb/.gltf), FBX (.fbx).</string>
     <string name="avatar_config_import_methods">Direct file import supports .glb/.gltf/.mp4/.fbx; use .zip for DragonBones, WebP, MP4, MMD, multi-file glTF, or FBX packages with external textures/resources.</string>
+    <string name="avatar_import_error_unsupported">Unsupported file type \".%1$s\". Pick a .zip archive, or a .glb/.gltf/.mp4/.fbx model file.</string>
+    <string name="avatar_import_error_unsupported_unknown">Could not recognize the file type. Pick a .zip archive, or a .glb/.gltf/.mp4/.fbx model file.</string>
+    <string name="avatar_import_error_corrupt_archive">The archive is corrupt or uses an unsupported filename encoding and could not be read.</string>
+    <string name="avatar_import_error_no_model">No usable avatar model was found in the archive. Check the folder layout: DragonBones needs *_tex.json + *_tex.png, WebP needs .webp, MP4 needs .mp4, MMD needs .pmx/.pmd, glTF needs .glb/.gltf plus its resources.</string>
+    <string name="avatar_import_error_fbx_needs_package">This FBX references external textures/resources. Package the model and its resources together into a .zip and import that instead.</string>
     <string name="avatar_mood_trigger_mapping_title">Mood Trigger Mapping</string>
     <string name="avatar_mood_trigger_mapping_desc">Returned &lt;mood&gt; values from the desktop pet and voice avatar will match these triggers first. Only custom types that already have an animation binding will be appended to the prompt.</string>
     <string name="avatar_no_model_actions">No model actions found for this avatar</string>
@@ -580,13 +585,13 @@
     <string name="termux_setup_guide">Termux Setup Guide</string>
     
     <!-- About Screen -->
-    <string name="about_title">About Operit AI</string>
+    <string name="about_title">About Tracendroid</string>
     <string name="about_version">Version: %1$s</string>
-    <string name="about_description">Operit AI is an intelligent assistant application that helps users use their devices more efficiently, providing interface analysis, chat conversations, and more.</string>
-    <string name="about_developer">Developer: &lt;a href="https://github.com/AAswordman"&gt;AAswordman&lt;/a&gt;</string>
-    <string name="about_contact">Contact Us: aaswordsman@foxmail.com</string>
-    <string name="about_website">&lt;a href="https://github.com/AAswordman/Operit"&gt;GitHub: https://github.com/AAswordman/Operit&lt;/a&gt;</string>
-    <string name="about_copyright">© 2025 - 2026 Operit. All Rights Reserved.</string>
+    <string name="about_description">Tracendroid is an intelligent assistant application that helps users use their devices more efficiently, providing interface analysis, chat conversations, and more.</string>
+    <string name="about_developer">Tracendroid — based on Operit AI by &lt;a href="https://github.com/AAswordman"&gt;AAswordman&lt;/a&gt;</string>
+    <string name="about_contact">Contact Us: https://github.com/Zheke32174/Tracendroid/issues</string>
+    <string name="about_website">&lt;a href="https://github.com/Zheke32174/Tracendroid"&gt;GitHub: https://github.com/Zheke32174/Tracendroid&lt;/a&gt;</string>
+    <string name="about_copyright">© 2023–2026 Operit AI contributors; Tracendroid modifications © 2026. Licensed under LGPL-3.0.</string>
     <string name="star_on_github">Star on GitHub</string>
     <string name="update_log">Update Log</string>
     <string name="app_logo_description">App Logo</string>
@@ -608,7 +613,7 @@
     <string name="network_status_label">Network Status</string>
 
     <!-- Configuration Screen -->
-    <string name="config_title">Operit AI Assistant</string>
+    <string name="config_title">Tracendroid Assistant</string>
     <string name="config_description">We use DeepSeek API by default. For alternatives, click the custom option below</string>
     <string name="config_api_key_label">API Key</string>
     <string name="config_api_key_placeholder">DeepSeek API Key</string>
@@ -657,7 +662,7 @@
     
     <!-- Plugin Loading Screen -->
     <string name="plugin_skip">Skip</string>
-    <string name="plugin_app_name">OPERIT</string>
+    <string name="plugin_app_name">TRACENDROID</string>
     <string name="plugin_status">Started: %1$d / %2$d</string>
     <string name="plugin_loading_status_title">Plugin Loading Status</string>
     <string name="plugin_loading_success">Loading successful</string>
@@ -709,7 +714,7 @@
     <string name="permission_guide_intro_2_title">A Powerful Toolbox for Geeks and Developers</string>
     <string name="permission_guide_intro_2_desc">With over 40 built-in professional tools for file management, web requests, script execution, and system control. Combined with a robust plugin system, you can automate tasks, and take deep control of your device.</string>
     <string name="permission_guide_intro_3_title">Unleash Creativity, Always on Standby</string>
-    <string name="permission_guide_intro_3_desc">Whether designing web pages, processing media files, or accessing the AI via its floating window, Operit provides a powerful, flexible, and secure environment for creation and assistance. Your data, your control.</string>
+    <string name="permission_guide_intro_3_desc">Whether designing web pages, processing media files, or accessing the AI via its floating window, Tracendroid provides a powerful, flexible, and secure environment for creation and assistance. Your data, your control.</string>
     <string name="permission_guide_intro_page_indicator">Feature Tour %1$d/%2$d</string>
 
     <!-- Context Menu -->
@@ -1076,10 +1081,10 @@
     <string name="agreement_title">User Agreement and Privacy Policy</string>
     <string name="agreement_subtitle">Please read and agree to the following terms before use.</string>
     <string name="agreement_human_readable_title">Plain Language Version (Not a legal document)</string>
-    <string name="agreement_human_readable_content">Like you, we don\'t like long and tedious agreements. Simply put:\n\nOperitAI is a free and open-source software. Its automation features are powerful, so please use them only for personal learning and daily assistance, not for any commercial or prohibited purposes.\n\nYou are responsible for all your actions. We are not responsible for any extensions you add or modifications you make to the software.\n\nRegarding privacy: Your voice processing is done locally on your device, which is secure. AI chat data is sent directly to the AI service provider, and we do not handle it.</string>
+    <string name="agreement_human_readable_content">Like you, we don\'t like long and tedious agreements. Simply put:\n\nTracendroid is a free and open-source software. Its automation features are powerful, so please use them only for personal learning and daily assistance, not for any commercial or prohibited purposes.\n\nYou are responsible for all your actions. We are not responsible for any extensions you add or modifications you make to the software.\n\nRegarding privacy: Your voice processing is done locally on your device, which is secure. AI chat data is sent directly to the AI service provider, and we do not handle it.</string>
     <string name="agreement_serious_title">Formal Legal Agreement</string>
     <string name="agreement_serious_content"><![CDATA[
-        <p>Welcome to OperitAI. This software is modified and distributed under the terms of the GNU Lesser General Public License, version 3 (LGPLv3).</p>
+        <p>Welcome to Tracendroid. This software is modified and distributed under the terms of the GNU Lesser General Public License, version 3 (LGPLv3).</p>
         <p><b>1. No Warranty</b><br>This software is provided "as is" without any warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. The entire risk as to the quality and performance of the software is with you.</p>
         <p><b>2. Limitation of Liability</b><br>In no event unless required by applicable law or agreed to in writing will any contributor be liable to you for damages, including any general, special, incidental, or consequential damages arising out of the use or inability to use the software. <b>Furthermore, the development team is not responsible for any consequences arising from user-installed extension packages (such as MCPs) or from modifications made to this software.</b></p>
         <p><b>3. User Responsibility and Usage Restrictions</b><br>You are fully responsible for any operations conducted through this software and for all their consequences. You agree to use this software for lawful and proper personal purposes and agree that:<br>
@@ -1112,6 +1117,7 @@
     <string name="copy">Copy</string>
     <string name="cut">Cut</string>
     <string name="paste">Paste</string>
+    <string name="editor_select_all">Select all</string>
     <string name="share">Share</string>
     <string name="loading_files">Loading files...</string>
 
@@ -1271,7 +1277,7 @@
     <string name="overlay_permission">Overlay Permission</string>
     <string name="battery_optimization">Battery Optimization Exemption</string>
     <string name="location_permission">Location Permission</string>
-    <string name="operit_terminal">Operit Terminal</string>
+    <string name="operit_terminal">Tracendroid Terminal</string>
     
     <!-- Permission Level Descriptions -->
     <string name="permission_level_standard">Standard Permission</string>
@@ -1477,7 +1483,7 @@
     <string name="accessibility_wizard_install_provider">Install Provider App</string>
     <string name="accessibility_wizard_enable_message">Now, enable the accessibility service in your device settings. This allows the provider app to analyze screen content.</string>
     <string name="accessibility_wizard_enable_note">Important Note:</string>
-    <string name="accessibility_wizard_enable_note_details">You must select and enable \"Operit Accessibility Provider\" from the list of services.</string>
+    <string name="accessibility_wizard_enable_note_details">You must select and enable \"Tracendroid Accessibility Provider\" from the list of services.</string>
     <string name="accessibility_wizard_open_settings">Open Accessibility Settings</string>
     <string name="accessibility_wizard_success_message">Accessibility service is properly configured and ready to use!</string>
 
@@ -1705,7 +1711,7 @@
     <string name="external_http_chat_health_example">Health Check Example</string>
     <string name="external_http_chat_intent_title">Intent Calling Guide</string>
     <string name="external_http_chat_intent_desc">The broadcast entry is still available for local app integration, Tasker, or adb debugging</string>
-    <string name="external_http_chat_intent_overview">HTTP and Intent share the same parameter semantics. Only the entry method is different.\n\nRequest action: %1$s\nDefault result action: %2$s\n\nCommon extras: message, request_id, group, create_new_chat, chat_id, create_if_none, show_floating, return_tool_status, initial_mode, auto_exit_after_ms, stop_after, reply_action, reply_package\n\nAfter completion, Operit returns success, chat_id, ai_response, and error by broadcast. If the result should only be delivered to one app, set reply_package.</string>
+    <string name="external_http_chat_intent_overview">HTTP and Intent share the same parameter semantics. Only the entry method is different.\n\nRequest action: %1$s\nDefault result action: %2$s\n\nCommon extras: message, request_id, group, create_new_chat, chat_id, create_if_none, show_floating, return_tool_status, initial_mode, auto_exit_after_ms, stop_after, reply_action, reply_package\n\nAfter completion, Tracendroid returns success, chat_id, ai_response, and error by broadcast. If the result should only be delivered to one app, set reply_package.</string>
     <string name="external_http_chat_copy_example">Copy Example</string>
     <string name="external_http_chat_example_copied">Example command copied</string>
     <string name="external_http_chat_service_enabled">Service enabled</string>
@@ -1875,7 +1881,7 @@
     <string name="tool_user_agreement">User Agreement</string>
     <string name="tool_user_agreement_desc">View the application\'s user agreement and privacy policy</string>
     <string name="tool_default_assistant_guide">Default Assistant Setup</string>
-    <string name="tool_default_assistant_guide_desc">Set Operit voice floating as system default assistant</string>
+    <string name="tool_default_assistant_guide_desc">Set Tracendroid voice floating as system default assistant</string>
     <string name="tool_terminal">Command Terminal</string>
     <string name="tool_terminal_desc">Powerful command-line terminal for executing system commands</string>
     <string name="tool_terminal_auto_config">Terminal Auto Configuration</string>
@@ -3692,6 +3698,12 @@
     <string name="enable_google_search_desc">When enabled, Gemini will use Google Search to enhance responses (may incur additional charges)</string>
     <string name="enable_tool_call">Model supports ToolCall</string>
     <string name="enable_tool_call_desc">When disabled, uses the built-in tool invocation mechanism which also supports tool calls. When enabled, uses the API\'s dedicated native interface (requires model support)</string>
+    <string name="model_oauth_mode">Use OAuth authorization</string>
+    <string name="model_oauth_mode_desc">When enabled, authenticates with an OAuth access token (instead of a static API key), refreshed as needed</string>
+    <string name="model_oauth_authorize">Authorize</string>
+    <string name="model_oauth_not_configured">OAuth is not configured for this provider yet</string>
+    <string name="model_oauth_success">OAuth authorization succeeded</string>
+    <string name="model_oauth_failed">OAuth authorization failed: %1$s</string>
     <string name="enable_deepseek_reasoning">Enable DeepSeek Reasoning Mode</string>
     <string name="enable_deepseek_reasoning_desc">When enabled, content within &lt;think&gt; tags will be sent as reasoning_content to DeepSeek models, supporting tool invocation for reasoning models like DeepSeek-R1</string>
     <string name="search_sources">Search Sources</string>
@@ -3736,7 +3748,16 @@
     <string name="provider_openai_local">OpenAI-Compatible (Local Model)</string>
     <string name="provider_ppinfra">PPInfra Cloud</string>
     <string name="provider_novita">Novita AI</string>
+    <string name="provider_xai">xAI (Grok)</string>
+    <string name="provider_groq">Groq</string>
+    <string name="provider_perplexity">Perplexity</string>
+    <string name="provider_together">Together AI</string>
+    <string name="provider_fireworks">Fireworks AI</string>
+    <string name="provider_deepinfra">DeepInfra</string>
+    <string name="provider_cohere">Cohere</string>
+    <string name="provider_azure_openai">Azure OpenAI</string>
     <string name="provider_openai_generic">OpenAI (Generic)</string>
+    <string name="provider_opencode_zen">opencode</string>
     <string name="provider_other">Other Providers</string>
     <string name="provider_doubao">Doubao</string>
     <string name="provider_nvidia">NVIDIA (API Catalog)</string>
@@ -4306,14 +4327,14 @@
     <string name="mcp_issue_body_title_install_info">## Installation Info</string>
     <string name="mcp_issue_body_repo_address">**Repository:** %1$s</string>
     <string name="mcp_issue_body_title_install_method">### Installation</string>
-    <string name="mcp_issue_body_install_step1">1. Open Operit MCP configuration screen and tap "Import"</string>
+    <string name="mcp_issue_body_install_step1">1. Open Tracendroid MCP configuration screen and tap "Import"</string>
     <string name="mcp_issue_body_install_step2">2. Select "Import from Repo"</string>
     <string name="mcp_issue_body_install_step3">3. Enter repository URL: `%1$s`</string>
     <string name="mcp_issue_body_install_step4">4. Set plugin name and tap import</string>
     <string name="mcp_issue_body_title_tech_info">## Technical Info</string>
-    <string name="mcp_issue_body_tech_platform">- **Platform:** Operit MCP Market</string>
+    <string name="mcp_issue_body_tech_platform">- **Platform:** Tracendroid MCP Market</string>
     <string name="mcp_issue_body_tech_publish_time">- **Published at:** %1$s</string>
-    <string name="mcp_issue_body_footer_note">*This Issue was generated automatically by Operit*</string>
+    <string name="mcp_issue_body_footer_note">*This Issue was generated automatically by Tracendroid*</string>
 
     <string name="mcp_publish_body_section_plugin_info">## 📋 Plugin Info</string>
     <string name="mcp_publish_body_label_description">**Description:** %1$s</string>
@@ -4322,18 +4343,18 @@
     <string name="mcp_publish_body_section_quick_install">## ⚡ Quick Install</string>
     <string name="mcp_publish_body_section_install_method">## 📦 Installation</string>
     <string name="mcp_publish_body_method_repo_import_title">### Method 1: Import from Repo</string>
-    <string name="mcp_publish_body_method_repo_import_step1">1. Open Operit MCP configuration screen</string>
+    <string name="mcp_publish_body_method_repo_import_step1">1. Open Tracendroid MCP configuration screen</string>
     <string name="mcp_publish_body_method_repo_import_step2">2. Tap "Import" → "Import from Repo"</string>
     <string name="mcp_publish_body_method_repo_import_step3">3. Enter repository URL: `%1$s`</string>
     <string name="mcp_publish_body_method_repo_import_step4">4. Set plugin name and import</string>
     <string name="mcp_publish_body_method_config_import_title">### Method 2: Import Config</string>
-    <string name="mcp_publish_body_method_config_import_step1">1. Open Operit MCP configuration screen</string>
+    <string name="mcp_publish_body_method_config_import_step1">1. Open Tracendroid MCP configuration screen</string>
     <string name="mcp_publish_body_method_config_import_step2">2. Tap "Import" → "Import Config"</string>
     <string name="mcp_publish_body_method_config_import_step3">3. Paste the following config:</string>
     <string name="mcp_publish_body_section_tech_info">## 🛠️ Technical Info</string>
     <string name="mcp_publish_body_table_header">| Item | Value |</string>
     <string name="mcp_publish_body_table_separator">|------|-----|</string>
-    <string name="mcp_publish_body_table_row_platform">| Platform | Operit MCP Market |</string>
+    <string name="mcp_publish_body_table_row_platform">| Platform | Tracendroid MCP Market |</string>
     <string name="mcp_publish_body_table_row_parser_version">| Parser Version | 1.0 |</string>
     <string name="mcp_publish_body_table_row_publish_time">| Published at | %1$s |</string>
     
@@ -4437,7 +4458,7 @@
     <string name="custom">Custom</string>
 
     <!-- Voice Assistant Widget -->
-    <string name="voice_assistant_widget_description">Quick launch Operit voice assistant</string>
+    <string name="voice_assistant_widget_description">Quick launch Tracendroid voice assistant</string>
     <string name="voice_assistant_widget_title">Voice Assistant</string>
     <string name="toolpkg_widget_host_label">Custom Widget</string>
     <string name="toolpkg_widget_host_description">Add it and bind it to a widget page registered by a plugin</string>
@@ -4522,15 +4543,15 @@
 
     <!-- Default Assistant Setup Guide -->
     <string name="default_assistant_guide_title">Set Default Voice Assistant</string>
-    <string name="default_assistant_guide_subtitle">Make Operit Your Smart Assistant</string>
-    <string name="default_assistant_guide_intro">After setting Operit as the default system assistant, you can quickly launch the Operit voice assistant by long-pressing the Home button or using voice wake-up, providing a more convenient AI interaction experience.</string>
+    <string name="default_assistant_guide_subtitle">Make Tracendroid Your Smart Assistant</string>
+    <string name="default_assistant_guide_intro">After setting Tracendroid as the default system assistant, you can quickly launch the Tracendroid voice assistant by long-pressing the Home button or using voice wake-up, providing a more convenient AI interaction experience.</string>
     <string name="default_assistant_guide_steps_title">Setup Steps</string>
     
     <!-- Step 1 -->
     <string name="default_assistant_guide_step1_title">Open System Settings</string>
     <string name="default_assistant_guide_step1_desc">First, you need to enter the Android system settings interface</string>
     <string name="default_assistant_guide_step1_detail1">• Open System Settings → Apps → Default apps → Digital assistant app</string>
-    <string name="default_assistant_guide_step1_detail2">• Find and select "Operit AI" in the assistant app list</string>
+    <string name="default_assistant_guide_step1_detail2">• Find and select "Tracendroid" in the assistant app list</string>
     <string name="default_assistant_guide_step1_detail_android12">Android 12+: Settings → Apps → Default apps → Digital assistant app → Default digital assistant app</string>
     <string name="default_assistant_guide_open_settings">Open Settings</string>
     
@@ -4545,24 +4566,24 @@
     <string name="default_assistant_guide_step2_detail_android12">Android 12+: Settings → Apps → Default apps → Digital assistant app → Default digital assistant app</string>
     
     <!-- Step 3 -->
-    <string name="default_assistant_guide_step3_title">Select Operit</string>
-    <string name="default_assistant_guide_step3_desc">Choose Operit AI from the assistant app list</string>
-    <string name="default_assistant_guide_step3_detail1">• Find \"Operit AI\" in the available assistant apps list</string>
-    <string name="default_assistant_guide_step3_detail2">• Tap to select, and the system will set Operit as the default assistant</string>
+    <string name="default_assistant_guide_step3_title">Select Tracendroid</string>
+    <string name="default_assistant_guide_step3_desc">Choose Tracendroid from the assistant app list</string>
+    <string name="default_assistant_guide_step3_detail1">• Find \"Tracendroid\" in the available assistant apps list</string>
+    <string name="default_assistant_guide_step3_detail2">• Tap to select, and the system will set Tracendroid as the default assistant</string>
     <string name="default_assistant_guide_step3_detail3">• You can try speaking or typing to interact with the assistant</string>
     
     <!-- Step 4 -->
     <string name="default_assistant_guide_step4_title">Test Voice Assistant</string>
     <string name="default_assistant_guide_step4_desc">After setup, test if it can be launched normally</string>
-    <string name="default_assistant_guide_step4_detail1">• Long-press the Home button (home screen button) should invoke Operit voice assistant</string>
-    <string name="default_assistant_guide_step4_detail2">• If voice wake-up is supported, saying \"Hey Google\" or your device\'s designated wake word may also trigger Operit</string>
+    <string name="default_assistant_guide_step4_detail1">• Long-press the Home button (home screen button) should invoke Tracendroid voice assistant</string>
+    <string name="default_assistant_guide_step4_detail2">• If voice wake-up is supported, saying \"Hey Google\" or your device\'s designated wake word may also trigger Tracendroid</string>
     
     <!-- Troubleshooting -->
     <string name="default_assistant_guide_troubleshooting_title">Having Problems?</string>
-    <string name="default_assistant_guide_troubleshooting_content">If you can\'t find Operit in the list, please ensure:\n\n• The app is properly installed and not disabled\n• Necessary permissions have been granted (microphone, overlay, etc.)\n• Try restarting the device and setting it up again\n\nSome custom systems may restrict third-party apps from being set as default assistants. If you encounter this situation, you can still use Operit through the in-app floating window feature.</string>
+    <string name="default_assistant_guide_troubleshooting_content">If you can\'t find Tracendroid in the list, please ensure:\n\n• The app is properly installed and not disabled\n• Necessary permissions have been granted (microphone, overlay, etc.)\n• Try restarting the device and setting it up again\n\nSome custom systems may restrict third-party apps from being set as default assistants. If you encounter this situation, you can still use Tracendroid through the in-app floating window feature.</string>
 
     <!-- Voice Interaction Service -->
-    <string name="voice_interaction_service_name">Operit AI Assistant</string>
+    <string name="voice_interaction_service_name">Tracendroid Assistant</string>
     <string name="voice_interaction_service_summary">Intelligent voice assistant service</string>
 
     <!-- Tool Permission Settings -->
@@ -4786,6 +4807,16 @@
     <string name="attachments_count">Attachments (%1$d)</string>
     
     <!-- Workspace -->
+    <string name="mention_selector_hint">Enter a package name, file name or path</string>
+    <string name="mention_selector_packages_section">Packages</string>
+    <string name="mention_selector_files_section">Files</string>
+    <string name="mention_selector_files_idle">Enter a name or path to search workspace items</string>
+    <string name="mention_selector_files_empty">No matching files or folders</string>
+    <string name="mention_selector_kind_toolpackage">Tool package</string>
+    <string name="mention_selector_kind_skill">Skill package</string>
+    <string name="mention_selector_kind_mcp">MCP package</string>
+    <string name="attachment_kind_package">Package</string>
+    <string name="attachment_kind_skill">Skill</string>
     <string name="select_file_to_reference">Select file to reference</string>
     <string name="workspace_directory_invalid">Workspace directory does not exist or is invalid</string>
     <string name="chat_not_bound_to_workspace">Current chat not bound to workspace</string>
@@ -4839,7 +4870,7 @@
     <string name="enable_navigation_animation_description">Turns on the enhanced animation set for both the phone sidebar and page transitions. Turn it off to use simpler navigation motion.</string>
     <string name="software_identity_title">Software Identity</string>
     <string name="software_identity_description">Change the software identity shown at the top of the sidebar.</string>
-    <string name="software_identity_option_operit">Operit AI</string>
+    <string name="software_identity_option_operit">Tracendroid</string>
     <string name="software_identity_option_lingshu">Lingshu AI</string>
     <string name="app_icon_switch_title">App Icon</string>
     <string name="app_icon_switch_description">Switch the launcher icon shown on your home screen (some launchers refresh with delay).</string>
@@ -4916,7 +4947,7 @@
     <string name="backup_memory_link_count">Memory Links</string>
     
     <string name="backup_files_statistics">Backup Files Statistics</string>
-    <string name="backup_files_statistics_subtitle">Backup files in Operit export directory</string>
+    <string name="backup_files_statistics_subtitle">Backup files in Tracendroid export directory</string>
     <string name="backup_refresh">Refresh</string>
     <string name="backup_scanning">Scanning</string>
     <string name="backup_chat_files">Chat History</string>
@@ -5021,7 +5052,7 @@
     <string name="backup_select_export_format">Select Export Format</string>
     <string name="backup_select_format_hint">Please select the chat history format to export:</string>
     <string name="backup_format_json">JSON (Recommended)</string>
-    <string name="backup_format_json_desc">Operit native format, preserves variants and all other data</string>
+    <string name="backup_format_json_desc">Tracendroid native format, preserves variants and all other data</string>
     <string name="backup_format_markdown">Markdown</string>
     <string name="backup_format_markdown_desc">Lightweight markup format, easy to read and edit</string>
     <string name="backup_format_html">HTML</string>
@@ -5032,7 +5063,7 @@
     <!-- Import Format Selection -->
     <string name="backup_select_import_format">Select Import Format</string>
     <string name="backup_import_format_hint">Please select the chat history format to import:</string>
-    <string name="backup_format_operit">Operit JSON (Recommended)</string>
+    <string name="backup_format_operit">Tracendroid JSON (Recommended)</string>
     <string name="backup_format_operit_desc">Native format of this app, preserves variants and all other data</string>
     <string name="backup_format_chatgpt">ChatGPT</string>
     <string name="backup_format_chatgpt_desc">OpenAI ChatGPT conversations.json export format</string>
@@ -5134,7 +5165,7 @@
     <!-- UI Debugger -->
     <!-- Logcat -->
     <string name="logcat_no_logs_to_save">No logs to save</string>
-    <string name="logcat_header">=== Operit Logs ===</string>
+    <string name="logcat_header">=== Tracendroid Logs ===</string>
     <string name="logcat_date">Date: %1$s</string>
     <string name="logcat_total_count">Total count: %1$d</string>
     <string name="logcat_save_failed">Save failed: %1$s</string>
@@ -5196,6 +5227,7 @@
     <string name="toolreg_execute_intent_action_desc">Execute intent: %1$s (type: %2$s)</string>
     <string name="toolreg_execute_android_intent_desc">Execute Android intent (type: %1$s)</string>
     <string name="toolreg_device_info_desc">Get device info</string>
+    <string name="toolreg_read_app_logs_desc">Read app logs (lines: %1$s, level: %2$s)</string>
     <string name="toolreg_trigger_tasker_event_desc">Trigger Tasker event: %1$s (%2$s)</string>
     <string name="toolreg_missing_required_param">Missing required param: %1$s</string>
     <string name="toolreg_tasker_event_triggered_result">Triggered Tasker event: %1$s</string>
@@ -5283,6 +5315,28 @@
     <string name="toolreg_run_ui_subagent_desc">Run UI sub-agent: %1$s (max %2$s steps)</string>
     <string name="toolreg_agent_id_suffix"> (agent_id=%1$s)</string>
     <string name="toolreg_run_ui_subagent_hint">. It is recommended to reuse the same agent_id across calls to keep operating the same virtual display session (you can reuse the agentId returned previously).</string>
+    <string name="toolreg_dump_ui_tree_desc">Dump current UI hierarchy (format: %1$s)</string>
+    <string name="toolreg_find_ui_element_desc">Find on-screen element: \"%1$s\" (by %2$s)</string>
+    <string name="toolreg_fill_form_desc">Autofill form inputs (set only, no submit): %1$s</string>
+    <string name="toolreg_wait_for_element_desc">Wait for on-screen element (query only, no click): \"%1$s\" (timeout %2$s ms)</string>
+    <string name="toolreg_schedule_task_desc">Schedule/cancel a workflow: %1$s (action: %2$s)</string>
+    <!-- UI sub-agent (accessibility transport) runtime messages -->
+    <string name="ui_subagent_standard_unavailable">The UI automation sub-agent requires the accessibility transport. This tool is currently running at the STANDARD permission level and cannot drive the UI. Switch the preferred permission level to ACCESSIBILITY in settings and enable the Tracendroid accessibility service, then retry.</string>
+    <string name="ui_subagent_accessibility_disabled">UI automation needs the Tracendroid accessibility service, but it is not enabled. Open System Settings &gt; Accessibility and turn on the Tracendroid accessibility service, then retry (the in-app accessibility onboarding screen opens the same system settings page).</string>
+    <string name="ui_subagent_observation_header">UI automation sub-agent (accessibility transport) — single-step observation. Target intent: %1$s.\nBelow is a snapshot of the current screen plus the available accessibility actions. Use it to plan the next step and execute incrementally with tap / click_element / set_input_text / swipe / press_key / long_press / get_page_info.\nAvailable actions: tap(x,y), long_press(x,y), swipe(start_x,start_y,end_x,end_y), click_element(resourceId|className|contentDesc|bounds), set_input_text(text), press_key(KEYCODE_BACK|HOME|RECENTS|NOTIFICATIONS|QUICK_SETTINGS|POWER_DIALOG), get_page_info, capture_screenshot.\n(Note: a full multi-step autonomous loop is a follow-up; this step returns the current screen so the calling agent can drive it.)\n\nCurrent screen:\n%2$s</string>
+    <string name="ui_subagent_observation_failed">UI automation sub-agent (accessibility transport) is ready, but reading the current screen failed: %1$s. Confirm the Tracendroid accessibility service is running, then retry.</string>
+    <!-- UI sub-agent multi-step loop (observe/decide/act) -->
+    <string name="ui_subagent_loop_system_prompt">You are a phone UI automation sub-agent. You can only drive the screen through the Android accessibility service (no root, adb, or shell). Given the user task, a snapshot of the current screen, and the step history, output ONLY the single next action as one JSON object, with no extra prose.\nAllowed actions (choose exactly one per turn):\n{\"action\":\"click\",\"by\":\"text|id|desc|bounds\",\"value\":\"...\",\"index\":0} — click an element by visible text / resource-id suffix / content-description / bounds; index is optional (default 0).\n{\"action\":\"set_text\",\"text\":\"...\"} — type into the currently focused input field (click the field first).\n{\"action\":\"tap\",\"x\":0,\"y\":0} — tap at coordinates.\n{\"action\":\"long_press\",\"x\":0,\"y\":0} — long-press at coordinates.\n{\"action\":\"swipe\",\"start_x\":0,\"start_y\":0,\"end_x\":0,\"end_y\":0} — swipe.\n{\"action\":\"press_key\",\"key\":\"BACK|HOME|RECENTS|NOTIFICATIONS|QUICK_SETTINGS|POWER_DIALOG\"} — a system key.\n{\"action\":\"wait\"} — wait for the UI to settle, then re-observe.\n{\"action\":\"done\",\"reason\":\"...\"} — the task is complete or cannot proceed.\nCoordinates come from element bounds (format [left,top][right,bottom]); use the center point. Prefer click with text/id/desc over absolute coordinates. Output JSON only.</string>
+    <string name="ui_subagent_loop_user_prompt">Task: %1$s\n\nCurrent screen (step %2$d/%3$d):\n%4$s\n\nStep history:\n%5$s\n\nOutput the single next action as JSON.</string>
+    <string name="ui_subagent_loop_history_none">(none, this is the first step)</string>
+    <string name="ui_subagent_loop_transcript_header">UI automation sub-agent (accessibility transport) multi-step run. Target task: %1$s.</string>
+    <string name="ui_subagent_loop_step_line">Step %1$d: %2$s -&gt; %3$s</string>
+    <string name="ui_subagent_loop_done">Sub-agent reported the task done: %1$s (in %2$d steps).</string>
+    <string name="ui_subagent_loop_max_steps">Reached the maximum step budget of %1$d and stopped. The task may be incomplete.</string>
+    <string name="ui_subagent_loop_decider_failed">Step %1$d: requesting the next action from the model failed: %2$s. Stopping and returning the partial transcript so far.</string>
+    <string name="ui_subagent_loop_parse_failed">Could not parse a valid action JSON from the model reply: %1$s</string>
+    <string name="ui_subagent_loop_final_page_header">Final screen state:</string>
+    <string name="ui_subagent_loop_empty_intent">No task intent was provided (the intent parameter is empty); cannot run the UI automation sub-agent.</string>
     <string name="toolreg_set_input_text_desc">Set input text: %1$s</string>
     <string name="toolreg_press_key_desc">Press key: %1$s</string>
     <string name="toolreg_swipe_desc">Swipe: (%1$s,%2$s) -&gt; (%3$s,%4$s)</string>
@@ -5631,14 +5685,14 @@
     <string name="skill_publish_body_section_repo_info">## 🔗 Repository Info</string>
     <string name="skill_publish_body_label_repo_url">**Repository URL:** %1$s</string>
     <string name="skill_publish_body_section_install_method">## 📦 Installation</string>
-    <string name="skill_publish_body_install_step1">1. Open Operit → Package Manager → Skills</string>
+    <string name="skill_publish_body_install_step1">1. Open Tracendroid → Package Manager → Skills</string>
     <string name="skill_publish_body_install_step2">2. Tap "Import Skill" → "Import from Repository"</string>
     <string name="skill_publish_body_install_step3">3. Enter repository URL: `%1$s`</string>
     <string name="skill_publish_body_install_step4">4. Confirm import</string>
     <string name="skill_publish_body_section_tech_info">## 🛠️ Technical Info</string>
     <string name="skill_publish_body_table_header">| Item | Value |</string>
     <string name="skill_publish_body_table_separator">|------|-------|</string>
-    <string name="skill_publish_body_table_row_platform">| Platform | Operit Skill Market |</string>
+    <string name="skill_publish_body_table_row_platform">| Platform | Tracendroid Skill Market |</string>
     <string name="skill_publish_body_table_row_parser_version">| Parser version | 1.0 |</string>
     <string name="skill_publish_body_table_row_publish_time">| Publish time | %1$s |</string>
 
@@ -6475,15 +6529,15 @@
     <string name="chat_summarize_generation_failed">Summary generation failed: %1$s</string>
 
     <!-- AIForegroundService (新增) -->
-    <string name="service_operit_running">Operit is running</string>
+    <string name="service_operit_running">Tracendroid is running</string>
     <string name="service_chat_complete_reminder">Chat completion reminder</string>
     <string name="service_chat_complete_reminder_sound">Chat completion reminder (sound)</string>
     <string name="service_chat_complete_reminder_vibration">Chat completion reminder (vibration)</string>
     <string name="service_chat_complete_reminder_sound_vibration">Chat completion reminder (sound and vibration)</string>
-    <string name="service_keep_background">Keep Operit running in the background.</string>
+    <string name="service_keep_background">Keep Tracendroid running in the background.</string>
     <string name="service_notify_when_complete">Notify you when the conversation is complete.</string>
-    <string name="service_running_wake_pause">Operit is running (wake paused)</string>
-    <string name="service_running_wake_listening">Operit is running (wake listening)</string>
+    <string name="service_running_wake_pause">Tracendroid is running (wake paused)</string>
+    <string name="service_running_wake_listening">Tracendroid is running (wake listening)</string>
     <string name="service_running_stats">Conversations %1$d · Tools %2$d</string>
     <string name="service_running_http_listening">External HTTP listening on port %1$d</string>
     <string name="service_running_with_http">%1$s · HTTP %2$d</string>
@@ -6530,7 +6584,7 @@
     <string name="html_export_updated">Updated</string>
     <string name="html_export_group">Group</string>
     <string name="html_export_message_count">Message Count</string>
-    <string name="html_export_footer">Exported from Operit AI Assistant</string>
+    <string name="html_export_footer">Exported from Tracendroid Assistant</string>
 
     <!-- MnnModelDownloadManager -->
     <string name="mnn_no_cache_data">No cache data</string>
@@ -7141,7 +7195,7 @@
     <string name="retry_market_registration">Retry market registration</string>
     <string name="update_to_market">Update to market</string>
     <string name="create_operit_forge_title">Create OperitForge?</string>
-    <string name="create_operit_forge_message">This is your first direct publish. Operit needs to create a public repository `OperitForge` under your GitHub account.</string>
+    <string name="create_operit_forge_message">This is your first direct publish. Tracendroid needs to create a public repository `OperitForge` under your GitHub account.</string>
     <string name="confirm_create_public_forge_title">Confirm create public repository</string>
     <string name="confirm_create_public_forge_message">Please confirm again: create the public repository `OperitForge` now. Future publishes will reuse this repository.</string>
     <string name="create_and_publish">Create and publish</string>
@@ -7266,6 +7320,53 @@
     <string name="after_logging_in_you_can_view_and_manage_your_artifacts">After logging in, you can view and manage your published scripts and packages</string>
     <string name="login_github_to_manage_artifacts">Log in to GitHub to manage and publish scripts/packages</string>
     <string name="need_login_github_manage_artifacts">You need to log in to GitHub to manage your published scripts and packages</string>
+    <string name="artifact_node_tree_selection_tip">Tap a node to select it; tap again to deselect.</string>
+    <string name="artifact_node_tree_confirm">Confirm</string>
+    <string name="artifact_node_tree_close">Close</string>
+    <string name="artifact_publish_continuation_selection_title">%1$d version(s) selected</string>
+    <string name="artifact_publish_continuation_description">Publishing on top of a base will create updates for one or more versions. When you select one, it is treated as the next version of that version; when you select several, it is treated as the next version that merges multiple features.</string>
+    <string name="artifact_publish_selection_load_failed">Failed to load version selection</string>
+    <string name="artifact_publish_header_edit">Edit item</string>
+    <string name="artifact_publish_header_continuation">Publish on this version</string>
+    <string name="artifact_publish_edit_info_description">When editing an item you cannot change the files, version number, or naming. To update a plugin, open the plugin details screen and tap Publish new version. You can also create a new version for someone else\'s plugin.</string>
+    <string name="artifact_publish_file_locked">File locked</string>
+    <string name="artifact_publish_edit_only_hint">Only the description and supported versions can be changed</string>
+    <string name="artifact_publish_current_work">Current item</string>
+    <string name="artifact_publish_loading_short">Loading</string>
+    <string name="artifact_publish_change_action">Change</string>
+    <string name="artifact_publish_name_inherited">The plugin name will inherit %1$s</string>
+    <string name="artifact_publish_id_inherited">The package name and publish name are inherited automatically.</string>
+    <string name="artifact_publish_continuation_no_local_package">This is a version-based publish, but no matching plugin was found locally to publish. Please confirm the package already exists locally.</string>
+    <string name="artifact_publish_name_locked_published">The name of a published item cannot be changed</string>
+    <string name="artifact_publish_name_locked_continuation">For a version-based publish, the plugin name must match the source version</string>
+    <string name="artifact_publish_version_locked">The version number of a published node cannot be changed</string>
+    <string name="artifact_publish_button_save_edit">Save item info</string>
+    <string name="artifact_publish_button_publish_update">Publish update</string>
+    <string name="artifact_publish_confirm_save_edit">Confirm saving item info</string>
+    <string name="artifact_publish_confirm_publish_update">Confirm publishing update</string>
+    <string name="artifact_publish_edit_update_note">This will update the description and supported versions of the current item.</string>
+    <string name="artifact_publish_success_edit">Item info updated successfully</string>
+    <string name="artifact_publish_success_continuation">Update version published successfully</string>
+    <string name="artifact_detail_project_cluster_label">Project cluster</string>
+    <string name="artifact_detail_node_id_label">Node ID</string>
+    <string name="artifact_detail_continue_dialog_title">Continue developing from this node</string>
+    <string name="artifact_detail_continue_step_pull">1. Pull Skill updates</string>
+    <string name="artifact_detail_continue_step_switch">2. Switch to or download the current version</string>
+    <string name="artifact_detail_continue_step_input">3. Enter your requirements to start creating</string>
+    <string name="artifact_detail_continue_step_input_hint">Development continues on top of this version, with strong reminders about directory limits, types synchronization, and build method.</string>
+    <string name="artifact_detail_continue_requirement_label">What do you want the AI to do this time</string>
+    <string name="artifact_detail_continue_start">Start developing from this</string>
+    <string name="artifact_detail_update_card_title">Update on top of this version</string>
+    <string name="artifact_detail_update_card_description">You can publish a new version directly based on the current version, or keep creating first and decide when to publish later.</string>
+    <string name="artifact_detail_publish_new_version">Publish new version</string>
+    <string name="artifact_detail_create_new_version">Create new version</string>
+    <string name="artifact_version_badge">Version %1$s</string>
+    <string name="artifact_detail_name_conflict_title">Name conflict</string>
+    <string name="artifact_detail_name_conflict_message">A version with the same name that does not belong to the current project cluster already exists locally: `%1$s`. You need to uninstall it manually first.</string>
+    <string name="artifact_detail_built_in_conflict_title">Built-in package conflict</string>
+    <string name="artifact_detail_built_in_conflict_message">The local package `%1$s` with the same name comes from a built-in plugin and cannot be overwritten directly.</string>
+    <string name="artifact_detail_checking_install">Checking installation</string>
+    <string name="artifact_detail_switch_to_this_version">Switch to this version</string>
     <string name="available_artifacts_market">Available Scripts and Packages</string>
     <string name="artifact_market_search_placeholder">Search name or author</string>
     <string name="no_matching_artifacts_found">No matching entries found</string>
@@ -7374,4 +7475,86 @@
     <string name="onnx_tts_error_config_invalid_int">ONNX TTS parameter is not an integer: %1$s</string>
     <string name="onnx_tts_error_config_invalid_float">ONNX TTS parameter is not a number: %1$s</string>
     <string name="onnx_tts_error_config_invalid_bool">ONNX TTS parameter is not a boolean: %1$s</string>
+    <string name="homage_blue_translation">Blue is taken from the indigo plant, yet it is bluer than indigo — the one who comes after stands on those who came before.</string>
+    <string name="homage_gratitude">Tracendroid grows from Operit. With deep respect and gratitude to AAswordman and everyone who built Operit AI — this app stands only because you laid the ground beneath it.</string>
+    <string name="homage_thanks">Thank you</string>
+    <!-- Recovered from Operit upstream (i18n commit ac73622): UI Debugger tool + install-error strings referenced by live code but undefined. Restores compile. -->
+    <string name="experimental_virtual_display">Experimental Virtual Display</string>
+    <string name="experimental_virtual_display_description">Use ADB+Shizuku automation based on virtual display. This feature is still experimental and may be unstable.</string>
+    <string name="mcp_market_install_failed_with_error">Install failed: %1$s</string>
+    <string name="mcp_uninstall_failed">Uninstall failed</string>
+    <string name="skillmarket_install_failed">Installation failed: %1$s</string>
+    <string name="tool_ui_debugger_desc">Debug and analyze interface elements with element search and interaction support</string>
+    <string name="ui_debugger_description">Tap the button in the bottom right corner to launch the floating window for UI debugging</string>
+    <string name="ui_debugger_launch_floating">Launch Floating Window</string>
+    <string name="ui_debugger_title">UI Debugging Tool</string>
+    <string name="uidebugger_action_click_failed">Click failed</string>
+    <string name="uidebugger_action_click_success">Click succeeded</string>
+    <string name="uidebugger_action_failed">Action failed</string>
+    <string name="uidebugger_action_highlighted">Element highlighted</string>
+    <string name="uidebugger_action_selected">Element selected</string>
+    <string name="uidebugger_activity_monitor">Activity monitor</string>
+    <string name="uidebugger_activity_monitor_already_running">Monitoring is already running</string>
+    <string name="uidebugger_activity_monitor_click_to_start">Click Start Monitoring to begin listening for Activity events</string>
+    <string name="uidebugger_activity_monitor_current_activity">Current activity</string>
+    <string name="uidebugger_activity_monitor_event_log">Event log (%1$d)</string>
+    <string name="uidebugger_activity_monitor_item_activity">Activity: %1$s</string>
+    <string name="uidebugger_activity_monitor_item_app_switch">App switch</string>
+    <string name="uidebugger_activity_monitor_item_click">Click</string>
+    <string name="uidebugger_activity_monitor_item_gesture">Gesture</string>
+    <string name="uidebugger_activity_monitor_item_key_press">Key press</string>
+    <string name="uidebugger_activity_monitor_item_long_click">Long press</string>
+    <string name="uidebugger_activity_monitor_item_package">Package: %1$s</string>
+    <string name="uidebugger_activity_monitor_item_screen_change">Screen change</string>
+    <string name="uidebugger_activity_monitor_item_scroll">Scroll</string>
+    <string name="uidebugger_activity_monitor_item_swipe">Swipe</string>
+    <string name="uidebugger_activity_monitor_item_system_event">System event</string>
+    <string name="uidebugger_activity_monitor_item_text">Text: %1$s</string>
+    <string name="uidebugger_activity_monitor_item_text_input">Text input</string>
+    <string name="uidebugger_activity_monitor_listening">Listening for Activity events</string>
+    <string name="uidebugger_activity_monitor_permission_insufficient">Insufficient permission: %1$s</string>
+    <string name="uidebugger_activity_monitor_start_failed_with_reason">Failed to start monitoring: %1$s</string>
+    <string name="uidebugger_activity_monitor_started">Activity monitor started</string>
+    <string name="uidebugger_activity_monitor_stop_failed">Failed to stop monitoring</string>
+    <string name="uidebugger_activity_monitor_stop_failed_with_reason">Failed to stop monitoring: %1$s</string>
+    <string name="uidebugger_activity_monitor_stopped">Monitoring stopped</string>
+    <string name="uidebugger_activity_monitor_waiting">Listening... waiting for Activity events</string>
+    <string name="uidebugger_app_name">App Name</string>
+    <string name="uidebugger_cancel2">Cancel</string>
+    <string name="uidebugger_clear">Clear</string>
+    <string name="uidebugger_close_panel">Close panel</string>
+    <string name="uidebugger_close_ui_analysis">Close UI analysis</string>
+    <string name="uidebugger_collapse_panel">Collapse panel</string>
+    <string name="uidebugger_copy_activity_name">Copy activity name</string>
+    <string name="uidebugger_create">Create</string>
+    <string name="uidebugger_create_new_package">Create New Config Package</string>
+    <string name="uidebugger_current_interface">Current analysis interface</string>
+    <string name="uidebugger_description_optional">Description (Optional)</string>
+    <string name="uidebugger_element_detail_activity_name">Activity: %1$s</string>
+    <string name="uidebugger_element_detail_bounds">Bounds: [%1$d, %2$d, %3$d, %4$d]</string>
+    <string name="uidebugger_element_detail_class_name">Class: %1$s</string>
+    <string name="uidebugger_element_detail_clickable">Clickable: %1$s</string>
+    <string name="uidebugger_element_detail_content_desc">Content description: %1$s</string>
+    <string name="uidebugger_element_detail_package_name">Package: %1$s</string>
+    <string name="uidebugger_element_detail_resource_id">Resource ID: %1$s</string>
+    <string name="uidebugger_element_detail_text">Text: %1$s</string>
+    <string name="uidebugger_element_info_current_activity">Current Activity</string>
+    <string name="uidebugger_element_info_package_name">Package: %1$s</string>
+    <string name="uidebugger_element_info_size_px">Size: %1$d×%2$dpx</string>
+    <string name="uidebugger_element_info_title">Element info</string>
+    <string name="uidebugger_element_type_button">Button</string>
+    <string name="uidebugger_element_type_generic">UI element</string>
+    <string name="uidebugger_element_type_image">Image</string>
+    <string name="uidebugger_element_type_input">Input</string>
+    <string name="uidebugger_element_type_text">Text</string>
+    <string name="uidebugger_element_type_view">View</string>
+    <string name="uidebugger_error_fetch_ui_failed">Failed to fetch UI info</string>
+    <string name="uidebugger_error_refresh_failed">Refresh failed</string>
+    <string name="uidebugger_error_wrong_result_type">Wrong result type returned</string>
+    <string name="uidebugger_minimize">Minimize</string>
+    <string name="uidebugger_package_name">Package: %1$s</string>
+    <string name="uidebugger_start_monitoring">Start Monitoring</string>
+    <string name="uidebugger_stop_monitoring">Stop Monitoring</string>
+    <string name="uidebugger_ui_analysis">UI analysis</string>
+    <string name="web_session_userscript_install_failed">Failed to install userscript</string>
 </resources>

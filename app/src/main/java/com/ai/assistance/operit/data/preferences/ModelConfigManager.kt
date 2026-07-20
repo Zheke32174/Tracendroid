@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.ai.assistance.operit.data.model.CustomParameterData
+import com.ai.assistance.operit.data.model.ModelAuthMode
 import com.ai.assistance.operit.data.model.ModelConfigData
 import com.ai.assistance.operit.data.model.ModelConfigSummary
 import com.ai.assistance.operit.data.model.ModelParameter
@@ -50,8 +51,9 @@ class ModelConfigManager(private val context: Context) {
         const val DEFAULT_CONFIG_ID = "default"
         const val DEFAULT_CONFIG_NAME = "model_config_default_name"
 
-        // Default API provider type
-        private val DEFAULT_API_PROVIDER_TYPE = ApiProviderType.DEEPSEEK
+        // Default API provider type — opencode zen (OpenAI-compatible gateway). Matches
+        // ApiPreferences.DEFAULT_API_ENDPOINT / DEFAULT_MODEL_NAME (opencode.ai/zen, grok-code-fast-1).
+        private val DEFAULT_API_PROVIDER_TYPE = ApiProviderType.OPENCODE_ZEN
 
         /** § 4.9 vault store name. Per-config keys live under cfg:<id>:apiKey etc. */
         private const val VAULT_STORE = "model_config_credentials"
@@ -274,6 +276,11 @@ class ModelConfigManager(private val context: Context) {
     // 更新API Key池的当前索引
     suspend fun updateConfigKeyIndex(configId: String, newIndex: Int) {
         updateConfigInternal(configId) { it.copy(currentKeyIndex = newIndex) }
+    }
+
+    // 更新凭证来源模式 (静态API Key / OAuth)
+    suspend fun updateAuthMode(configId: String, authMode: ModelAuthMode) {
+        updateConfigInternal(configId) { it.copy(authMode = authMode) }
     }
 
     // 获取所有配置的摘要信息

@@ -1322,13 +1322,10 @@ class GeminiProvider(
         }
 
         // 添加API密钥
-        val currentApiKey = apiKeyProvider.getApiKey()
-        val finalUrl =
-                if (requestUrl.contains("?")) {
-                    "$requestUrl&key=$currentApiKey"
-                } else {
-                    "$requestUrl?key=$currentApiKey"
-                }
+        val authStrategy: AuthStrategy = QueryParamAuth("key") { apiKeyProvider.getApiKey() }
+        val credential = authStrategy.resolveCredential()
+        val finalUrl = authStrategy.applyUrl(requestUrl, credential)
+        authStrategy.applyHeaders(builder, credential)
 
         val request = builder.url(finalUrl)
                 .post(requestBody)

@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.core.tools
 
 import android.content.Context
+import android.util.Log
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.chat.enhance.ToolExecutionManager
 import com.ai.assistance.operit.core.tools.climode.CliToolModeSupport
@@ -13,6 +14,7 @@ import com.ai.assistance.operit.data.preferences.CharacterCardToolAccessResolver
 import com.ai.assistance.operit.data.preferences.ResolvedCharacterCardToolAccess
 import com.ai.assistance.operit.integrations.tasker.triggerAIAgentAction
 import com.ai.assistance.operit.services.FloatingChatService
+import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.LocaleUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -1403,6 +1405,17 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             executor = { tool -> runBlocking(Dispatchers.IO) { workflowTools.triggerWorkflow(tool) } }
     )
 
+    // 通过既有工作流调度器（WorkManager）为已有工作流排期/取消排期（复用调度层，不新建闹钟/接收器）
+    handler.registerTool(
+            name = "schedule_task",
+            descriptionGenerator = { tool ->
+                val id = tool.parameters.find { it.name == "workflow_id" }?.value ?: ""
+                val action = tool.parameters.find { it.name == "action" }?.value ?: "schedule"
+                s(R.string.toolreg_schedule_task_desc, id, action)
+            },
+            executor = { tool -> runBlocking(Dispatchers.IO) { workflowTools.scheduleTask(tool) } }
+    )
+
     // 对话管理工具
     val chatManagerTool = ToolGetter.getChatManagerTool(context)
 
@@ -2245,6 +2258,65 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             executor = { tool -> runBlocking(Dispatchers.IO) { uiTools.runUiSubAgent(tool) } }
     )
 
+    // 结构化转储当前无障碍UI层次（只读，比截图更丰富）
+    handler.registerTool(
+            name = "dump_ui_tree",
+            descriptionGenerator = { tool ->
+                val format = tool.parameters.find { it.name == "format" }?.value ?: "json"
+                s(R.string.toolreg_dump_ui_tree_desc, format)
+            },
+            executor = { tool ->
+                runBlocking(Dispatchers.IO) {
+                    executeUiToolWithVisibility(tool) { uiTools.dumpUiTree(it) }
+                }
+            }
+    )
+
+    // 按可见文本/内容描述/资源ID查找屏幕元素（仅查询，不点击）
+    handler.registerTool(
+            name = "find_ui_element",
+            descriptionGenerator = { tool ->
+                val query = tool.parameters.find { it.name == "query" }?.value ?: ""
+                val by = tool.parameters.find { it.name == "by" }?.value ?: "any"
+                s(R.string.toolreg_find_ui_element_desc, query, by)
+            },
+            executor = { tool ->
+                runBlocking(Dispatchers.IO) {
+                    executeUiToolWithVisibility(tool) { uiTools.findUiElement(it) }
+                }
+            }
+    )
+
+    // 根据 字段标识->值 映射自动填充表单输入框（仅查询并写入，不点击/不提交）
+    handler.registerTool(
+            name = "fill_form",
+            descriptionGenerator = { tool ->
+                val fields = tool.parameters.find { it.name == "fields" }?.value ?: ""
+                s(R.string.toolreg_fill_form_desc, fields)
+            },
+            executor = { tool ->
+                runBlocking(Dispatchers.IO) {
+                    executeUiToolWithVisibility(tool) { uiTools.fillForm(it) }
+                }
+            }
+    )
+
+    // 轮询等待某个屏幕元素出现（仅查询，不点击）——为界面加载/切换/动画提供韧性
+    handler.registerTool(
+            name = "wait_for_element",
+            descriptionGenerator = { tool ->
+                val matcher = tool.parameters.find { it.name == "matcher" }?.value
+                        ?: tool.parameters.find { it.name == "query" }?.value ?: ""
+                val timeout = tool.parameters.find { it.name == "timeout_ms" }?.value ?: "5000"
+                s(R.string.toolreg_wait_for_element_desc, matcher, timeout)
+            },
+            executor = { tool ->
+                runBlocking(Dispatchers.IO) {
+                    executeUiToolWithVisibility(tool) { uiTools.waitForElement(it) }
+                }
+            }
+    )
+
     // 在输入框中设置文本
     handler.registerTool(
             name = "set_input_text",
@@ -2324,6 +2396,133 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             executor = { tool ->
                 val ffmpegConvertTool = ToolGetter.getFFmpegConvertToolExecutor(context)
                 ffmpegConvertTool.invoke(tool)
+            }
+    )
+
+    // 读取本应用自身的日志（read_app_logs）——用于智能体自诊断失败。
+    // read_app_logs: let the agent read the app's OWN recent logs to self-diagnose failures.
+    // SAFETY: on a non-rooted device an app can only read its own process logs. We call
+    // `logcat -d --pid=<android.os.Process.myPid()>`, which the Android platform restricts to the
+    // caller's own UID/PID — no root/Shizuku and no access to any other app's output. If logcat is
+    // unavailable or empty we fall back to AppLogger's own persisted log file (also this app only).
+    // Reads only; never throws — on any failure it returns an empty result with an explanatory note.
+    handler.registerTool(
+            name = "read_app_logs",
+            descriptionGenerator = { tool ->
+                val lines = tool.parameters.find { it.name == "lines" }?.value?.trim()?.takeIf { it.isNotEmpty() } ?: "200"
+                val level = tool.parameters.find { it.name == "level" }?.value?.trim()?.takeIf { it.isNotEmpty() }
+                s(R.string.toolreg_read_app_logs_desc, lines, level ?: "*")
+            },
+            executor = { tool ->
+                fun parseIntParam(name: String): Int? =
+                        tool.parameters.find { it.name == name }?.value?.trim()
+                                ?.takeIf { it.isNotEmpty() }?.toIntOrNull()
+
+                val requestedLines = (parseIntParam("lines") ?: 200).coerceIn(1, 1000)
+                val levelFilter = tool.parameters.find { it.name == "level" }?.value
+                        ?.trim()?.takeIf { it.isNotEmpty() }?.uppercase()
+                val tagFilter = tool.parameters.find { it.name == "tag" }?.value
+                        ?.trim()?.takeIf { it.isNotEmpty() }
+
+                // Priority order of a logcat "time"-format line, e.g.
+                //   "06-14 12:00:00.123 V/MyTag: message"
+                fun levelOfLine(line: String): Char? {
+                    // Find the "<space>X/" pattern that logcat -v time emits.
+                    val idx = line.indexOf('/')
+                    if (idx <= 0) return null
+                    val ch = line[idx - 1]
+                    return if (ch in charArrayOf('V', 'D', 'I', 'W', 'E', 'A', 'F')) ch else null
+                }
+
+                fun tagOfLine(line: String): String? {
+                    val slash = line.indexOf('/')
+                    if (slash <= 0) return null
+                    val colon = line.indexOf(':', startIndex = slash)
+                    if (colon <= slash) return null
+                    return line.substring(slash + 1, colon).trim().takeIf { it.isNotEmpty() }
+                }
+
+                // logcat orders levels V<D<I<W<E<A; a `level` filter means "this level and above".
+                val levelRank = mapOf('V' to 0, 'D' to 1, 'I' to 2, 'W' to 3, 'E' to 4, 'A' to 5, 'F' to 5)
+                val minRank = levelFilter?.firstOrNull()?.let { levelRank[it] }
+
+                fun passesFilters(line: String): Boolean {
+                    if (line.isBlank()) return false
+                    if (minRank != null) {
+                        val lvl = levelOfLine(line) ?: return false
+                        val rank = levelRank[lvl] ?: return false
+                        if (rank < minRank) return false
+                    }
+                    if (tagFilter != null) {
+                        val t = tagOfLine(line)
+                        if (t == null || !t.contains(tagFilter, ignoreCase = true)) return false
+                    }
+                    return true
+                }
+
+                var source = "logcat"
+                var note: String? = null
+                var rawLines: List<String> = emptyList()
+
+                // Primary: this process's own logcat buffer. `logcat -d` is a one-shot dump that
+                // drains its buffer and exits, so readText() returns at stream EOF without hanging;
+                // we still destroy() the process afterwards as a safety net. Runs on the IO
+                // dispatcher off the caller thread.
+                try {
+                    rawLines = runBlocking(Dispatchers.IO) {
+                        val pid = android.os.Process.myPid()
+                        val process = ProcessBuilder(
+                                listOf("logcat", "-d", "-v", "time", "--pid=$pid")
+                        ).redirectErrorStream(false).start()
+                        val output = try {
+                            process.inputStream.bufferedReader().use { it.readText() }
+                        } finally {
+                            try { process.destroy() } catch (_: Throwable) {}
+                        }
+                        output.split('\n').filter { it.isNotBlank() }
+                    }
+                } catch (t: Throwable) {
+                    Log.w("read_app_logs", "logcat --pid read failed, will try file fallback", t)
+                    rawLines = emptyList()
+                }
+
+                // Fallback: AppLogger's own persisted log file (this app only).
+                if (rawLines.isEmpty()) {
+                    try {
+                        val logFile = AppLogger.getLogFile()
+                        if (logFile != null && logFile.exists()) {
+                            rawLines = logFile.readLines().filter { it.isNotBlank() }
+                            source = "file"
+                        }
+                    } catch (t: Throwable) {
+                        Log.w("read_app_logs", "AppLogger file fallback failed", t)
+                    }
+                }
+
+                val filtered = rawLines.filter { passesFilters(it) }
+                val truncated = filtered.size > requestedLines
+                val kept = if (truncated) filtered.takeLast(requestedLines) else filtered
+
+                if (kept.isEmpty()) {
+                    note = when {
+                        rawLines.isEmpty() ->
+                                "No app logs available (logcat returned nothing for this process and no persisted log file was found)."
+                        else ->
+                                "No log lines matched the requested filters (level/tag)."
+                    }
+                }
+
+                ToolResult(
+                        toolName = tool.name,
+                        success = true,
+                        result = AppLogsResultData(
+                                lines = kept,
+                                count = kept.size,
+                                truncated = truncated,
+                                source = source,
+                                note = note
+                        )
+                )
             }
     )
 }

@@ -1,9 +1,14 @@
 package com.ai.assistance.operit.core.tools.defaultTool.admin
 
 import android.content.Context
-import com.ai.assistance.operit.core.tools.defaultTool.debugger.DebuggerFileSystemTools
+import com.ai.assistance.operit.core.tools.defaultTool.accessbility.AccessibilityFileSystemTools
 
-/** 管理员级别的文件系统工具，继承调试者级别 */
-open class AdminFileSystemTools(context: Context) : DebuggerFileSystemTools(context) {
-    // 当前阶段不添加新功能，仅继承调试者级别实现
+/**
+ * 管理员级别的文件系统工具。
+ *
+ * 原继承已被安全加固移除的 DebuggerFileSystemTools（调试/Shizuku 传输，见 docs/THREAT_MODEL.md §4.4），
+ * 现下沉到现存的最高安全层 AccessibilityFileSystemTools（与 AdminUITools 保持一致）。
+ */
+open class AdminFileSystemTools(context: Context) : AccessibilityFileSystemTools(context) {
+    // 调试层移除后不新增功能，直接继承无障碍实现。
 }

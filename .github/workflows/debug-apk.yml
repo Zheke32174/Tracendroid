@@ -1,0 +1,65 @@
+name: debug-apk
+# Signed RELEASE apk from the proof branch (FFmpeg stubbed, no vendored blobs = hollow
+# but SIGNED + release-built). Proves the full production pipeline incl. signing.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "tracendroid/debug-apk-proof"
+permissions:
+  contents: read
+jobs:
+  assemble:
+    name: assembleRelease (signed)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install pinned NDK + CMake + platform
+        run: |
+          yes | sdkmanager --install "ndk;29.0.14206865" "cmake;3.22.1" "platforms;android-36" "build-tools;34.0.0" >/dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/29.0.14206865" >> "$GITHUB_ENV"
+      - name: Decode keystore + write local.properties
+        env:
+          KS_B64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          STORE_PW: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PW: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "RELEASE_STORE_FILE=$RUNNER_TEMP/release.jks"
+            echo "RELEASE_STORE_PASSWORD=$STORE_PW"
+            echo "RELEASE_KEY_ALIAS=$KEY_ALIAS"
+            echo "RELEASE_KEY_PASSWORD=$KEY_PW"
+            echo "GITHUB_CLIENT_ID=placeholder"
+          } >> local.properties
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+          validate-wrappers: false
+      - name: Assemble signed release APK
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+      - name: Scrub secrets from runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks" local.properties
+      - name: Upload signed release APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracendroid-release-apk-signed
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
+          retention-days: 14

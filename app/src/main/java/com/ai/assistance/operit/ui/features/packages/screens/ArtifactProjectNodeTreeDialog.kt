@@ -43,12 +43,14 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.api.ArtifactProjectDetailResponse
 import com.ai.assistance.operit.data.api.ArtifactProjectNodeResponse
 import com.ai.assistance.operit.data.api.GitHubIssue
@@ -105,7 +107,7 @@ fun ArtifactProjectNodeTreeDialog(
                             )
                             if (isSelectionMode) {
                                 Text(
-                                    text = "点击节点选中，再次点击可取消。",
+                                    text = stringResource(R.string.artifact_node_tree_selection_tip),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -122,7 +124,10 @@ fun ArtifactProjectNodeTreeDialog(
                             enabled = !isSelectionMode || confirmSelectionEnabled,
                             modifier = Modifier.align(Alignment.CenterEnd)
                         ) {
-                            Text(if (isSelectionMode) "确认" else "关闭")
+                            Text(
+                                if (isSelectionMode) stringResource(R.string.artifact_node_tree_confirm)
+                                else stringResource(R.string.artifact_node_tree_close)
+                            )
                         }
                     }
 

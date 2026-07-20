@@ -208,4 +208,14 @@ these rights or asking you to surrender the rights.  Therefore, you have
 certain responsibilities if you distribute copies of the software, or if
 you modify it: responsibilities to respect the freedom of others.
 
-[The full text of the GNU General Public License v3.0 follows, but is omitted for brevity. The full license can be obtained from https://www.gnu.org/licenses/gpl-3.0.html]
+  The complete, verbatim texts of both licenses are distributed alongside
+  this file (this resolves the placeholder that previously truncated the
+  GPL text here, satisfying LGPL-3.0 sections 3b/4b):
+
+    * COPYING.LESSER — GNU Lesser General Public License, version 3
+    * COPYING        — GNU General Public License, version 3
+
+  They may also be obtained from https://www.gnu.org/licenses/.
+
+  See the NOTICE file for Tracendroid's derivative-work attribution to the
+  upstream Operit AI project.

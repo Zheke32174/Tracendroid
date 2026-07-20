@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -43,11 +44,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -79,6 +82,7 @@ import com.ai.assistance.operit.ui.floating.ui.fullscreen.components.MessageDisp
 import com.ai.assistance.operit.ui.floating.ui.fullscreen.components.WaveVisualizerSection
 import com.ai.assistance.operit.ui.floating.ui.fullscreen.viewmodel.rememberFloatingFullscreenModeViewModel
 import java.util.Random
+import kotlin.random.Random as KRandom
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.flowOf
@@ -190,6 +194,14 @@ fun FloatingFullscreenMode(floatContext: FloatContext) {
     var pendingSpeechPreview by remember { mutableStateOf<String?>(null) }
     var lastUserMessageTimestampBeforeSpeech by remember { mutableStateOf<Long?>(null) }
 
+    // Avatar gaze state. `isGazeInteracting` is true while the user is touching the
+    // avatar (gaze-follows-touch); it gates the idle-wander loop off so the two never
+    // fight. `isAvatarSpeaking` mirrors the TTS speaking flow and also suppresses idle
+    // wander so gaze stays composed while talking. Both drive lookAt() only through the
+    // active AvatarController, whose lookAt is a no-op default on non-DragonBones runtimes.
+    var isGazeInteracting by remember { mutableStateOf(false) }
+    var isAvatarSpeaking by remember { mutableStateOf(false) }
+
     LaunchedEffect(viewModel.isRecording, viewModel.userMessage) {
         if (viewModel.isRecording && viewModel.userMessage.isNotBlank()) {
             pendingSpeechPreview = viewModel.userMessage
@@ -285,6 +297,10 @@ fun FloatingFullscreenMode(floatContext: FloatContext) {
         }
 
         val request = viewModel.voiceAvatarMotionRequest
+        // Apply parsed `<mood weight>` intensity (if any) before playback so the
+        // controller can make the transition more/less emphatic. No-op on runtimes
+        // that don't override setEmotionIntensity.
+        request.intensity?.let { controller.setEmotionIntensity(it) }
         val triggerName = request.triggerName?.trim().orEmpty()
         if (triggerName.isNotEmpty()) {
             val handled = controller.playTrigger(triggerName, loop = if (request.playOnce) 1 else 0)
@@ -312,7 +328,99 @@ fun FloatingFullscreenMode(floatContext: FloatContext) {
             controller.setEmotion(request.emotion)
         }
     }
-    
+
+    // Lip-sync: drive the active avatar's mouth while TTS is speaking.
+    // v1 is a speaking on/off oscillation (mouth opens/closes on a fixed cadence while
+    // the voice service reports it is speaking, then closes when playback stops).
+    // collectLatest cancels the in-flight oscillation as soon as speaking flips, so the
+    // finally block always closes the mouth. Amplitude-accurate lip-sync (driving the
+    // open amount from live audio RMS) is a documented follow-up; the seam is the same
+    // controller.lipSync(openAmount) call. lipSync() is a no-op default on runtimes that
+    // don't override it, so this is safe for all avatar types.
+    LaunchedEffect(voiceAvatarController, isVoiceAvatarEnabled) {
+        val controller = voiceAvatarController ?: return@LaunchedEffect
+        if (!isVoiceAvatarEnabled) return@LaunchedEffect
+        viewModel.speechManager.voiceService.speakingStateFlow.collectLatest { speaking ->
+            if (!speaking) {
+                controller.lipSync(0f)
+                return@collectLatest
+            }
+            try {
+                var open = true
+                while (true) {
+                    controller.lipSync(if (open) 0.9f else 0.1f)
+                    open = !open
+                    delay(120)
+                }
+            } finally {
+                controller.lipSync(0f)
+            }
+        }
+    }
+
+    // Track TTS speaking state into a Compose flag so the idle-gaze wander below can gate
+    // itself off while the avatar is talking. Mirrors the same speakingStateFlow the
+    // lip-sync effect uses; resets to false when there is no active controller.
+    LaunchedEffect(voiceAvatarController, isVoiceAvatarEnabled) {
+        val controller = voiceAvatarController
+        if (controller == null || !isVoiceAvatarEnabled) {
+            isAvatarSpeaking = false
+            return@LaunchedEffect
+        }
+        try {
+            viewModel.speechManager.voiceService.speakingStateFlow.collectLatest { speaking ->
+                isAvatarSpeaking = speaking
+            }
+        } finally {
+            isAvatarSpeaking = false
+        }
+    }
+
+    // Idle-gaze wander: while the avatar is idle (not being touched and not speaking),
+    // periodically drift gaze to a small random normalized offset then ease back to
+    // center, so the avatar feels alive instead of frozen. Uses kotlin.random.Random
+    // (aliased KRandom to avoid the java.util.Random used by the noise bitmap). Every
+    // call goes through AvatarController.lookAt (normalized -1..1, (0,0) recenters),
+    // which is a no-op default on runtimes other than DragonBones, so this is safe for
+    // every avatar type and a null controller is a no-op. The effect restarts whenever
+    // interaction/speaking state flips, which snaps gaze back to center on entry.
+    LaunchedEffect(voiceAvatarController, isVoiceAvatarEnabled, isGazeInteracting, isAvatarSpeaking) {
+        val controller = voiceAvatarController ?: return@LaunchedEffect
+        if (!isVoiceAvatarEnabled || isGazeInteracting || isAvatarSpeaking) {
+            // Recenter and stay put while interacting/speaking (or when disabled).
+            controller.lookAt(0f, 0f)
+            return@LaunchedEffect
+        }
+        try {
+            while (true) {
+                // Dwell at center for a few seconds before the next glance.
+                delay(KRandom.nextLong(2500L, 5000L))
+                // Small, subtle offsets so the eyes drift rather than dart. lookAt clamps
+                // to -1..1 internally; we stay well inside that for a gentle look.
+                val targetX = KRandom.nextDouble(-0.35, 0.35).toFloat()
+                val targetY = KRandom.nextDouble(-0.25, 0.25).toFloat()
+                // Ease out from center to the target over a handful of small steps.
+                val steps = 8
+                for (i in 1..steps) {
+                    val t = i.toFloat() / steps
+                    controller.lookAt(targetX * t, targetY * t)
+                    delay(28L)
+                }
+                // Hold the glance briefly.
+                delay(KRandom.nextLong(500L, 1200L))
+                // Ease back to center.
+                for (i in steps downTo 0) {
+                    val t = i.toFloat() / steps
+                    controller.lookAt(targetX * t, targetY * t)
+                    delay(28L)
+                }
+            }
+        } finally {
+            // Whatever cancels us (interaction, speaking, disposal), leave gaze centered.
+            controller.lookAt(0f, 0f)
+        }
+    }
+
     // 清理资源
     DisposableEffect(Unit) {
         onDispose {
@@ -499,8 +607,45 @@ fun FloatingFullscreenMode(floatContext: FloatContext) {
                     avatarContent =
                         if (isVoiceAvatarEnabled) {
                             {
+                                // Gaze-follows-touch: while the user touches/drags over the
+                                // avatar, steer gaze toward the pointer. Pointer offsets are
+                                // normalized against this element's size into lookAt's -1..1
+                                // space (top-left -> (-1,-1), center -> (0,0), bottom-right ->
+                                // (1,1)); on release we recenter with lookAt(0,0). Guards mark
+                                // isGazeInteracting so the idle-wander loop pauses. Every call
+                                // goes through the active AvatarController (no-op default off
+                                // DragonBones), so this is safe for all avatar types.
+                                val gazeModifier = Modifier.pointerInput(voiceAvatarController) {
+                                    val controller = voiceAvatarController ?: return@pointerInput
+                                    fun steer(position: Offset) {
+                                        val w = size.width.toFloat()
+                                        val h = size.height.toFloat()
+                                        if (w <= 0f || h <= 0f) return
+                                        val nx = ((position.x / w) * 2f - 1f).coerceIn(-1f, 1f)
+                                        val ny = ((position.y / h) * 2f - 1f).coerceIn(-1f, 1f)
+                                        controller.lookAt(nx, ny)
+                                    }
+                                    detectDragGestures(
+                                        onDragStart = { offset ->
+                                            isGazeInteracting = true
+                                            steer(offset)
+                                        },
+                                        onDrag = { change, _ ->
+                                            change.consume()
+                                            steer(change.position)
+                                        },
+                                        onDragEnd = {
+                                            isGazeInteracting = false
+                                            controller.lookAt(0f, 0f)
+                                        },
+                                        onDragCancel = {
+                                            isGazeInteracting = false
+                                            controller.lookAt(0f, 0f)
+                                        }
+                                    )
+                                }
                                 AvatarView(
-                                    modifier = Modifier.fillMaxSize(),
+                                    modifier = Modifier.fillMaxSize().then(gazeModifier),
                                     model = currentAvatarModel!!,
                                     controller = voiceAvatarController!!,
                                     rendererFactory = avatarRendererFactory

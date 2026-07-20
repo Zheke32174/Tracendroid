@@ -8,10 +8,9 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.parcelize)
     id("io.objectbox")
-    id("kotlin-kapt")
 }
 
 val localProperties = Properties()
@@ -65,9 +64,10 @@ android {
         }
         
         ndk {
-            // Explicitly specify the ABIs we package for the app process.
-            // terminal now also ships x86_64 runtime binaries for the Android Studio emulator,
-            // while the rest of the app remains primarily ARM-focused.
+            // The app is arm64-only. The vendored native runtimes (MNN, llama.cpp,
+            // ncnn/sherpa, ffmpeg-kit) are built for arm64-v8a exclusively — see
+            // tools/ffmpeg/build_ffmpeg_kit_wsl.sh, which disables arm-v7a/x86/x86_64.
+            // There is deliberately no 32-bit or x86 emulator build.
             abiFilters.addAll(listOf("arm64-v8a"))
         }
 
@@ -179,6 +179,14 @@ kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_17
     }
+}
+
+configurations.all {
+    // Two BouncyCastle distributions collide (bc*-jdk15to18 via MINA sshd vs bc*-jdk18on)
+    // -> duplicate classes at checkDuplicateClasses/assemble. Keep modern jdk18on (JDK 21).
+    exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
+    exclude(group = "org.bouncycastle", module = "bcpkix-jdk15to18")
+    exclude(group = "org.bouncycastle", module = "bcutil-jdk15to18")
 }
 
 dependencies {
@@ -308,11 +316,11 @@ dependencies {
     // Room 数据库
     implementation(libs.room.runtime)
     implementation(libs.room.ktx) // Kotlin扩展和协程支持
-    kapt(libs.room.compiler) // 使用kapt代替ksp
+    ksp(libs.room.compiler) // 使用kapt代替ksp
 
     // ObjectBox
     implementation(libs.objectbox.kotlin)
-    kapt(libs.objectbox.processor)
+    ksp(libs.objectbox.processor)
     implementation(libs.commons.compress.v2)
     implementation(libs.junrar)
 
@@ -421,6 +429,17 @@ dependencies {
     
     // BouncyCastle - explicitly include jdk18on version to avoid conflicts
     implementation("org.bouncycastle:bcprov-jdk18on:1.78")
+    // Apache MINA sshd needs bcpkix + bcutil (PEM / OpenSSH key loading). Pin to the SAME
+    // 1.78 as bcprov above so the BC modules never skew across each other.
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.78")
+    implementation("org.bouncycastle:bcutil-jdk18on:1.78")
+
+    // Ryznix SSH backend: Apache MINA sshd client for RyznixTransport (loopback SSH into
+    // the phone's Termux/Ubuntu userland). sshd-core transitively pulls sshd-common.
+    // TODO(offbox-verify): confirm latest stable org.apache.sshd:sshd-core that resolves
+    // AND runs on Android (pure-JVM lib; NIO/ServiceLoader/security-provider paths differ
+    // on Android). This whole backend cannot be compiled/run here — verify off-box.
+    implementation("org.apache.sshd:sshd-core:2.12.1")
 
     // Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")

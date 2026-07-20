@@ -1,0 +1,248 @@
+name: release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+# Serialize releases: a newer tag/dispatch cancels an in-flight run for the
+# same ref so we never publish two overlapping releases. We do NOT cancel
+# across different tags (each tag is its own group via github.ref).
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # needed for the tag-gated GitHub Release (softprops/action-gh-release)
+
+jobs:
+  release:
+    name: Signed release (bundleRelease + assembleRelease)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      # fetch-depth: 0 so the tag ref and full history are present; submodules
+      # recursive because the native modules (:mnn :llama :mmd :fbx :quickjs +
+      # ncnn/sherpa under app/) are git submodules and MUST be checked out for
+      # the NDK/CMake build to compile. All submodule URLs in .gitmodules are
+      # https (anonymous-CI friendly) — verified 2026-07-05.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # Provides sdkmanager + accepts licenses so we can install the exact
+      # pinned NDK below. The default hosted image ships several NDKs, but
+      # NOT necessarily the pinned 29.x — install it explicitly.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      # app/build.gradle.kts pins ndkVersion = "29.0.14206865" and the CMake
+      # external build at src/main/cpp/CMakeLists.txt. Install that exact NDK
+      # so Gradle does not fail with "NDK not found" or silently pick another.
+      # If the pinned NDK is ever bumped in build.gradle.kts, bump it here too.
+      #
+      # NOTE: This native-module NDK/CMake build path (MNN / llama.cpp /
+      # ncnn / sherpa-ncnn / quickjs / ufbx / bullet3 / saba) has NEVER been
+      # exercised in this fork's CI. The existing app-build.yml only runs
+      # :app:compileDebugKotlin (no native link, no assemble). Expect the
+      # FIRST real run of this workflow to need iteration: NDK toolchain
+      # availability, submodule build scripts, and the manually-provisioned
+      # vendored blobs (app/libs, jniLibs, models/subpack per docs/BUILDING.md)
+      # are all unproven here.
+      - name: Install pinned NDK + CMake
+        run: |
+          set -euo pipefail
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" \
+            "ndk;29.0.14206865" \
+            "cmake;3.22.1" \
+            "platforms;android-36" \
+            "build-tools;34.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      # The signing config in app/build.gradle.kts reads FOUR properties from
+      # local.properties (NOT env, NOT -P project properties):
+      #   RELEASE_STORE_FILE / RELEASE_STORE_PASSWORD /
+      #   RELEASE_KEY_ALIAS   / RELEASE_KEY_PASSWORD
+      # and only creates the "release" signingConfig when all four are set AND
+      # the keystore file exists. GITHUB_CLIENT_ID is also read from
+      # local.properties (buildConfigField) — supply a value so BuildConfig
+      # does not embed the literal string "null".
+      #
+      # If RELEASE_KEYSTORE_BASE64 is absent the release build still succeeds
+      # but produces an UNSIGNED apk/aab (the signingConfig block is skipped).
+      - name: Decode keystore + write local.properties
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          GITHUB_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          # GITHUB_CLIENT_ID is optional; fall back to an empty-string literal
+          # so the buildConfigField is well-formed even without the secret.
+          echo "GITHUB_CLIENT_ID=\"${GITHUB_CLIENT_ID:-}\"" > local.properties
+
+          if [ -n "${RELEASE_KEYSTORE_BASE64:-}" ]; then
+            KEYSTORE_PATH="${RUNNER_TEMP}/release.keystore"
+            # Materialize the keystore from the base64 secret onto the runner.
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+            chmod 600 "$KEYSTORE_PATH"
+            {
+              echo "RELEASE_STORE_FILE=${KEYSTORE_PATH}"
+              echo "RELEASE_STORE_PASSWORD=${RELEASE_STORE_PASSWORD}"
+              echo "RELEASE_KEY_ALIAS=${RELEASE_KEY_ALIAS}"
+              echo "RELEASE_KEY_PASSWORD=${RELEASE_KEY_PASSWORD}"
+            } >> local.properties
+            echo "SIGNED=true" >> "$GITHUB_ENV"
+            echo "Keystore materialized; release will be SIGNED."
+          else
+            echo "SIGNED=false" >> "$GITHUB_ENV"
+            echo "::warning::RELEASE_KEYSTORE_BASE64 not set — build will produce an UNSIGNED apk/aab."
+          fi
+
+      - name: Show toolchain
+        run: |
+          java -version
+          ./gradlew --version
+
+      # ---------------------------------------------------------------------
+      # Provision the SCRIPTABLE build inputs (task #8). Two generated,
+      # gitignored asset trees must exist BEFORE Gradle packages the APK/AAB:
+      #   1. app/src/main/assets/web-chat/  (built from web-chat/, React+Vite)
+      #   2. app/src/main/assets/packages/  (.toolpkg synced from examples/)
+      # These are reproducible from source, so CI regenerates them here rather
+      # than committing build outputs. The HAND-provisioned vendored blobs
+      # (jniLibs / assets/models / app/libs / assets/pets from the Google-Drive
+      # links in docs/BUILDING.md) are NOT scriptable and are checked below.
+      #
+      # Package manager: npm. There is NO lockfile anywhere in the repo
+      # (no pnpm-lock.yaml / package-lock.json), and docs/BUILDING.md drives
+      # the build with `npm install` + `npm run build:webchat`, so we use
+      # `npm install` (NOT `npm ci`, which requires a committed lockfile).
+      # The stray pnpm-workspace.yaml is not backed by a lockfile and is not
+      # used by the documented build path.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # Root deps (typescript/esbuild) are what sync_example_packages.py's
+      # prebuild step shells out to (`tsc`, per-example `npm run build`).
+      # web-chat deps drive its own Vite build. No lockfile => plain install.
+      - name: Install JS deps (root + web-chat)
+        run: |
+          set -euo pipefail
+          npm install
+          npm --prefix web-chat install
+
+      # `build:webchat` = `npm --prefix web-chat run build` (Vite) followed by
+      # `npm --prefix web-chat run sync:android-assets`, which copies
+      # web-chat/dist -> app/src/main/assets/web-chat/. The copy is part of
+      # this script (see web-chat/scripts/sync-to-android-assets.mjs), so we
+      # do NOT add a separate dist-copy step — that would double-copy.
+      - name: Build web-chat + sync to Android assets
+        run: npm run build:webchat
+
+      # Prebuilds examples/ (.js via tsc, folder packages via `npm run build`)
+      # and packs/copies whitelisted items (packages_whitelist.txt) into
+      # app/src/main/assets/packages/ as .toolpkg/.js. --no-hot-reload disables
+      # the post-sync adb push (no device on CI; it would otherwise be a no-op
+      # but we make the CI intent explicit). Non-zero exit if a whitelisted
+      # package fails to resolve, which correctly fails the build here rather
+      # than shipping an APK with missing tool packages.
+      - name: Sync example packages
+        run: python3 ./sync_example_packages.py --no-hot-reload
+
+      # Soft check for the HAND-provisioned vendored blobs. These come from the
+      # Google-Drive links in docs/BUILDING.md and CANNOT be fetched in CI, so
+      # this does NOT fail the job — the Gradle build will fail later with its
+      # own precise error if a blob a given module needs is truly missing. We
+      # only warn + point at the docs so a maintainer knows what to provision.
+      # (jniLibs is also partly produced by the NDK build, so an "empty" dir
+      # here is not necessarily fatal.)
+      - name: Verify vendored blobs present (soft)
+        run: |
+          set -uo pipefail
+          missing=0
+          for dir in \
+            app/src/main/jniLibs \
+            app/src/main/assets/models \
+            app/libs \
+            app/src/main/assets/pets; do
+            # Count tracked/real content, ignoring the .keep placeholder.
+            count=$(find "$dir" -type f ! -name '.keep' 2>/dev/null | wc -l)
+            if [ "$count" -eq 0 ]; then
+              echo "::warning::Vendored blob dir '$dir' contains only its .keep placeholder — no operator-provided files."
+              missing=1
+            else
+              echo "OK: '$dir' has $count vendored file(s)."
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "::warning::One or more vendored blob dirs are empty. If the build fails on a missing .so/.aar/model/pet, provision them per docs/BUILDING.md (Google-Drive links) and docs/SHIP-CHECKLIST.md §2. This step is informational and does not fail the build."
+          fi
+
+      # AAB for Play + APK for direct sideload. --stacktrace so the first-run
+      # native/link failures (see NDK note above) are diagnosable.
+      - name: Build release (bundle + assemble)
+        run: ./gradlew :app:bundleRelease :app:assembleRelease --no-daemon --stacktrace
+
+      # Scrub the keystore + credentials from the runner before any later step
+      # (artifact upload / release) can touch the workspace.
+      - name: Scrub secrets from runner
+        if: always()
+        run: |
+          rm -f "${RUNNER_TEMP}/release.keystore" || true
+          rm -f local.properties || true
+
+      - name: Upload AAB artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracendroid-release-aab
+          path: app/build/outputs/bundle/release/*.aab
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload APK artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracendroid-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
+          retention-days: 30
+
+      # Tag-gated: only on a v* tag push, NEVER on workflow_dispatch and never
+      # on a branch push. draft:true means it is created but NOT auto-published
+      # — a human reviews the attached .aab/.apk and clicks publish.
+      - name: Create GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: |
+            app/build/outputs/bundle/release/*.aab
+            app/build/outputs/apk/release/*.apk

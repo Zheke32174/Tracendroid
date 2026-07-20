@@ -1,0 +1,69 @@
+Tracendroid
+===========
+
+Tracendroid is a modified derivative of Operit AI.
+
+Upstream project  : Operit AI  (https://github.com/AAswordman/Operit)
+Upstream copyright: Copyright (C) 2023-2024 Operit AI project team
+Upstream license  : GNU Lesser General Public License, version 3 (LGPL-3.0)
+
+This derivative:
+  Copyright (C) 2026 Tracendroid contributors
+  (https://github.com/Zheke32174/Tracendroid)
+  Licensed under the same terms: GNU LGPL-3.0-or-later.
+
+
+Nature of modifications
+-----------------------
+Tracendroid is a security-hardening fork. The principal changes relative to
+upstream Operit are:
+
+  * Removal of the Shizuku / libsu / root / Shower / AutoGLM privileged
+    execution transports and the associated ROOT/DEBUGGER permission levels.
+  * A JavaScript plugin capability gate and a plugin-signature +
+    trust-on-first-use verification pipeline.
+  * An encrypted credential vault (EncryptedSharedPreferences).
+  * A locked-down WebView for AI-generated output with a link allowlist
+    (closing a remote-code-execution path), and a path-traversal fix in the
+    workspace DocumentsProvider.
+  * A broadcast-receiver sender allowlist and cleartext-traffic default-deny.
+  * Migration of the GitHub OAuth flow from an embedded client secret to
+    PKCE (RFC 7636).
+  * A proot-based shell subsystem replacing the Shizuku transport.
+
+See docs/THREAT_MODEL.md and docs/STATUS.md for the full record.
+
+
+Corresponding source (LGPL sections 4 and 6)
+--------------------------------------------
+The complete corresponding source for any released Tracendroid binary is
+published at https://github.com/Zheke32174/Tracendroid at the git tag matching
+that build. Because the bundled native libraries are dynamically loaded shared
+objects, recipients may replace them and re-link the Application as permitted
+by the LGPL.
+
+
+Full license texts
+------------------
+  * COPYING.LESSER — GNU LGPL-3.0
+  * COPYING        — GNU GPL-3.0
+  * LICENSE        — the upstream Operit AI project license notice (LGPL-3.0)
+
+
+Third-party components
+----------------------
+This application bundles third-party native libraries, each under its own
+license:
+
+  * FFmpegKit / FFmpeg — LGPL-3.0 (built without --enable-gpl and without
+    --enable-nonfree; see tools/ffmpeg/build_ffmpeg_kit_wsl.sh)
+  * MNN               — Apache-2.0
+  * llama.cpp         — MIT
+  * ncnn              — BSD-3-Clause
+  * sherpa-ncnn       — Apache-2.0
+  * QuickJS           — MIT
+  * ufbx              — MIT
+  * bullet3           — Zlib
+  * saba              — MIT
+
+A consolidated THIRD_PARTY_LICENSES manifest is maintained in the repository.

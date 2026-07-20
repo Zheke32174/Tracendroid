@@ -769,6 +769,53 @@ data class SimplifiedUINode(
 
         return isKeyElement || hasContent || isClickable || children.any { it.shouldKeepNode() }
     }
+
+    /**
+     * Renders the (filtered) subtree as a compact JSON object. Same node-keeping rule as
+     * [toTreeString] so the JSON view and the tree view describe the same elements — this is the
+     * structured, machine-parseable counterpart the `dump_ui_tree` tool returns. Values are escaped
+     * so the output is always valid JSON. Returns an empty string for nodes that should be dropped,
+     * letting the caller skip them without emitting a hole in the children array.
+     */
+    fun toJsonString(): String {
+        if (!shouldKeepNode()) return ""
+
+        val sb = StringBuilder()
+        sb.append("{")
+        val fields = mutableListOf<String>()
+        className?.takeIf { it.isNotBlank() }?.let { fields.add("\"class\":\"${jsonEscape(it)}\"") }
+        text?.takeIf { it.isNotBlank() }?.let { fields.add("\"text\":\"${jsonEscape(it)}\"") }
+        contentDesc?.takeIf { it.isNotBlank() }?.let { fields.add("\"desc\":\"${jsonEscape(it)}\"") }
+        resourceId?.takeIf { it.isNotBlank() }?.let { fields.add("\"id\":\"${jsonEscape(it)}\"") }
+        bounds?.takeIf { it.isNotBlank() }?.let { fields.add("\"bounds\":\"${jsonEscape(it)}\"") }
+        fields.add("\"clickable\":$isClickable")
+
+        val keptChildren = children.mapNotNull { child ->
+            child.toJsonString().takeIf { it.isNotEmpty() }
+        }
+        if (keptChildren.isNotEmpty()) {
+            fields.add("\"children\":[${keptChildren.joinToString(",")}]")
+        }
+
+        sb.append(fields.joinToString(","))
+        sb.append("}")
+        return sb.toString()
+    }
+
+    private fun jsonEscape(raw: String): String {
+        val sb = StringBuilder(raw.length + 8)
+        for (c in raw) {
+            when (c) {
+                '\\' -> sb.append("\\\\")
+                '"' -> sb.append("\\\"")
+                '\n' -> sb.append("\\n")
+                '\r' -> sb.append("\\r")
+                '\t' -> sb.append("\\t")
+                else -> if (c < ' ') sb.append("\\u%04x".format(c.code)) else sb.append(c)
+            }
+        }
+        return sb.toString()
+    }
 }
 
 /** Represents UI page information result data */
@@ -799,6 +846,211 @@ data class UIActionResultData(
 ) : ToolResultData() {
     override fun toString(): String {
         return actionDescription
+    }
+}
+
+/**
+ * Structured dump of the current accessibility UI hierarchy (the `dump_ui_tree` tool).
+ *
+ * Unlike a screenshot this is machine-parseable: it carries the same filtered node set as
+ * [UIPageResultData] but can render either the indented tree (format="tree") or a JSON object
+ * (format="json"). The JSON view is the richer, structured counterpart intended for programmatic
+ * consumption. Read-only — no UI action is performed.
+ */
+@Serializable
+data class UITreeResultData(
+        val packageName: String,
+        val activityName: String,
+        val format: String,
+        val uiElements: SimplifiedUINode
+) : ToolResultData() {
+    override fun toString(): String {
+        return if (format.equals("tree", ignoreCase = true)) {
+            """
+            |Current Application: $packageName
+            |Current Activity: $activityName
+            |
+            |UI Elements (tree):
+            |${uiElements.toTreeString()}
+            """.trimMargin()
+        } else {
+            val treeJson = uiElements.toJsonString().ifEmpty { "{}" }
+            """{"package":"$packageName","activity":"$activityName","tree":$treeJson}"""
+        }
+    }
+}
+
+/**
+ * Result of a query-only on-screen element search (the `find_ui_element` tool).
+ *
+ * Each entry describes one matched node: its bounds, computed center point, and the visible
+ * text / content-description / resource-id / class the match keyed on. This performs NO click or
+ * other action — it only locates elements so a caller can decide what to do next.
+ */
+@Serializable
+data class UIElementMatchData(
+        val query: String,
+        val matchBy: String,
+        val matches: List<Match>
+) : ToolResultData() {
+    @Serializable
+    data class Match(
+            val text: String?,
+            val contentDesc: String?,
+            val resourceId: String?,
+            val className: String?,
+            val bounds: String?,
+            val centerX: Int?,
+            val centerY: Int?
+    )
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine("Found ${matches.size} element(s) for query \"$query\" (matchBy=$matchBy):")
+        if (matches.isEmpty()) {
+            sb.appendLine("No matching element found.")
+            return sb.toString()
+        }
+        matches.forEachIndexed { index, m ->
+            sb.append("${index + 1}.")
+            m.text?.takeIf { it.isNotBlank() }?.let { sb.append(" T:\"$it\"") }
+            m.contentDesc?.takeIf { it.isNotBlank() }?.let { sb.append(" D:\"$it\"") }
+            m.resourceId?.takeIf { it.isNotBlank() }?.let { sb.append(" ID:$it") }
+            m.className?.takeIf { it.isNotBlank() }?.let { sb.append(" [$it]") }
+            m.bounds?.let { sb.append(" bounds:$it") }
+            if (m.centerX != null && m.centerY != null) {
+                sb.append(" center:(${m.centerX},${m.centerY})")
+            }
+            sb.appendLine()
+        }
+        return sb.toString()
+    }
+}
+
+/**
+ * Result of a poll-until-present element wait (the `wait_for_element` tool).
+ *
+ * The resilience counterpart to [UIElementMatchData]: instead of a one-shot search it reports whether
+ * an element matching the requested substring appeared within the timeout ([found]), how long it
+ * waited ([waitedMs]) and how many polls it took ([polls]), plus the first matching node ([match],
+ * null on timeout). Read-only — like [find_ui_element] it NEVER clicks; it only waits and reports.
+ * A timeout is a normal `found = false` result, not an error.
+ */
+@Serializable
+data class WaitForElementResultData(
+        val matcher: String,
+        val matchBy: String,
+        val found: Boolean,
+        val waitedMs: Long,
+        val polls: Int,
+        val match: Match?
+) : ToolResultData() {
+    @Serializable
+    data class Match(
+            val text: String?,
+            val contentDesc: String?,
+            val resourceId: String?,
+            val className: String?,
+            val bounds: String?,
+            val centerX: Int?,
+            val centerY: Int?
+    )
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        if (!found || match == null) {
+            sb.appendLine(
+                    "wait_for_element: \"$matcher\" (by $matchBy) NOT found after ${waitedMs}ms ($polls poll(s))."
+            )
+            return sb.toString()
+        }
+        sb.appendLine(
+                "wait_for_element: \"$matcher\" (by $matchBy) found after ${waitedMs}ms ($polls poll(s)):"
+        )
+        sb.append("-")
+        match.text?.takeIf { it.isNotBlank() }?.let { sb.append(" T:\"$it\"") }
+        match.contentDesc?.takeIf { it.isNotBlank() }?.let { sb.append(" D:\"$it\"") }
+        match.resourceId?.takeIf { it.isNotBlank() }?.let { sb.append(" ID:$it") }
+        match.className?.takeIf { it.isNotBlank() }?.let { sb.append(" [$it]") }
+        match.bounds?.let { sb.append(" bounds:$it") }
+        if (match.centerX != null && match.centerY != null) {
+            sb.append(" center:(${match.centerX},${match.centerY})")
+        }
+        sb.appendLine()
+        return sb.toString()
+    }
+}
+
+/**
+ * Result of a query-and-set form autofill pass (the `fill_form` tool).
+ *
+ * For each requested field the tool reports whether the matching editable node was found and its
+ * text set. This is deliberately query+set only: it locates each field via the same accessibility
+ * XML matcher [find_ui_element]/[click_element] use and sets text via the existing setText
+ * primitive — it NEVER submits or clicks any button. The per-field [FieldResult.status] is one of
+ * "filled", "not_found", or "failed"; [filledCount] is the number of "filled" entries.
+ */
+@Serializable
+data class FormFillResultData(
+        val totalFields: Int,
+        val filledCount: Int,
+        val notFoundCount: Int,
+        val failedCount: Int,
+        val fields: List<FieldResult>
+) : ToolResultData() {
+    @Serializable
+    data class FieldResult(
+            val field: String,
+            val status: String, // "filled" | "not_found" | "failed"
+            val matchedBy: String? = null, // which attribute the input was located by
+            val bounds: String? = null,
+            val detail: String? = null
+    )
+
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine(
+                "Form autofill: $filledCount filled, $notFoundCount not found, $failedCount failed (of $totalFields field(s)). No submit/click performed."
+        )
+        fields.forEach { f ->
+            sb.append("- ${f.field}: ${f.status}")
+            f.matchedBy?.takeIf { it.isNotBlank() }?.let { sb.append(" (by $it)") }
+            f.bounds?.takeIf { it.isNotBlank() }?.let { sb.append(" @$it") }
+            f.detail?.takeIf { it.isNotBlank() }?.let { sb.append(" — $it") }
+            sb.appendLine()
+        }
+        return sb.toString()
+    }
+}
+
+/**
+ * Result of arming / cancelling a scheduled task (the `schedule_task` tool).
+ *
+ * The tool is a thin re-arm over the existing WorkflowScheduler (WorkManager): it schedules,
+ * re-schedules, or cancels an already-persisted workflow that carries a `schedule` trigger node.
+ * [nextExecutionTime] is the epoch-ms of the next planned run when known (null for cancel or when
+ * the scheduler cannot compute it).
+ */
+@Serializable
+data class ScheduleTaskResultData(
+        val workflowId: String,
+        val action: String, // "scheduled" | "cancelled"
+        val scheduled: Boolean,
+        val nextExecutionTime: Long? = null,
+        val message: String
+) : ToolResultData() {
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.appendLine(message)
+        sb.appendLine("Workflow: $workflowId")
+        sb.appendLine("Scheduled: $scheduled")
+        nextExecutionTime?.let {
+            val when_ =
+                    java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                            .format(java.util.Date(it))
+            sb.appendLine("Next run: $when_")
+        }
+        return sb.toString()
     }
 }
 
@@ -2362,5 +2614,38 @@ data class ModelConfigConnectionTestResultData(
 ) : ToolResultData() {
     override fun toString(): String {
         return "Model config connection test: $configId, success=$success, passed=$passedTests/$totalTests"
+    }
+}
+
+/**
+ * 读取应用自身日志的结果（read_app_logs）。
+ *
+ * Result of read_app_logs: the app's own recent log lines so the agent can self-diagnose
+ * failures. On a non-rooted device an app can only read its OWN process logs, so this never
+ * exposes another app's output. [source] records where the lines came from ("logcat" from the
+ * per-pid logcat buffer, or "file" from the app's persisted AppLogger log when logcat is
+ * unavailable), [count] is the number of lines returned, and [truncated] is true when older
+ * lines were dropped to honour the requested `lines` cap. An empty [lines] with [note] set is
+ * the normal "no logs available" outcome — never a crash.
+ */
+@Serializable
+data class AppLogsResultData(
+    val lines: List<String>,
+    val count: Int,
+    val truncated: Boolean,
+    val source: String,
+    val note: String? = null
+) : ToolResultData() {
+    override fun toString(): String {
+        val header = if (lines.isEmpty()) {
+            note ?: "No app logs available"
+        } else {
+            "App logs ($count line${if (count == 1) "" else "s"} from $source${if (truncated) ", truncated" else ""})"
+        }
+        return if (lines.isEmpty()) {
+            header
+        } else {
+            header + "\n" + lines.joinToString("\n")
+        }
     }
 }

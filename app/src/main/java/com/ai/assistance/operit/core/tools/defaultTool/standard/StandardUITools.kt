@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjection
+import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.core.config.FunctionalPrompts
 import com.ai.assistance.operit.core.tools.SimplifiedUINode
@@ -359,6 +360,77 @@ open class StandardUITools(protected val context: Context) {
         )
     }
 
+    /**
+     * Dumps the current UI hierarchy as structured text (tree or JSON) — a read-only,
+     * richer-than-a-screenshot view of on-screen elements. Like the other UI reads this needs the
+     * AccessibilityService transport, so the functional implementation lives in
+     * [com.ai.assistance.operit.core.tools.defaultTool.accessbility.AccessibilityUITools.dumpUiTree];
+     * the STANDARD tier has no safe (non-root/non-shell) way to read the live hierarchy and returns
+     * an honest "not supported" message.
+     */
+    open suspend fun dumpUiTree(tool: AITool): ToolResult {
+        return ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = OPERATION_NOT_SUPPORTED
+        )
+    }
+
+    /**
+     * Query-only search for on-screen element(s) by visible text / content-description / resource-id.
+     * Read-only (no click). Needs the AccessibilityService transport; the functional implementation
+     * lives in
+     * [com.ai.assistance.operit.core.tools.defaultTool.accessbility.AccessibilityUITools.findUiElement].
+     * The STANDARD tier cannot read the live hierarchy safely and returns an honest "not supported"
+     * message.
+     */
+    open suspend fun findUiElement(tool: AITool): ToolResult {
+        return ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = OPERATION_NOT_SUPPORTED
+        )
+    }
+
+    /**
+     * Fills a set of on-screen input fields from a field-identifier -> value mapping (the
+     * `fill_form` tool). Query-and-set only: it locates each editable field and sets its text; it
+     * NEVER submits or clicks any button. Needs the AccessibilityService transport, so the
+     * functional implementation lives in
+     * [com.ai.assistance.operit.core.tools.defaultTool.accessbility.AccessibilityUITools.fillForm].
+     * The STANDARD tier has no safe (non-root/non-shell) way to drive input fields and returns an
+     * honest "not supported" message.
+     */
+    open suspend fun fillForm(tool: AITool): ToolResult {
+        return ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = OPERATION_NOT_SUPPORTED
+        )
+    }
+
+    /**
+     * Polls the live UI hierarchy until an element matching a text / content-description / resource-id
+     * appears (or a timeout elapses), returning whether it was found plus its bounds/center — the
+     * resilience counterpart to [findUiElement] for automation loops that must wait for a screen to
+     * catch up. Read-only (no click). Needs the AccessibilityService transport, so the functional
+     * implementation lives in
+     * [com.ai.assistance.operit.core.tools.defaultTool.accessbility.AccessibilityUITools.waitForElement].
+     * The STANDARD tier cannot read the live hierarchy safely and returns an honest "not supported"
+     * message.
+     */
+    open suspend fun waitForElement(tool: AITool): ToolResult {
+        return ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = OPERATION_NOT_SUPPORTED
+        )
+    }
+
     /** Sets text in an input field */
     open suspend fun setInputText(tool: AITool): ToolResult {
                 return ToolResult(
@@ -390,17 +462,24 @@ open class StandardUITools(protected val context: Context) {
     }
 
     /**
-     * UI automation subagent loop. The previous implementation drove PhoneAgent over
-     * the Shower display + ADB transport, both removed per docs/SECURITY.md § 8.
-     * Replacement landing as part of docs/AGENT_CORE.md and docs/SHELL_REBUILD.md.
-     * Until then, the tool is unavailable.
+     * UI automation subagent entry point.
+     *
+     * The previous implementation drove PhoneAgent over the Shower display + ADB transport, both
+     * removed per docs/THREAT_MODEL.md § 4.4. On stock, non-rooted devices the only safe UI-automation
+     * transport is the AccessibilityService, so the functional implementation lives in
+     * [com.ai.assistance.operit.core.tools.defaultTool.accessbility.AccessibilityUITools.runUiSubAgent],
+     * which is selected by [ToolGetter.getUITools] when the preferred permission level is ACCESSIBILITY.
+     *
+     * This STANDARD-tier base intentionally does NOT attempt any shell `input`/`am` UI control (that
+     * would require Shizuku/adb/root, which this fork removed). Instead it returns an honest, actionable
+     * message telling the caller to switch to the accessibility transport.
      */
     open suspend fun runUiSubAgent(tool: AITool): ToolResult {
         return ToolResult(
             toolName = tool.name,
             success = false,
             result = StringResultData(""),
-            error = "UI automation subagent is offline: Shower/Shizuku transports have been removed (see docs/THREAT_MODEL.md § 4.4). Replacement on the Accessibility channel is tracked in docs/AGENT_CORE.md."
+            error = context.getString(R.string.ui_subagent_standard_unavailable)
         )
     }
 

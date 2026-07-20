@@ -3,8 +3,10 @@ package com.ai.assistance.operit.api.chat.llmprovider
 import android.content.Context
 import com.ai.assistance.llama.LlamaSession
 import com.ai.assistance.operit.data.model.ApiProviderType
+import com.ai.assistance.operit.data.model.ModelAuthMode
 import com.ai.assistance.operit.data.model.ModelConfigData
 import com.ai.assistance.operit.data.preferences.ModelConfigManager
+import com.ai.assistance.operit.data.preferences.credentials.ModelOAuthTokenStore
 import com.ai.assistance.operit.plugins.toolpkg.ToolPkgAiProviderRegistry
 import com.ai.assistance.operit.util.AppLogger
 import java.io.IOException
@@ -283,11 +285,18 @@ object AIServiceFactory {
                     "AI provider type not found or not enabled: $providerTypeId"
                 )
 
-        // 根据配置决定使用单个API Key还是多API Key轮询
-        val apiKeyProvider = if (config.useMultipleApiKeys) {
-            MultiApiKeyProvider(config.id, modelConfigManager)
-        } else {
-            SingleApiKeyProvider(config.apiKey)
+        // 根据配置决定凭证来源：OAuth 访问令牌 / 多API Key轮询 / 单个API Key
+        val apiKeyProvider: ApiKeyProvider = when {
+            config.authMode == ModelAuthMode.OAUTH ->
+                OAuthCredentialProvider(
+                    config.id,
+                    ModelOAuthTokenStore(context),
+                    ModelOAuthConfigRegistry.configFor(providerType)
+                )
+            config.useMultipleApiKeys ->
+                MultiApiKeyProvider(config.id, modelConfigManager)
+            else ->
+                SingleApiKeyProvider(config.apiKey)
         }
 
         // 图片处理支持标志
@@ -300,7 +309,10 @@ object AIServiceFactory {
         
         return when (providerType) {
             // OpenAI格式，支持原生和兼容OpenAI API的服务
+            // OPENCODE_ZEN 是 OpenAI 兼容网关（opencode.ai/zen），与 OPENAI_GENERIC 走完全相同的路由
+            // （OpenAIProvider + Bearer 认证 + 自定义端点）。
             ApiProviderType.OPENAI,
+            ApiProviderType.OPENCODE_ZEN,
             ApiProviderType.OPENAI_GENERIC,
             ApiProviderType.OPENAI_LOCAL ->
                 OpenAIProvider(
@@ -341,7 +353,8 @@ object AIServiceFactory {
                     httpClient,
                     customHeaders,
                     providerType,
-                    enableToolCall
+                    enableToolCall,
+                    config.authMode
                 )
 
             // Gemini格式，支持Google Gemini系列及通用Gemini端点
@@ -427,7 +440,10 @@ object AIServiceFactory {
                     enableToolCall = enableToolCall
                 )
 
-            // 其他中文服务商，当前使用OpenAI Provider (大多数兼容OpenAI格式)
+            // 其他中文服务商 + 西方厂商，当前使用OpenAI Provider (大多数兼容OpenAI格式)
+            // 西方厂商(XAI/GROQ/PERPLEXITY/TOGETHER/FIREWORKS/DEEPINFRA/COHERE)均为OpenAI兼容+Bearer认证。
+            // AZURE_OPENAI 同样路由到 OpenAIProvider，但其 AuthStrategy 由 providerType 决定为
+            // HeaderKeyAuth("api-key")，端点由用户自定义部署URL提供（无内置默认值）。见 OpenAIProvider.resolveAuthStrategy。
             ApiProviderType.BAIDU,
             ApiProviderType.XUNFEI,
             ApiProviderType.ZHIPU,
@@ -437,6 +453,14 @@ object AIServiceFactory {
             ApiProviderType.ALIPAY_BAILING,
             ApiProviderType.PPINFRA,
             ApiProviderType.NOVITA,
+            ApiProviderType.XAI,
+            ApiProviderType.GROQ,
+            ApiProviderType.PERPLEXITY,
+            ApiProviderType.TOGETHER,
+            ApiProviderType.FIREWORKS,
+            ApiProviderType.DEEPINFRA,
+            ApiProviderType.COHERE,
+            ApiProviderType.AZURE_OPENAI,
             ApiProviderType.OTHER ->
                 OpenAIProvider(
                     apiEndpoint = config.apiEndpoint,

@@ -15,10 +15,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Top-level orchestrator for a proot session (Shell rebuild PR 3/N).
+ * Top-level orchestrator for a shell session — proot by default, ryznix or another
+ * backend as a peer (Shell rebuild PR 3/N).
  *
  * Holds:
- *  - the [ShellProcessSpawner] (proot lifecycle)
+ *  - the [ShellTransport] backend (proot by default; ryznix/others are peers)
  *  - the [ShellIpcServer] listening on the Android side of the IPC bridge
  *  - the [ShellIpcAuth] secret store
  *
@@ -28,7 +29,7 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 class ShellSessionManager(
     private val context: Context,
-    private val spawner: ShellProcessSpawner = ShellProcessSpawner(context),
+    private val transport: ShellTransport = ProotTransport(context),
     private val auth: ShellIpcAuth = ShellIpcAuth(context),
 ) {
 
@@ -47,7 +48,7 @@ class ShellSessionManager(
     private val _state = MutableStateFlow<State>(State.Idle)
     val state: StateFlow<State> = _state.asStateFlow()
 
-    private val activeProcess = AtomicReference<Process?>(null)
+    private val activeChannel = AtomicReference<ShellChannel?>(null)
     private val activeServer = AtomicReference<ShellIpcServer?>(null)
 
     /**
@@ -55,7 +56,7 @@ class ShellSessionManager(
      * actual phase and any failure reason verbatim.
      */
     fun start(handler: ShellIpcServer.RequestHandler = defaultHandler()): Boolean {
-        if (activeProcess.get() != null) {
+        if (activeChannel.get() != null) {
             AppLogger.d(TAG, "start: session already running")
             return true
         }
@@ -65,8 +66,10 @@ class ShellSessionManager(
         // session would otherwise hold a stale secret and silently reject the new
         // Android-side client. Rotating + re-writing guarantees the dispatcher this
         // start spawns boots with the same secret the client will present.
-        // Skipped when the rootfs isn't extracted (e.g. dev runs without a real rootfs);
-        // in that case the spawner will fail with RootfsMissing anyway.
+        // Skipped when the rootfs isn't extracted (e.g. dev runs without a real rootfs,
+        // or a non-proot transport); in that case the transport reports it unavailable
+        // anyway. This rotation is proot-specific and is a no-op for transports that
+        // don't use the extracted rootfs.
         _state.value = State.Starting("rotating IPC secret")
         val installer = ShellRootfsDispatcherInstaller(context, auth)
         val rotated = installer.rotateForSessionStart()
@@ -82,40 +85,25 @@ class ShellSessionManager(
         }
         activeServer.set(server)
 
-        _state.value = State.Starting("spawning proot")
-        return when (val r = spawner.spawn()) {
-            is ShellProcessSpawner.Result.Started -> {
-                activeProcess.set(r.process)
-                _state.value = State.Running(extractPid(r.process))
-                AppLogger.d(TAG, "session started")
+        _state.value = State.Starting("spawning ${transport.name}")
+        return when (val r = transport.spawn()) {
+            is ShellTransportResult.Started -> {
+                activeChannel.set(r.channel)
+                _state.value = State.Running(r.channel.pid)
+                AppLogger.d(TAG, "session started via ${transport.name}")
                 true
             }
-            is ShellProcessSpawner.Result.BinaryMissing -> {
+            is ShellTransportResult.Unavailable -> {
                 server.stop()
                 activeServer.set(null)
-                _state.value = State.Failed(
-                    "proot_binary",
-                    "The proot binary is not bundled with this build. Expected at: " +
-                        "${r.expectedPath}. PR 3/N follow-up will ship the binary as " +
-                        "libproot.so under jniLibs/<abi>/."
-                )
+                _state.value = State.Failed(r.phase, r.reason)
                 false
             }
-            is ShellProcessSpawner.Result.RootfsMissing -> {
+            is ShellTransportResult.Failed -> {
                 server.stop()
                 activeServer.set(null)
                 _state.value = State.Failed(
-                    "rootfs",
-                    "Rootfs is not extracted yet at ${r.expectedPath}. Run the Shell " +
-                        "environment setup screen first."
-                )
-                false
-            }
-            is ShellProcessSpawner.Result.Failed -> {
-                server.stop()
-                activeServer.set(null)
-                _state.value = State.Failed(
-                    "spawn",
+                    r.phase,
                     r.cause.message ?: r.cause::class.simpleName ?: "spawn error"
                 )
                 false
@@ -125,9 +113,7 @@ class ShellSessionManager(
 
     /** Stop the session if running. Halts proot and the IPC server; returns to Idle. */
     fun stop() {
-        activeProcess.getAndSet(null)?.let { proc ->
-            runCatching { proc.destroy() }
-        }
+        activeChannel.getAndSet(null)?.let { ch -> transport.stop(ch) }
         activeServer.getAndSet(null)?.stop()
         _state.value = State.Stopped
         AppLogger.d(TAG, "session stopped")
@@ -150,13 +136,6 @@ class ShellSessionManager(
                     "in-rootfs request dispatcher."
             )
         }
-
-    private fun extractPid(process: Process): Int? = runCatching {
-        // Reflection avoids API-level guards; pid() is API 26+ which we already require,
-        // but the call is cheap and a missing pid shouldn't fail session startup.
-        @Suppress("USELESS_ELVIS")
-        process.javaClass.getMethod("pid").invoke(process) as? Long ?: return null
-    }.getOrNull()?.toInt()
 
     /** Convenience: bind a request envelope and send. The send half lands with the client side. */
     @Suppress("unused")

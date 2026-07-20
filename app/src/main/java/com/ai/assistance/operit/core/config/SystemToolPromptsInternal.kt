@@ -934,6 +934,26 @@ object SystemToolPromptsInternal {
                                         required = true
                                     )
                                 )
+                        ),
+                        ToolPrompt(
+                            name = "schedule_task",
+                            description = "Schedule an existing workflow to run automatically via the built-in workflow scheduler (WorkManager), or cancel that schedule. Use this to 'arm' a workflow after you have created it and added a schedule trigger node to it; the timing itself comes from the workflow's own schedule trigger, not from this call. Calling it again re-arms (idempotent). This does NOT create alarms or new workflows.",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "workflow_id",
+                                        type = "string",
+                                        description = "id of an existing, enabled workflow that has a schedule trigger node",
+                                        required = true
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "action",
+                                        type = "string",
+                                        description = "optional, schedule (default) to arm/re-arm, or cancel to unschedule",
+                                        required = false,
+                                        default = "schedule"
+                                    )
+                                )
                         )
                     )
             ),
@@ -1579,6 +1599,87 @@ object SystemToolPromptsInternal {
                                         type = "string",
                                         description = "optional, target app package name",
                                         required = false
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "dump_ui_tree",
+                            description = "Dump the current screen's accessibility UI hierarchy as structured data (read-only). Richer than a screenshot: gives every visible element's text, content-description, resource-id, class and bounds. Use this to understand the current page before deciding what to tap/click. Requires the accessibility service to be enabled.",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "format",
+                                        type = "string",
+                                        description = "optional, json (default) for a flat structured list, or tree for a nested layout",
+                                        required = false,
+                                        default = "json"
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "find_ui_element",
+                            description = "Query the current screen for element(s) matching a substring (read-only, never clicks). Returns the matched elements' text/desc/id/class and bounds. Use it to check whether something is on screen and to get its coordinates before tapping. Requires the accessibility service to be enabled.",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "query",
+                                        type = "string",
+                                        description = "substring to match against visible text, content-description or resource-id",
+                                        required = true
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "by",
+                                        type = "string",
+                                        description = "optional, restrict the match to one field: text, desc, id, or any (default)",
+                                        required = false,
+                                        default = "any"
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "limit",
+                                        type = "integer",
+                                        description = "optional, max number of matches to return (1-50)",
+                                        required = false,
+                                        default = "20"
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "wait_for_element",
+                            description = "Poll the screen until an element matching the substring appears, or until the timeout elapses (read-only, never clicks). Use it to add resilience against page loads, screen transitions and animations before interacting. Requires the accessibility service to be enabled.",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "matcher",
+                                        type = "string",
+                                        description = "substring to wait for in visible text, content-description or resource-id (alias: query)",
+                                        required = true
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "by",
+                                        type = "string",
+                                        description = "optional, restrict the match to one field: text, desc, id, or any (default)",
+                                        required = false,
+                                        default = "any"
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "timeout_ms",
+                                        type = "integer",
+                                        description = "optional, max time to wait in milliseconds (default 5000, capped at 30000)",
+                                        required = false,
+                                        default = "5000"
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "fill_form",
+                            description = "Fill one or more on-screen form inputs in a single call via the accessibility service (query + type; does NOT submit). For each field it finds the matching editable input on the current screen, focuses it and types the given value. Use it to populate a form before you tap the submit/next button yourself with click_element/tap. Requires the accessibility service to be enabled.",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "fields",
+                                        type = "object",
+                                        description = "JSON object mapping a field identifier to the value to type. The identifier is matched (substring-tolerant) against each input's label / hint / content-description / nearby text / resource-id, e.g. {\"Email\": \"a@b.com\", \"password\": \"secret\"}.",
+                                        required = true
                                     )
                                 )
                         )
@@ -2636,6 +2737,32 @@ object SystemToolPromptsInternal {
                                         required = false
                                     )
                                 )
+                        ),
+                        ToolPrompt(
+                            name = "read_app_logs",
+                            description = "Read THIS app's own recent log lines so you can self-diagnose a failure. Safe on non-rooted devices: Android restricts logcat to the caller's own process, so this only ever returns this app's logs (no root/Shizuku, no other app's output). Prefers the app's own logcat buffer and falls back to the persisted app log file; returns an empty result with a note if no logs are available.",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "lines",
+                                        type = "integer",
+                                        description = "optional, max number of most-recent lines to return (1-1000)",
+                                        required = false,
+                                        default = "200"
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "level",
+                                        type = "string",
+                                        description = "optional minimum level filter: V, D, I, W, or E (returns that level and above)",
+                                        required = false
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "tag",
+                                        type = "string",
+                                        description = "optional, only return lines whose log tag contains this substring (case-insensitive)",
+                                        required = false
+                                    )
+                                )
                         )
                     )
             )
@@ -3569,6 +3696,26 @@ object SystemToolPromptsInternal {
                                         required = true
                                     )
                                 )
+                        ),
+                        ToolPrompt(
+                            name = "schedule_task",
+                            description = "通过内置工作流调度器（WorkManager）为一个已有工作流排期，使其自动运行，或取消该排期。用于在你创建好工作流并为其添加了调度触发节点之后将其“装载/启用”；具体的执行时间来自工作流自身的调度触发节点，而非本次调用。重复调用会重新装载（幂等）。本工具不会创建闹钟，也不会新建工作流。",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "workflow_id",
+                                        type = "string",
+                                        description = "已存在且已启用、且带有调度触发节点的工作流 ID",
+                                        required = true
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "action",
+                                        type = "string",
+                                        description = "可选，schedule（默认）装载/重新装载，或 cancel 取消排期",
+                                        required = false,
+                                        default = "schedule"
+                                    )
+                                )
                         )
                     )
             ),
@@ -4214,6 +4361,87 @@ object SystemToolPromptsInternal {
                                         type = "string",
                                         description = "可选，目标应用包名",
                                         required = false
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "dump_ui_tree",
+                            description = "以结构化数据转储当前屏幕的无障碍 UI 层次（只读）。比截图更丰富：给出每个可见元素的文本、内容描述、资源 ID、类名和边界。用于在决定点击哪里之前先了解当前页面。需要已启用无障碍服务。",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "format",
+                                        type = "string",
+                                        description = "可选，json（默认）返回扁平结构化列表，或 tree 返回嵌套布局",
+                                        required = false,
+                                        default = "json"
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "find_ui_element",
+                            description = "在当前屏幕上按子串查找匹配的元素（只读，不点击）。返回匹配元素的文本/内容描述/资源 ID/类名及边界。用于确认某元素是否在屏幕上，并在点击前获取其坐标。需要已启用无障碍服务。",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "query",
+                                        type = "string",
+                                        description = "用于匹配可见文本、内容描述或资源 ID 的子串",
+                                        required = true
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "by",
+                                        type = "string",
+                                        description = "可选，限定匹配的字段：text、desc、id 或 any（默认）",
+                                        required = false,
+                                        default = "any"
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "limit",
+                                        type = "integer",
+                                        description = "可选，返回匹配项的最大数量（1-50）",
+                                        required = false,
+                                        default = "20"
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "wait_for_element",
+                            description = "轮询屏幕直到出现匹配子串的元素，或直到超时（只读，不点击）。用于在交互前对页面加载、界面切换和动画提供韧性。需要已启用无障碍服务。",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "matcher",
+                                        type = "string",
+                                        description = "要等待出现的子串，匹配可见文本、内容描述或资源 ID（别名：query）",
+                                        required = true
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "by",
+                                        type = "string",
+                                        description = "可选，限定匹配的字段：text、desc、id 或 any（默认）",
+                                        required = false,
+                                        default = "any"
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "timeout_ms",
+                                        type = "integer",
+                                        description = "可选，最长等待时间（毫秒，默认 5000，上限 30000）",
+                                        required = false,
+                                        default = "5000"
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "fill_form",
+                            description = "通过无障碍服务在一次调用中填写屏幕上的一个或多个表单输入框（查找并输入；不会提交）。对每个字段，在当前屏幕上找到匹配的可编辑输入框，聚焦并输入给定的值。用于在你自己用 click_element/tap 点击提交/下一步按钮之前先填好表单。需要已启用无障碍服务。",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "fields",
+                                        type = "object",
+                                        description = "JSON 对象，将字段标识映射到要输入的值。标识会（容许子串匹配）与每个输入框的标签/提示文本/内容描述/邻近文本/资源 ID 进行匹配，例如 {\"Email\": \"a@b.com\", \"password\": \"secret\"}。",
+                                        required = true
                                     )
                                 )
                         )
@@ -5268,6 +5496,32 @@ object SystemToolPromptsInternal {
                                         name = "video_codec",
                                         type = "string",
                                         description = "可选，H.264 编码请使用 h264",
+                                        required = false
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "read_app_logs",
+                            description = "读取本应用自身最近的日志，用于自我诊断失败。在未 root 的设备上是安全的：Android 将 logcat 限制为调用者自身进程，因此只会返回本应用的日志（无需 root/Shizuku，也不会读取其他应用的输出）。优先读取本应用的 logcat 缓冲区，若不可用则回退到持久化的应用日志文件；若无可用日志则返回带说明的空结果。",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "lines",
+                                        type = "integer",
+                                        description = "可选，返回的最近日志行数上限（1-1000）",
+                                        required = false,
+                                        default = "200"
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "level",
+                                        type = "string",
+                                        description = "可选，最低级别过滤：V、D、I、W 或 E（返回该级别及以上）",
+                                        required = false
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "tag",
+                                        type = "string",
+                                        description = "可选，仅返回日志标签包含该子串的行（不区分大小写）",
                                         required = false
                                     )
                                 )

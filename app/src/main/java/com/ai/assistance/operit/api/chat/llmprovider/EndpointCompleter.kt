@@ -117,6 +117,15 @@ object EndpointCompleter {
                 return endpoint
             }
 
+            // Azure OpenAI: the user supplies a full deployment URL including
+            // `?api-version=...`; never append a path or we would corrupt it.
+            ApiProviderType.AZURE_OPENAI -> {
+                return endpoint
+            }
+
+            // Western OpenAI-compatible vendors (XAI/GROQ/PERPLEXITY/TOGETHER/
+            // FIREWORKS/DEEPINFRA/COHERE) fall through to the OpenAI-style completer
+            // via `else`, which appends /v1/chat/completions or /chat/completions as needed.
             else -> {
                 return completeEndpoint(endpoint)
             }

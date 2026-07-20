@@ -99,13 +99,31 @@ object JsCapabilityClassifier {
         put("capture_screenshot", JsCapabilityClass.UI_AUTOMATION)
         put("get_page_info", JsCapabilityClass.UI_AUTOMATION)
         put("ui_dump", JsCapabilityClass.UI_AUTOMATION)
+        // Accessibility-transport reads of the live UI hierarchy. Query/read-only (no click), but
+        // reading the on-screen tree exposes the same user-facing surface as driving it, so they
+        // carry the UI_AUTOMATION capability rather than a weaker read class.
+        put("dump_ui_tree", JsCapabilityClass.UI_AUTOMATION)
+        put("find_ui_element", JsCapabilityClass.UI_AUTOMATION)
+        // Poll-until-present element wait: read-only (no click), but polling the live UI hierarchy
+        // exposes the same on-screen surface as the other UI reads, so it carries UI_AUTOMATION.
+        put("wait_for_element", JsCapabilityClass.UI_AUTOMATION)
+        // Query-and-set autofill: locates editable inputs and writes text into them via the
+        // AccessibilityService (no submit/click). Driving inputs is UI automation.
+        put("fill_form", JsCapabilityClass.UI_AUTOMATION)
 
         // System read / write
         put("device_info", JsCapabilityClass.SYSTEM_READ)
         put("list_apps", JsCapabilityClass.SYSTEM_READ)
+        // Reads the app's OWN process logs (logcat --pid / AppLogger file) for self-diagnosis.
+        // Non-rooted Android restricts logcat to the caller's own UID, so this only exposes this
+        // app's device/system log output — a read of system state, hence SYSTEM_READ.
+        put("read_app_logs", JsCapabilityClass.SYSTEM_READ)
         put("modify_software_settings", JsCapabilityClass.SYSTEM_WRITE)
         put("send_broadcast", JsCapabilityClass.SYSTEM_WRITE)
         put("send_sms", JsCapabilityClass.SYSTEM_WRITE)
+        // Arms/cancels a background WorkManager schedule for an existing workflow — mutates device
+        // scheduling state, so it carries the SYSTEM_WRITE capability.
+        put("schedule_task", JsCapabilityClass.SYSTEM_WRITE)
 
         // Chat / memory
         put("memory_query", JsCapabilityClass.CHAT_READ)

@@ -194,8 +194,9 @@ class ApiPreferences private constructor(private val context: Context) {
         const val DEFAULT_FEATURE_TOGGLES_JSON = "{}"
 
         // API 配置默认值
-        const val DEFAULT_API_ENDPOINT = "https://api.deepseek.com/v1/chat/completions"
-        const val DEFAULT_MODEL_NAME = "deepseek-v4-flash"
+        // opencode zen (OpenAI-compatible gateway, one key from opencode.ai/auth) — replaces the Chinese DeepSeek default.
+        const val DEFAULT_API_ENDPOINT = "https://opencode.ai/zen/v1/chat/completions"
+        const val DEFAULT_MODEL_NAME = "grok-code-fast-1"
         private const val ENCODED_API_KEY = "c2stNmI4NTYyMjUzNmFjNDhjMDgwYzUwNDhhYjVmNWQxYmQ="
         val DEFAULT_API_KEY: String by lazy { decodeApiKey(ENCODED_API_KEY) }
 

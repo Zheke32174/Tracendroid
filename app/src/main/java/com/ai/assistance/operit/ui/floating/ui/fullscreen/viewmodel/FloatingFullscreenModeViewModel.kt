@@ -11,6 +11,7 @@ import com.ai.assistance.operit.data.preferences.WakeWordPreferences
 import com.ai.assistance.operit.ui.floating.FloatContext
 import com.ai.assistance.operit.ui.floating.ui.fullscreen.XmlTextProcessor
 import com.ai.assistance.operit.ui.floating.ui.pet.AvatarEmotionManager
+import com.ai.assistance.operit.ui.floating.ui.pet.AvatarMoodAccumulator
 import com.ai.assistance.operit.ui.floating.voice.SpeechInteractionManager
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.TtsSegmenter
@@ -33,7 +34,13 @@ data class VoiceAvatarMotionRequest(
     val emotion: AvatarEmotion = AvatarEmotion.IDLE,
     val triggerName: String? = null,
     val playOnce: Boolean = false,
-    val sequence: Long = 0L
+    val sequence: Long = 0L,
+    /**
+     * Normalized emotion intensity (0f..1f) parsed from an upstream `<mood weight>` tag,
+     * or null when the tag carried no weight. Threaded to
+     * [com.ai.assistance.operit.core.avatar.common.control.AvatarController.setEmotionIntensity].
+     */
+    val intensity: Float? = null
 )
 
 class FloatingFullscreenModeViewModel(
@@ -675,17 +682,28 @@ class FloatingFullscreenModeViewModel(
                 }
                 lastHandledVoiceAvatarMessageKey = messageKey
 
-                val triggerName = AvatarEmotionManager.extractMoodTagValue(message.content)
+                // Conversation-aware mood: feed the detailed inference through the
+                // accumulator so mood carries across turns and decays, instead of
+                // being decided fresh from this single message. An explicit signal
+                // (mood tag / keyword hit) still overrides; an ambiguous message
+                // inherits the recent dominant mood.
+                val inference =
+                    AvatarEmotionManager.analyzeEmotionDetailed(message.content)
+                val emotion = AvatarMoodAccumulator.accept(inference)
+                val moodTag = AvatarEmotionManager.extractMoodTag(message.content)
+                val triggerName = moodTag?.key
                 if (!triggerName.isNullOrBlank()) {
+                    // Thread the parsed `<mood weight>` through to the avatar so the
+                    // controller can drive emotion intensity (setEmotionIntensity).
                     pushVoiceAvatarMotion(
-                        emotion = AvatarEmotionManager.analyzeEmotion(message.content),
+                        emotion = emotion,
                         triggerName = triggerName,
-                        playOnce = true
+                        playOnce = true,
+                        intensity = moodTag?.weight
                     )
                     return
                 }
 
-                val emotion = AvatarEmotionManager.analyzeEmotion(message.content)
                 if (emotion == AvatarEmotion.IDLE) {
                     resetVoiceAvatarToIdle()
                 } else {
@@ -721,14 +739,16 @@ class FloatingFullscreenModeViewModel(
     private fun pushVoiceAvatarMotion(
         emotion: AvatarEmotion,
         triggerName: String? = null,
-        playOnce: Boolean
+        playOnce: Boolean,
+        intensity: Float? = null
     ) {
         voiceAvatarSequence += 1
         voiceAvatarMotionRequest = VoiceAvatarMotionRequest(
             emotion = emotion,
             triggerName = triggerName,
             playOnce = playOnce,
-            sequence = voiceAvatarSequence
+            sequence = voiceAvatarSequence,
+            intensity = intensity
         )
     }
 

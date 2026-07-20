@@ -2,6 +2,7 @@ package com.ai.assistance.operit.core.tools.defaultTool.standard
 
 import android.content.Context
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.core.tools.ScheduleTaskResultData
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.WorkflowDetailResultData
 import com.ai.assistance.operit.core.tools.WorkflowListResultData
@@ -898,6 +899,98 @@ class StandardWorkflowTools(private val context: Context) {
                 success = false,
                 result = StringResultData(""),
                 error = "Failed to trigger workflow: ${e.message}"
+            )
+        }
+    }
+
+    /**
+     * Arm, re-arm, or cancel the schedule of an existing workflow that carries a `schedule` trigger
+     * node (the `schedule_task` tool).
+     *
+     * This is a thin, additive wrapper over the EXISTING WorkflowScheduler path: it delegates to
+     * [WorkflowRepository.scheduleWorkflow] / [WorkflowRepository.unscheduleWorkflow], which drive the
+     * already-present [com.ai.assistance.operit.core.workflow.WorkflowScheduler] over WorkManager. The
+     * delay / specific time / cron spec lives in the workflow's schedule trigger node (built when the
+     * workflow was created or edited), so this brick does NOT construct alarms or receivers itself and
+     * does NOT mutate the node graph — it only enqueues or cancels the WorkManager job.
+     *
+     * Params:
+     *  - `workflow_id` (required): the workflow to (un)schedule.
+     *  - `action` (optional, default "schedule"): "schedule" arms/re-arms it; "cancel" cancels it.
+     *
+     * A workflow with no `schedule` trigger, or one that is disabled, cannot be armed; the scheduler
+     * returns false and the tool reports that honestly rather than pretending success.
+     */
+    suspend fun scheduleTask(tool: AITool): ToolResult {
+        val workflowId = tool.parameters.find { it.name == "workflow_id" }?.value
+        if (workflowId.isNullOrBlank()) {
+            return ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = "Workflow ID cannot be empty"
+            )
+        }
+
+        val action = tool.parameters.find { it.name == "action" }?.value?.trim()?.lowercase()
+            ?.takeIf { it.isNotBlank() } ?: "schedule"
+
+        return try {
+            when (action) {
+                "cancel", "unschedule" -> {
+                    workflowRepository.unscheduleWorkflow(workflowId)
+                    ToolResult(
+                        toolName = tool.name,
+                        success = true,
+                        result = ScheduleTaskResultData(
+                            workflowId = workflowId,
+                            action = "cancelled",
+                            scheduled = false,
+                            nextExecutionTime = null,
+                            message = "Cancelled the scheduled task for this workflow."
+                        )
+                    )
+                }
+                "schedule", "reschedule", "arm" -> {
+                    // Re-arm (cancel + schedule) so calling twice is idempotent, mirroring the
+                    // repository's own updateWorkflow -> rescheduleWorkflow behavior.
+                    val scheduled = workflowRepository.rescheduleWorkflow(workflowId)
+                    if (scheduled) {
+                        val nextTime = workflowRepository.getNextExecutionTime(workflowId)
+                        ToolResult(
+                            toolName = tool.name,
+                            success = true,
+                            result = ScheduleTaskResultData(
+                                workflowId = workflowId,
+                                action = "scheduled",
+                                scheduled = true,
+                                nextExecutionTime = nextTime,
+                                message = "Scheduled the task via the existing workflow scheduler (WorkManager)."
+                            )
+                        )
+                    } else {
+                        ToolResult(
+                            toolName = tool.name,
+                            success = false,
+                            result = StringResultData(""),
+                            error = "Could not schedule this workflow. Ensure it exists, is enabled, and has a 'schedule' trigger node (build the schedule on the workflow first, then arm it here)."
+                        )
+                    }
+                }
+                else -> ToolResult(
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error = "Unknown action '$action'. Use 'schedule' or 'cancel'."
+                )
+            }
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "Failed to schedule task", e)
+            ToolResult(
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = "Failed to schedule task: ${e.message}"
             )
         }
     }

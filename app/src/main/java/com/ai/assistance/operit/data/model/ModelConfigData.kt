@@ -5,13 +5,18 @@ import kotlinx.serialization.Serializable
 /** API提供商类型枚举 */
 @Serializable
 enum class ApiProviderType {
+        // NOTE: The enum ORDER drives the provider dropdown order (getProviderSelectionOptions uses
+        // values()). Serialization is by NAME (apiProviderTypeId = name), so reordering is safe and does
+        // not migrate existing configs. Lead with the OpenCode Zen default + the three subscription-login
+        // (OAuth) providers so they are the first things the user sees.
+        OPENCODE_ZEN, // opencode zen (OpenAI-compatible gateway, opencode.ai/zen) — first-run default
+        GOOGLE, // Google (Gemini系列)
         OPENAI, // OpenAI (GPT系列)
+        ANTHROPIC, // Anthropic (Claude系列)
         OPENAI_RESPONSES, // OpenAI Responses API
         OPENAI_RESPONSES_GENERIC, // OpenAI Responses通用（自定义端点）
         OPENAI_GENERIC, // OpenAI通用（自定义端点）
-        ANTHROPIC, // Anthropic (Claude系列)
         ANTHROPIC_GENERIC, // Anthropic通用（自定义端点）
-        GOOGLE, // Google (Gemini系列)
         GEMINI_GENERIC, // Gemini通用（自定义端点）
         BAIDU, // 百度 (文心一言系列)
         ALIYUN, // 阿里云 (通义千问系列)
@@ -37,6 +42,15 @@ enum class ApiProviderType {
         LLAMA_CPP, // llama.cpp 本地推理引擎
         PPINFRA, // 派欧云
         NOVITA, // Novita AI
+        // Western vendors (OpenAI-compatible). Azure uses api-key header auth, not Bearer.
+        XAI, // xAI (Grok系列)
+        GROQ, // Groq (LPU推理)
+        PERPLEXITY, // Perplexity (Sonar系列)
+        TOGETHER, // Together AI
+        FIREWORKS, // Fireworks AI
+        DEEPINFRA, // DeepInfra
+        COHERE, // Cohere (Command系列，OpenAI兼容端点)
+        AZURE_OPENAI, // Azure OpenAI (api-key头认证，用户自定义部署端点)
         OTHER; // 其他提供商（自定义端点）
 
         companion object {
@@ -63,6 +77,13 @@ object ModelConfigDefaults {
 }
 
 /** 表示完整的模型配置，包括API设置和模型参数 */
+/** How a model config authenticates: a static API key/token, or an OAuth access token. */
+@Serializable
+enum class ModelAuthMode {
+        API_KEY, // static key/token in apiKey or the key pool (default; unchanged behavior)
+        OAUTH,   // OAuth 2.0 access token from ModelOAuthTokenStore, refreshed as needed
+}
+
 @Serializable
 data class ModelConfigData(
         val id: String,
@@ -74,6 +95,9 @@ data class ModelConfigData(
         val modelName: String = "",
         val apiProviderType: ApiProviderType = ApiProviderType.DEEPSEEK,
         val apiProviderTypeId: String = apiProviderType.name,
+
+        // 凭证来源: 静态API Key 还是 OAuth 访问令牌
+        val authMode: ModelAuthMode = ModelAuthMode.API_KEY,
 
         // 多API Key支持
         val useMultipleApiKeys: Boolean = false, // 是否启用多API Key模式

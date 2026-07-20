@@ -1569,6 +1569,24 @@ open class OpenAIProvider(
         return Pair(textContent.trim(), results)
     }
 
+    /**
+     * 选择本Provider的认证策略。
+     *
+     * 绝大多数OpenAI兼容厂商（含西方厂商 XAI/GROQ/PERPLEXITY/TOGETHER/FIREWORKS/DEEPINFRA/COHERE）
+     * 使用 `Authorization: Bearer <key>`，与历史行为完全一致（credential 会 trim，空 key 不发头）。
+     *
+     * 唯一例外是 [ApiProviderType.AZURE_OPENAI]：Azure OpenAI 使用 `api-key: <key>` 头而非 Bearer，
+     * 端点为用户自定义的部署URL。这里用 [HeaderKeyAuth] 干净地接入，无需新建 Provider 类。
+     */
+    private fun resolveAuthStrategy(): AuthStrategy {
+        return when (providerType) {
+            ApiProviderType.AZURE_OPENAI ->
+                HeaderKeyAuth("api-key", { apiKeyProvider.getApiKey().trim() })
+            else ->
+                BearerAuth({ apiKeyProvider.getApiKey() }, trim = true)
+        }
+    }
+
     // 创建请求
     private suspend fun createRequest(
         requestBody: RequestBody,
@@ -1576,7 +1594,8 @@ open class OpenAIProvider(
         stream: Boolean,
         attemptNumber: Int
     ): Request {
-        val currentApiKey = apiKeyProvider.getApiKey().trim()
+        val authStrategy: AuthStrategy = resolveAuthStrategy()
+        val credential = authStrategy.resolveCredential()
         val endpointUrl = EndpointCompleter.completeEndpoint(apiEndpoint, providerType)
         val traceContext =
             LlmRequestTraceContext(
@@ -1588,13 +1607,11 @@ open class OpenAIProvider(
                 endpointLabel = endpointUrl.substringBefore('?')
             )
         val builder = Request.Builder()
-            .url(endpointUrl)
+            .url(authStrategy.applyUrl(endpointUrl, credential))
             .tag(LlmRequestTraceContext::class.java, traceContext)
             .addHeader("Content-Type", "application/json")
 
-        if (currentApiKey.isNotEmpty()) {
-            builder.addHeader("Authorization", "Bearer $currentApiKey")
-        }
+        authStrategy.applyHeaders(builder, credential)
 
         // 添加自定义请求头
         customHeaders.forEach { (key, value) ->

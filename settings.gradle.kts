@@ -16,7 +16,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Operit"
+rootProject.name = "Tracendroid"
 include(":app")
 include(":dragonbones")
 include(":terminal")
