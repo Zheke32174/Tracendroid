@@ -74,6 +74,23 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags("-std=c++17")
+
+                // kissfft is pulled in by kaldi-native-fbank via FetchContent, which
+                // fetches a GitHub archive zip at configure time. Networks that allow
+                // git but block codeload archive downloads answer 403 there, and the
+                // configure step dies with "Each download failed!".
+                //
+                // Point FetchContent at a local checkout when one is provided instead.
+                // Unset, this is empty and the normal download path is used, so the
+                // build is unchanged for anyone not behind such a network.
+                //   git clone https://github.com/mborgerding/kissfft /path/kissfft
+                //   git -C /path/kissfft checkout febd4caeed32e33ad8b2e0bb5ea77542c40f18ec
+                //   ./gradlew :app:assembleDebug -PkissfftSrc=/path/kissfft
+                val kissfftSrc = (project.findProperty("kissfftSrc") as String?)
+                    ?: System.getenv("KISSFFT_SRC")
+                if (!kissfftSrc.isNullOrBlank()) {
+                    arguments("-DFETCHCONTENT_SOURCE_DIR_KISSFFT=$kissfftSrc")
+                }
             }
         }
 
