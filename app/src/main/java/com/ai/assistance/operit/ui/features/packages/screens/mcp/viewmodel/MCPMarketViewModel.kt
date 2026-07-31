@@ -676,9 +676,22 @@ class MCPMarketViewModel(
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                AppLogger.d(TAG, "Handling GitHub callback with code: $code")
+                // The authorization code is a bearer-equivalent secret — log the
+                // event, never the value.
+                AppLogger.d(TAG, "Handling GitHub callback")
 
-                val tokenResult = githubApiService.getAccessToken(code)
+                // PKCE (RFC 7636): the verifier was stashed when the authorize URL
+                // was built and is consumed exactly once here. Without it the token
+                // exchange is rejected, so fail early rather than call GitHub blind.
+                val codeVerifier = githubAuth.consumePendingCodeVerifier()
+                if (codeVerifier.isNullOrBlank()) {
+                    AppLogger.e(TAG, "No pending PKCE code_verifier for this callback")
+                    _errorMessage.value =
+                        context.getString(R.string.main_github_login_failed, "missing code_verifier")
+                    return@launch
+                }
+
+                val tokenResult = githubApiService.getAccessToken(code, codeVerifier)
                 val tokenResponse = tokenResult.getOrElse { error ->
                     AppLogger.e(TAG, "Failed to get access token", error)
                     _errorMessage.value = context.getString(R.string.main_github_login_failed, error.message ?: "")
