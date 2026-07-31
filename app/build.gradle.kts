@@ -75,21 +75,39 @@ android {
             cmake {
                 cppFlags("-std=c++17")
 
-                // kissfft is pulled in by kaldi-native-fbank via FetchContent, which
-                // fetches a GitHub archive zip at configure time. Networks that allow
-                // git but block codeload archive downloads answer 403 there, and the
-                // configure step dies with "Each download failed!".
+                // sherpa-ncnn pulls several dependencies in through CMake
+                // FetchContent, which fetches GitHub archive tarballs during
+                // configure. Networks that permit git but block codeload archive
+                // URLs answer 403 there, and configure dies with "Each download
+                // failed!" — taking :app:configureCMakeDebug with it. The failure
+                // looks arbitrary because whichever dependency is reached first
+                // wins, and a cached one succeeds while the next fails.
                 //
-                // Point FetchContent at a local checkout when one is provided instead.
-                // Unset, this is empty and the normal download path is used, so the
-                // build is unchanged for anyone not behind such a network.
-                //   git clone https://github.com/mborgerding/kissfft /path/kissfft
-                //   git -C /path/kissfft checkout febd4caeed32e33ad8b2e0bb5ea77542c40f18ec
-                //   ./gradlew :app:assembleDebug -PkissfftSrc=/path/kissfft
-                val kissfftSrc = (project.findProperty("kissfftSrc") as String?)
-                    ?: System.getenv("KISSFFT_SRC")
-                if (!kissfftSrc.isNullOrBlank()) {
-                    arguments("-DFETCHCONTENT_SOURCE_DIR_KISSFFT=$kissfftSrc")
+                // Given a directory of checkouts, point FetchContent at them
+                // instead. Only the ones actually present are passed, so a partial
+                // mirror still helps. Unset, nothing is added and the usual
+                // download path runs unchanged.
+                //
+                //   d=/path/deps; mkdir -p $d && cd $d
+                //   git clone https://github.com/mborgerding/kissfft   kissfft
+                //   git -C kissfft checkout febd4caeed32e33ad8b2e0bb5ea77542c40f18ec
+                //   git clone -b v1.7.17 https://github.com/k2-fsa/kaldifst kaldifst
+                //   git clone -b sherpa-onnx-2024-06-19 https://github.com/csukuangfj/openfst openfst
+                //   git clone -b v3.12.0 https://github.com/nlohmann/json  json
+                //   git clone -b v3.0.0  https://github.com/pybind/pybind11 pybind11
+                //   ./gradlew :app:assembleDebug -PnativeDepsDir=$d
+                //
+                // FETCHCONTENT_SOURCE_DIR_<NAME> uppercases the declared name.
+                val nativeDepsDir = (project.findProperty("nativeDepsDir") as String?)
+                    ?: System.getenv("NATIVE_DEPS_DIR")
+                if (!nativeDepsDir.isNullOrBlank()) {
+                    listOf("kissfft", "kaldifst", "openfst", "json", "pybind11",
+                           "kaldi_native_fbank").forEach { dep ->
+                        val dir = File(nativeDepsDir, dep)
+                        if (dir.isDirectory) {
+                            arguments("-DFETCHCONTENT_SOURCE_DIR_${dep.uppercase()}=${dir.absolutePath}")
+                        }
+                    }
                 }
             }
         }
