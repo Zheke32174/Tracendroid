@@ -290,15 +290,14 @@ can execute against the **`ryznix`** rootless subsystem rather than only app-UID
   bionic stratum.
 - **`ryzdroid micro`** = a minimal on-device ryznix profile — the compact substrate the
   module would target on the phone.
-- **`masamune`** = **not** a Tracendroid component. It is the top orchestration layer of the
-  "shogun" multi-agent system (Masamune→Yojimbo→Genji ≈ Shogun→Karō/Gunshi→Ashigaru; Bash +
-  tmux, YAML-mailbox coordination). "Masamune must be completed" is a **sequencing gate**: it
-  is the orchestrator meant to drive the fleet that builds/stages the ryznix + termux2 +
-  ryzdroid substrate. Its one known defect (a test `timeout 300` killing slow CLI agents) was
-  already diagnosed — run it detached (per the hive-journey `shogun-masamune-yojimbo-genji`
-  memory; the orchestrator's own source isn't in a repo I can currently reach — § 9 Q4).
-  Completion is prerequisite *to the substrate build*,
-  not to the near-term (Phase 1–3) Tracendroid work.
+- **`masamune`** = **Tracendroid itself** — this project's codename (confirmed by the
+  maintainer). "Masamune must be completed" therefore means **Tracendroid must reach
+  completion**: its own roadmap — the shell rebuild made functional (`libproot.so` + a signed
+  rootfs, `STATUS.md`), the remaining partial threat-model rows closed, and feature work like
+  this module (Phases 1–3b) — **before** the later-stage ryznix integration is meaningful. This
+  is a sequencing gate on the **app, which is fully in scope**, not on an external component.
+  (An older hive-journey memory, `shogun-masamune-yojimbo-genji`, used "Masamune" for a shogun
+  multi-agent orchestration layer; the maintainer's clarification supersedes that usage here.)
 
 **The architectural tension to resolve before any of this lands (§ 9):** `ryznix` derives its
 power from **Shizuku/rish (shell uid 2000)** — precisely the privileged channel Tracendroid
@@ -329,11 +328,12 @@ remain out of reach (§ 3) until a rooted or custom-kernel `ryzdroid` device exi
   user-CA TLS interception constrained to debug builds / cooperating apps per § 3.3.
   *Depends on:* Phase 2 (runs inside proot) + Phase 3a.
 - **Phase 4 — later-stage substrate.** Shell-UID ryznix bridge; target the ryzdroid-micro
-  arsenal + QEMU x86_64; external-hardware HID delivery. *Depends on, in order:* (a) `masamune`
-  completed and (b) the `ryznix` substrate actually built by it (§ 6 — masamune's source is
-  currently unreachable, § 9 Q4); (c) a `SECURITY.md` amendment authorising the shell-UID
-  channel (§ 9 Q3). Monitor-mode / injection / on-device HID remain out of reach until a rooted
-  or custom-kernel device exists — no phase delivers them on stock hardware.
+  arsenal + QEMU x86_64; external-hardware HID delivery. *Depends on, in order:* (a) **Tracendroid
+  (masamune) itself completed** — the shell rebuild functional and this module's Phases 1–3b
+  landed (§ 6); (b) the `ryznix` substrate built and staged in `/data/local/tmp`; (c) a
+  `SECURITY.md` amendment authorising the shell-UID channel (§ 9 Q3). Monitor-mode / injection /
+  on-device HID remain out of reach until a rooted or custom-kernel device exists — no phase
+  delivers them on stock hardware.
 
 ---
 
@@ -371,10 +371,11 @@ remain out of reach (§ 3) until a rooted or custom-kernel `ryzdroid` device exi
 3. **Phase 4 shell-UID bridge — amend SECURITY.md?** Bringing in ryznix (Shizuku/shell-UID)
    reverses a closed threat-model decision. Confirm this is desired and worth the amendment
    before any Phase 4 design.
-4. **`masamune` completion — is it in scope for me?** Its code appears to live outside the
-   GitHub repos I can see (referenced as a local `~/stack/multi-agent-shogun` clone in the
-   hive-journey memory), so I can't complete it from here without that source. If you want it
-   done as a separate work item, point me at the repo/path.
+4. **`masamune` = Tracendroid (resolved).** The maintainer confirmed "masamune" is this
+   project's codename, so "masamune must be completed" is the Tracendroid roadmap itself — the
+   shell rebuild (`libproot.so` + signed rootfs) plus feature work like this module — all
+   in-repo and in scope. Remaining decision: the priority order between finishing that roadmap
+   and standing up the later-stage ryznix substrate.
 5. **ZH mirror.** The repo mirrors every `docs/*.md` to `.zh.md`. Confirm you want a
    `NETHUNTER_MODULE.zh.md` mirror generated once the EN spec is settled.
 
@@ -391,4 +392,6 @@ remain out of reach (§ 3) until a rooted or custom-kernel `ryzdroid` device exi
 - `AGENT_CORE.md` — the AI-backend seam that grants/denies module capabilities.
 - `docs/DEFAULT_TOOLS_ARCH.md` — the tool-authoring checklist every `nh_*` tool follows.
 - External substrate: `zheke32174/ryznix` (`RYZNIX-METHOD.md`, `SUPERLINUX-HOWTO.md`),
-  `zheke32174/ryz` (`RYZOS.md`), hive-journey `memory/shogun-masamune-yojimbo-genji.md`.
+  `zheke32174/ryz` (`RYZOS.md`). ("masamune" = this project per the maintainer; the older
+  hive-journey `shogun-masamune-yojimbo-genji` memory used the name differently and is
+  superseded.)
