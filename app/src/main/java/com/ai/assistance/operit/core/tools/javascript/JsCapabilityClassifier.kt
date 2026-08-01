@@ -39,6 +39,18 @@ enum class JsCapabilityClass {
     /** Mutates chat / memory / conversation state. */
     CHAT_WRITE,
 
+    /** Authorized pentest recon: scan / discover / survey. See docs/NETHUNTER_MODULE.md § 5.4. */
+    NETHUNTER_RECON,
+
+    /** Authorized on-device traffic capture (VpnService). */
+    NETHUNTER_CAPTURE,
+
+    /** Authorized proxy / intercept / replay. */
+    NETHUNTER_INTERCEPT,
+
+    /** Authorized payload authoring / build. */
+    NETHUNTER_PAYLOAD,
+
     /** Anything not yet classified — treated as the most-restrictive class. */
     UNCLASSIFIED;
 }
