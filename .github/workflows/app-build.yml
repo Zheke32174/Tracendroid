@@ -39,6 +39,38 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # Verify the ONE wrapper JAR this job actually executes.
+      #
+      # setup-gradle's built-in validate-wrappers scans the whole worktree, and
+      # with submodules checked out that includes ten vendored wrapper JARs from
+      # MNN, sherpa-ncnn, llama.cpp and friends. One of them --
+      # mnn/src/main/cpp/MNN/3rd_party/flatbuffers/samples/android/ -- has a
+      # checksum that matches no published Gradle release, so the whole job fails
+      # before it builds anything.
+      #
+      # The two easy answers are both wrong. Turning validation off drops a real
+      # supply-chain check, and allow-listing that checksum waves through a
+      # binary nobody has verified.
+      #
+      # So: validation is pinned to ./gradlew, which is the only wrapper this job
+      # runs. Any change to it fails the job. The vendored sample wrappers are
+      # not executed here and are not vouched for -- see WRAPPER-AUDIT note in
+      # the PR. That is a narrower claim than the default scan makes, and unlike
+      # the default scan it is one this repo can actually honour.
+      - name: Verify the Gradle wrapper we execute
+        run: |
+          set -euo pipefail
+          expected=e996d452d2645e70c01c11143ca2d3742734a28da2bf61f25c82bdc288c9e637
+          actual=$(sha256sum gradle/wrapper/gradle-wrapper.jar | cut -d' ' -f1)
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::gradle/wrapper/gradle-wrapper.jar changed"
+            echo "  expected $expected"
+            echo "  actual   $actual"
+            echo "If this change is intentional, update the pin in this workflow."
+            exit 1
+          fi
+          echo "wrapper verified: $actual"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -46,6 +78,8 @@ jobs:
           # Kotlin compilation is the heaviest single phase; warm caches drop
           # this job from ~20 minutes to ~6.
           cache-read-only: false
+          # Replaced by the pinned check above; see that step for why.
+          validate-wrappers: false
 
       - name: Show toolchain
         run: |
