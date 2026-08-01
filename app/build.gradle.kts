@@ -74,6 +74,41 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags("-std=c++17")
+
+                // sherpa-ncnn pulls several dependencies in through CMake
+                // FetchContent, which fetches GitHub archive tarballs during
+                // configure. Networks that permit git but block codeload archive
+                // URLs answer 403 there, and configure dies with "Each download
+                // failed!" — taking :app:configureCMakeDebug with it. The failure
+                // looks arbitrary because whichever dependency is reached first
+                // wins, and a cached one succeeds while the next fails.
+                //
+                // Given a directory of checkouts, point FetchContent at them
+                // instead. Only the ones actually present are passed, so a partial
+                // mirror still helps. Unset, nothing is added and the usual
+                // download path runs unchanged.
+                //
+                //   d=/path/deps; mkdir -p $d && cd $d
+                //   git clone https://github.com/mborgerding/kissfft   kissfft
+                //   git -C kissfft checkout febd4caeed32e33ad8b2e0bb5ea77542c40f18ec
+                //   git clone -b v1.7.17 https://github.com/k2-fsa/kaldifst kaldifst
+                //   git clone -b sherpa-onnx-2024-06-19 https://github.com/csukuangfj/openfst openfst
+                //   git clone -b v3.12.0 https://github.com/nlohmann/json  json
+                //   git clone -b v3.0.0  https://github.com/pybind/pybind11 pybind11
+                //   ./gradlew :app:assembleDebug -PnativeDepsDir=$d
+                //
+                // FETCHCONTENT_SOURCE_DIR_<NAME> uppercases the declared name.
+                val nativeDepsDir = (project.findProperty("nativeDepsDir") as String?)
+                    ?: System.getenv("NATIVE_DEPS_DIR")
+                if (!nativeDepsDir.isNullOrBlank()) {
+                    listOf("kissfft", "kaldifst", "openfst", "json", "pybind11",
+                           "kaldi_native_fbank").forEach { dep ->
+                        val dir = File(nativeDepsDir, dep)
+                        if (dir.isDirectory) {
+                            arguments("-DFETCHCONTENT_SOURCE_DIR_${dep.uppercase()}=${dir.absolutePath}")
+                        }
+                    }
+                }
             }
         }
 
@@ -81,6 +116,13 @@ android {
         // PKCE (RFC 7636) so the client is public and needs no secret. See
         // docs/OAUTH_PKCE_MIGRATION.md and THREAT_MODEL.md § 4.8.
         buildConfigField("String", "GITHUB_CLIENT_ID", "\"${localProperties.getProperty("GITHUB_CLIENT_ID")}\"")
+    }
+
+    // Compiled only when the ffmpeg-kit Maven fallback is on, so the default
+    // vendored-AAR build never sees these aliases and never risks shadowing the
+    // real com.arthenica classes it already has. See the dependencies block.
+    if ((project.findProperty("ffmpegKitFallback") as String?)?.toBoolean() == true) {
+        sourceSets.getByName("main").java.srcDir("src/ffmpegKitCompat/java")
     }
 
     buildTypes {
@@ -198,6 +240,39 @@ dependencies {
     implementation(libs.androidx.ui.graphics.android)
     // Vendored binary dependencies live in app/libs, including ffmpeg-kit and its Java-side deps.
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar", "*.jar"))))
+
+    // ffmpeg-kit is consumed as a vendored AAR above, but app/libs is gitignored and
+    // the artifact is published nowhere, so a clean checkout cannot compile
+    // StandardFFmpegTool or FFmpegUtil. arthenica retired ffmpeg-kit and pulled its
+    // releases from Maven Central, so there is no first-party coordinate to fall back
+    // to either.
+    //
+    // com.antonkarpenko:ffmpeg-kit-* is a third-party republish of that retired
+    // project and the only thing on Maven Central still shipping these classes. It is
+    // someone else's rebuild of a native binary, which is a supply-chain decision
+    // rather than a build detail, so it is OFF by default: builds with the vendored
+    // AAR present are completely unaffected.
+    //
+    // It is also not a drop-in -- the republish renamed the package to
+    // com.antonkarpenko.ffmpegkit. The src/ffmpegKitCompat source set, wired in by the
+    // android block above, aliases the five types the app imports back into the
+    // arthenica package so the call sites stay untouched.
+    //
+    //     ./gradlew assembleDebug -PffmpegKitFallback=true
+    //     ORG_GRADLE_PROJECT_ffmpegKitFallback=true ./gradlew assembleDebug
+    //
+    // Optionally pin a different coordinate with -PffmpegKitCoordinate=<group:name:ver>.
+    val ffmpegKitFallback = (project.findProperty("ffmpegKitFallback") as String?)
+        ?.toBoolean() ?: false
+    if (ffmpegKitFallback) {
+        val coordinate = (project.findProperty("ffmpegKitCoordinate") as String?)
+            ?: "com.antonkarpenko:ffmpeg-kit-full:2.2.1"
+        logger.lifecycle("ffmpeg-kit: vendored AAR bypassed, resolving $coordinate")
+        implementation(coordinate)
+        // Shipped alongside ffmpeg-kit; the vendored bundle carries them as loose jars.
+        implementation("com.arthenica:smart-exception-common:0.2.1")
+        implementation("com.arthenica:smart-exception-java:0.2.1")
+    }
     implementation(libs.androidx.runtime.android)
     implementation(libs.androidx.ui.text.android)
     implementation(libs.androidx.animation.android)

@@ -309,36 +309,49 @@ class UIOperationOverlay private constructor(private val context: Context) {
      */
     fun hide() {
         runOnMainThread {
-            handler.postDelayed({
+            handler.postDelayed({ dismissOverlayNow() }, HIDE_DELAY_MS)
+        }
+    }
+
+    /**
+     * 立即隐藏所有反馈悬浮窗，不等待动画。
+     *
+     * The shell-driven UI tools call this *before* dispatching an input event: a
+     * feedback overlay left on screen would sit under the tap and swallow it. The
+     * delayed [hide] is fine for post-action cleanup but too late for that case.
+     */
+    fun hideImmediately() {
+        runOnMainThread { dismissOverlayNow() }
+    }
+
+    private fun dismissOverlayNow() {
+        try {
+            // 清除所有待处理的移除任务
+            handler.removeCallbacksAndMessages(null)
+            // 清空所有事件列表
+            tapEvents.clear()
+            swipeEvents.clear()
+            textInputEvents.clear()
+
+            // 彻底移除视图
+            if (overlayView != null) {
+                lifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+                lifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+                lifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+
                 try {
-                    // 清除所有待处理的移除任务
-                    handler.removeCallbacksAndMessages(null)
-                    // 清空所有事件列表
-                    tapEvents.clear()
-                    swipeEvents.clear()
-                    textInputEvents.clear()
-
-                    // 彻底移除视图
-                    if (overlayView != null) {
-                        lifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
-                        lifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
-                        lifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-
-                        try {
-                            windowManager?.removeView(overlayView)
-                        } catch (e: Exception) {
-                            AppLogger.e(TAG, "Error removing overlay view", e)
-                        }
-
-                        overlayView = null
-                        lifecycleOwner = null
-                        windowManager = null
-                        AppLogger.d(TAG, "Overlay view dismissed")
-                    }
+                    windowManager?.removeView(overlayView)
                 } catch (e: Exception) {
-                    AppLogger.e(TAG, "Error dismissing overlay view", e)
+                    AppLogger.e(TAG, "Error removing overlay view", e)
                 }
-            }, HIDE_DELAY_MS)
+
+                overlayView = null
+                lifecycleOwner = null
+                windowManager = null
+                AppLogger.d(TAG, "Overlay view dismissed")
+            }
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "Error dismissing overlay view", e)
         }
     }
 }

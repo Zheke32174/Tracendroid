@@ -33,11 +33,57 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set up JDK 17
+      # JDK 21 builds the project; the project still TARGETS Java 17
+      # (sourceCompatibility/targetCompatibility/jvmTarget in app/build.gradle.kts
+      # are unchanged, so the bytecode this produces is identical).
+      #
+      # The build JDK has to be 21 because io.github.kyant0:backdrop ships class
+      # files at major version 65 (Java 21). javac 17 cannot read them at all:
+      #
+      #   bad class file: backdrop-1.0.6-api.jar(com/kyant/backdrop/Backdrop.class)
+      #   class file has wrong version 65.0, should be 61.0
+      #
+      # On JDK 17 that surfaced as an unrelated-looking kapt crash
+      # ("processingEnv must not be null" from RoomProcessor.getSupportedOptions),
+      # because kapt's incremental-APT probe fails before javac reaches the point
+      # where it would report the real classfile-version error.
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
+
+      # Verify the ONE wrapper JAR this job actually executes.
+      #
+      # setup-gradle's built-in validate-wrappers scans the whole worktree, and
+      # with submodules checked out that includes ten vendored wrapper JARs from
+      # MNN, sherpa-ncnn, llama.cpp and friends. One of them --
+      # mnn/src/main/cpp/MNN/3rd_party/flatbuffers/samples/android/ -- has a
+      # checksum that matches no published Gradle release, so the whole job fails
+      # before it builds anything.
+      #
+      # The two easy answers are both wrong. Turning validation off drops a real
+      # supply-chain check, and allow-listing that checksum waves through a
+      # binary nobody has verified.
+      #
+      # So: validation is pinned to ./gradlew, which is the only wrapper this job
+      # runs. Any change to it fails the job. The vendored sample wrappers are
+      # not executed here and are not vouched for -- see WRAPPER-AUDIT note in
+      # the PR. That is a narrower claim than the default scan makes, and unlike
+      # the default scan it is one this repo can actually honour.
+      - name: Verify the Gradle wrapper we execute
+        run: |
+          set -euo pipefail
+          expected=e996d452d2645e70c01c11143ca2d3742734a28da2bf61f25c82bdc288c9e637
+          actual=$(sha256sum gradle/wrapper/gradle-wrapper.jar | cut -d' ' -f1)
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::gradle/wrapper/gradle-wrapper.jar changed"
+            echo "  expected $expected"
+            echo "  actual   $actual"
+            echo "If this change is intentional, update the pin in this workflow."
+            exit 1
+          fi
+          echo "wrapper verified: $actual"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -46,6 +92,8 @@ jobs:
           # Kotlin compilation is the heaviest single phase; warm caches drop
           # this job from ~20 minutes to ~6.
           cache-read-only: false
+          # Replaced by the pinned check above; see that step for why.
+          validate-wrappers: false
 
       - name: Show toolchain
         run: |
@@ -56,8 +104,14 @@ jobs:
       # minimum we need to know the threat-model changes didn't break the
       # build. Full assembleDebug runs lint + dexing which roughly doubles
       # the runtime; switch to it when the team is OK paying that cost.
+      # -PffmpegKitFallback resolves ffmpeg-kit from Maven instead of the
+      # vendored app/libs AAR. CI is exactly the case that flag exists for:
+      # app/libs is gitignored, so a clean checkout has no AAR and the
+      # ffmpeg call sites cannot compile without it. A developer machine with
+      # the vendored AAR present should NOT set this — see the dependencies
+      # block in app/build.gradle.kts for why it is opt-in.
       - name: Compile (debug Kotlin)
-        run: ./gradlew :app:compileDebugKotlin --no-daemon --stacktrace
+        run: ./gradlew :app:compileDebugKotlin -PffmpegKitFallback=true --no-daemon --stacktrace
 
       - name: Lint (debug)
         run: ./gradlew :app:lintDebug --no-daemon --stacktrace || true
