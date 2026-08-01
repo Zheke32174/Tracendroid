@@ -56,8 +56,14 @@ jobs:
       # minimum we need to know the threat-model changes didn't break the
       # build. Full assembleDebug runs lint + dexing which roughly doubles
       # the runtime; switch to it when the team is OK paying that cost.
+      # -PffmpegKitFallback resolves ffmpeg-kit from Maven instead of the
+      # vendored app/libs AAR. CI is exactly the case that flag exists for:
+      # app/libs is gitignored, so a clean checkout has no AAR and the
+      # ffmpeg call sites cannot compile without it. A developer machine with
+      # the vendored AAR present should NOT set this — see the dependencies
+      # block in app/build.gradle.kts for why it is opt-in.
       - name: Compile (debug Kotlin)
-        run: ./gradlew :app:compileDebugKotlin --no-daemon --stacktrace
+        run: ./gradlew :app:compileDebugKotlin -PffmpegKitFallback=true --no-daemon --stacktrace
 
       - name: Lint (debug)
         run: ./gradlew :app:lintDebug --no-daemon --stacktrace || true
