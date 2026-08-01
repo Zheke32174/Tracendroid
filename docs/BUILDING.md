@@ -263,3 +263,53 @@ app/build/outputs/apk/debug/app-debug.apk
 | ERROR: prebuild step failed | `sync_example_packages.py` 在预构建 `examples/` 时失败。请先确认已在项目根目录执行 `npm install`，并检查 `pnpm -v`、`python3 --version` 是否可用。 |
 | You have not accepted the license agreements... | 你跳过了或未成功执行接受许可的步骤。请返回 **第四步** 执行 `yes |
 
+
+## 8. Building where `codeload.github.com` is blocked
+
+Some networks permit `git` to GitHub but block the archive endpoints
+(`github.com/<o>/<r>/archive/...` and `codeload.github.com/...`), which answer
+`403`. sherpa-ncnn pulls several dependencies through CMake `FetchContent`,
+which fetches exactly those archive URLs during *configure*, so the build dies
+early:
+
+```
+error: downloading 'https://github.com/mborgerding/kissfft/archive/<sha>.zip' failed
+  The requested URL returned error: 403
+  Each download failed!
+ninja: build stopped: subcommand failed.
+> Task :app:configureCMakeDebug[arm64-v8a] FAILED
+```
+
+The failure looks arbitrary, because whichever dependency is reached first
+wins — an already-cached one succeeds while the next one fails.
+
+`-PnativeDepsDir` (or `NATIVE_DEPS_DIR`) points CMake at local checkouts
+instead. It passes `FETCHCONTENT_SOURCE_DIR_<NAME>`, which is CMake's own
+documented override: it bypasses the URL *and* the `URL_HASH` check and uses
+the directory as-is. Only directories that actually exist are passed, so a
+partial mirror still helps, and leaving the property unset changes nothing.
+
+```bash
+d=/path/to/native-deps; mkdir -p "$d" && cd "$d"
+git clone https://github.com/mborgerding/kissfft kissfft
+git -C kissfft checkout febd4caeed32e33ad8b2e0bb5ea77542c40f18ec
+git clone -b v1.7.17 https://github.com/k2-fsa/kaldifst kaldifst
+git clone -b sherpa-onnx-2024-06-19 https://github.com/csukuangfj/openfst openfst
+git clone -b v3.12.0 https://github.com/nlohmann/json json
+git clone -b v3.0.0  https://github.com/pybind/pybind11 pybind11
+
+./gradlew :app:assembleDebug -PnativeDepsDir="$d"
+```
+
+The commit for kissfft is not optional — it is the one `kissfft.cmake` pins,
+and a different one may not match the sources kaldi-native-fbank expects.
+
+Note this trades one integrity check for another: `URL_HASH` no longer runs,
+so the guarantee comes from cloning the pinned commit over authenticated
+HTTPS instead. Do not point `nativeDepsDir` at directories you did not
+create from an upstream clone.
+
+KleidiAI is fetched separately by `mnn/.../cmake/KleidiAI.cmake` and has its
+own escape hatch, `-DKLEIDIAI_SRC_DIR=<dir>`. Its download failure is
+non-fatal — the build continues without the KleidiAI kernels — so it only
+needs setting if you specifically want them.
