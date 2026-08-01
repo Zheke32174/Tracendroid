@@ -118,6 +118,13 @@ android {
         buildConfigField("String", "GITHUB_CLIENT_ID", "\"${localProperties.getProperty("GITHUB_CLIENT_ID")}\"")
     }
 
+    // Compiled only when the ffmpeg-kit Maven fallback is on, so the default
+    // vendored-AAR build never sees these aliases and never risks shadowing the
+    // real com.arthenica classes it already has. See the dependencies block.
+    if ((project.findProperty("ffmpegKitFallback") as String?)?.toBoolean() == true) {
+        sourceSets.getByName("main").java.srcDir("src/ffmpegKitCompat/java")
+    }
+
     buildTypes {
         val releaseSigningConfig = signingConfigs.findByName("release")
 
@@ -233,6 +240,39 @@ dependencies {
     implementation(libs.androidx.ui.graphics.android)
     // Vendored binary dependencies live in app/libs, including ffmpeg-kit and its Java-side deps.
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar", "*.jar"))))
+
+    // ffmpeg-kit is consumed as a vendored AAR above, but app/libs is gitignored and
+    // the artifact is published nowhere, so a clean checkout cannot compile
+    // StandardFFmpegTool or FFmpegUtil. arthenica retired ffmpeg-kit and pulled its
+    // releases from Maven Central, so there is no first-party coordinate to fall back
+    // to either.
+    //
+    // com.antonkarpenko:ffmpeg-kit-* is a third-party republish of that retired
+    // project and the only thing on Maven Central still shipping these classes. It is
+    // someone else's rebuild of a native binary, which is a supply-chain decision
+    // rather than a build detail, so it is OFF by default: builds with the vendored
+    // AAR present are completely unaffected.
+    //
+    // It is also not a drop-in -- the republish renamed the package to
+    // com.antonkarpenko.ffmpegkit. The src/ffmpegKitCompat source set, wired in by the
+    // android block above, aliases the five types the app imports back into the
+    // arthenica package so the call sites stay untouched.
+    //
+    //     ./gradlew assembleDebug -PffmpegKitFallback=true
+    //     ORG_GRADLE_PROJECT_ffmpegKitFallback=true ./gradlew assembleDebug
+    //
+    // Optionally pin a different coordinate with -PffmpegKitCoordinate=<group:name:ver>.
+    val ffmpegKitFallback = (project.findProperty("ffmpegKitFallback") as String?)
+        ?.toBoolean() ?: false
+    if (ffmpegKitFallback) {
+        val coordinate = (project.findProperty("ffmpegKitCoordinate") as String?)
+            ?: "com.antonkarpenko:ffmpeg-kit-full:2.2.1"
+        logger.lifecycle("ffmpeg-kit: vendored AAR bypassed, resolving $coordinate")
+        implementation(coordinate)
+        // Shipped alongside ffmpeg-kit; the vendored bundle carries them as loose jars.
+        implementation("com.arthenica:smart-exception-common:0.2.1")
+        implementation("com.arthenica:smart-exception-java:0.2.1")
+    }
     implementation(libs.androidx.runtime.android)
     implementation(libs.androidx.ui.text.android)
     implementation(libs.androidx.animation.android)
