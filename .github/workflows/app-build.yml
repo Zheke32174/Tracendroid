@@ -33,11 +33,25 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set up JDK 17
+      # JDK 21 builds the project; the project still TARGETS Java 17
+      # (sourceCompatibility/targetCompatibility/jvmTarget in app/build.gradle.kts
+      # are unchanged, so the bytecode this produces is identical).
+      #
+      # The build JDK has to be 21 because io.github.kyant0:backdrop ships class
+      # files at major version 65 (Java 21). javac 17 cannot read them at all:
+      #
+      #   bad class file: backdrop-1.0.6-api.jar(com/kyant/backdrop/Backdrop.class)
+      #   class file has wrong version 65.0, should be 61.0
+      #
+      # On JDK 17 that surfaced as an unrelated-looking kapt crash
+      # ("processingEnv must not be null" from RoomProcessor.getSupportedOptions),
+      # because kapt's incremental-APT probe fails before javac reaches the point
+      # where it would report the real classfile-version error.
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       # Verify the ONE wrapper JAR this job actually executes.
       #
