@@ -46,6 +46,23 @@ jobs:
           # Kotlin compilation is the heaviest single phase; warm caches drop
           # this job from ~20 minutes to ~6.
           cache-read-only: false
+          # Wrapper validation is handled by the dedicated step below instead,
+          # so we can allowlist wrapper JARs vendored inside third-party
+          # submodules (setup-gradle offers no allowlist). Our own wrapper is
+          # still validated there.
+          validate-wrappers: false
+
+      - name: Validate Gradle wrappers
+        uses: gradle/actions/wrapper-validation@v4
+        with:
+          # The project's own gradle-wrapper.jar is validated against Gradle's
+          # known-good checksums as usual. The allowlisted checksum is a wrapper
+          # JAR shipped inside a pinned third-party submodule (MNN's vendored
+          # flatbuffers Android *sample*, not used by the app build); recursive
+          # submodule checkout surfaces it, so it is explicitly allowlisted
+          # rather than dropping validation of our own wrapper.
+          allow-checksums: |
+            ee3739525a995bcb5601621a6e2daec1f183bbefc375743acc235cec33547e04
 
       - name: Show toolchain
         run: |
