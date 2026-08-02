@@ -74,3 +74,28 @@ error rather than a warning.
 **arm64-v8a only.** An APK carrying just this ABI gives no capsule on
 armeabi-v7a or x86_64 devices. The build is the same recipe with a different
 triple; it simply has not been run for the other ABIs yet.
+
+## The QEMU payload slot (not yet filled)
+
+The ROM surface's TCG backend looks for its emulator **here**, not in a Termux
+prefix. Anything that produces a QEMU build for this project must land it as:
+
+```
+jniLibs/<abi>/libmasamuneqemu<arch>.so     e.g. libmasamuneqemuaarch64.so
+```
+
+Three constraints, all load-bearing:
+
+- **`lib…so` naming** — the installer only extracts and marks executable files
+  matching that pattern. A binary named `qemu-system-aarch64` inside the APK is
+  never extracted, so it can never run.
+- **Statically linked, or linking only against Bionic.** There is no `LD_
+  LIBRARY_PATH` to lean on; anything else it needs must be inside it.
+- **No `/data/local/tmp`.** That directory is not app-writable and W^X forbids
+  executing out of app-writable storage regardless, which is why the probe was
+  corrected to search `nativeLibraryDir` first. See `docs/ROM-LAUNCH.md`,
+  "Where the QEMU binary lives".
+
+Until such a payload exists, `TcgBackend.probe()` reports UNAVAILABLE with the
+sentence naming the gap, and the ROM surface offers nothing to launch. That is
+the intended shipped state — not a placeholder to be quieted.

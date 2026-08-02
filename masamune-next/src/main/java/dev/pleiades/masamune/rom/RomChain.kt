@@ -34,15 +34,17 @@ class RomChain(val backends: List<RomBackend>) {
     companion object {
         /**
          * The real chain for this device, in fallback order. AVF binds to the platform's
-         * virtualization service + self-permission check; KVM and TCG use their default node/prefix
-         * paths. Constructed fresh per probe so a permission or payload that appears later (a
-         * platform-signed reinstall, a QEMU install into the prefix) is seen without app restart.
+         * virtualization service + self-permission check; KVM uses its default node path; TCG needs
+         * the context too, because the only directory an app can execute from is its own
+         * installer-owned native library directory (see [TcgBackend.real]). Constructed fresh per
+         * probe so a permission or payload that appears later (a platform-signed reinstall, an APK
+         * update that carries the QEMU payload) is seen without an app restart.
          */
         fun real(context: Context): RomChain = RomChain(
             listOf(
                 AvfBackend.real(context),
                 KvmBackend(),
-                TcgBackend(),
+                TcgBackend.real(context),
             ),
         )
     }

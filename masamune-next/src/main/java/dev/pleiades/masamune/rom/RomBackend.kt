@@ -151,19 +151,39 @@ class KvmBackend(
  *
  * The one thing it *does* need is the QEMU binary itself, and QEMU is a **payload** — a build input
  * that is absent in this build, on the same pattern as any donor payload whose absence a capability
- * reports rather than fakes (docs/DONOR-SURFACES.md; Requirement.Payload in the flow model). So on
- * a clean build this probe walks the Masamune prefix's `bin/` looking for a `qemu-system-*` binary,
- * finds none, and reports UNAVAILABLE. It never fabricates a boot from a binary that is not there.
+ * reports rather than fakes (docs/DONOR-SURFACES.md; Requirement.Payload in the flow model). So on a
+ * clean build this probe finds no QEMU and reports UNAVAILABLE. It never fabricates a boot from a
+ * binary that is not there.
  *
- * Storage note: the QEMU binaries live in the prefix; the multi-GB ROM *image* does not (see
- * [RomImage]). This probe is only about the emulator, not the image.
+ * ### Where the binary has to live, and why this changed
+ * This probe originally looked only in `/data/local/tmp/masamune/usr/bin`, from the era when the
+ * Linux side of Masamune was a Termux-style prefix populated over the ADB rung and run at uid 2000.
+ * That search could never succeed for the app itself: `/data/local/tmp` is not app-writable, and
+ * Android's W^X rule refuses to execute a binary out of app-writable storage anyway. A QEMU
+ * cross-built and dropped there would have been found by nothing and run by no one — the probe would
+ * have gone on reporting "absent" with a perfectly good payload sitting on the device.
  *
- * The prefix `bin/` directory is injected so a test can point it at a temp dir with or without a
- * fake `qemu-system-*` file.
+ * So the payload is now searched for where an executable can actually live with no privilege at all:
+ * the installer-owned **native library directory**, exactly as the shell capsule's busybox and proot
+ * do (`jniLibs/README.md`, [dev.pleiades.masamune.shell.CapsuleShellBackend]). Shipped in the APK,
+ * marked executable by the installer, runnable at the app's own uid.
+ *
+ * The legacy prefix stays in the search list *after* it, because on a rooted or ADB-provisioned
+ * device a binary really can be placed and executed there. A path that is closed by default is not
+ * the same as one that is closed always — but it is a fallback, not the expectation.
+ *
+ * Storage note: only the QEMU binaries are searched for here; the multi-GB ROM *image* lives
+ * elsewhere (see [RomImage]). This probe is about the emulator, not the image.
+ *
+ * The search directories are injected so a test can point them at temp dirs with or without a fake
+ * QEMU binary.
  */
 class TcgBackend(
-    private val prefixBinDir: File = File(DEFAULT_PREFIX_BIN),
+    private val searchDirs: List<File> = listOf(File(DEFAULT_PREFIX_BIN)),
 ) : RomBackend {
+
+    /** Single-directory form, so existing call sites and tests read unchanged. */
+    constructor(prefixBinDir: File) : this(listOf(prefixBinDir))
 
     override val label: String = "QEMU TCG (userspace emulation)"
     override val nativeSpeed: Boolean = false
@@ -176,23 +196,50 @@ class TcgBackend(
         }
 
     /**
-     * The first executable `qemu-system-*` in the prefix `bin/`, or null when the directory is
-     * absent (clean build) or holds no such binary. `listFiles` returns null for a nonexistent
-     * directory, which collapses to the same null — absent, not an error.
+     * The first executable QEMU across [searchDirs], searched in order, or null when none is there.
+     *
+     * Two names are accepted, because the same binary is called different things depending on where
+     * it lives: shipped inside the APK it must match `lib*.so` for the installer to extract it and
+     * mark it executable, while an ordinary build calls it `qemu-system-<arch>`. Insisting on one
+     * name would make a perfectly good payload invisible. `listFiles` returns null for a directory
+     * that does not exist, which collapses to "absent" rather than to an error.
      */
-    fun findQemuBinary(): File? =
-        prefixBinDir.listFiles { f -> f.isFile && f.name.startsWith(QEMU_SYSTEM_PREFIX) && f.canExecute() }
-            ?.minByOrNull { it.name }
+    fun findQemuBinary(): File? = searchDirs.firstNotNullOfOrNull { dir ->
+        dir.listFiles { f -> f.isFile && f.canExecute() && isQemuName(f.name) }?.minByOrNull { it.name }
+    }
 
     companion object {
-        /** The per-app Termux prefix Masamune targets; its `bin/` would hold the QEMU binaries. */
+        /**
+         * The legacy Termux-style prefix. Searched last, and not app-writable — see the class KDoc
+         * for why it is no longer where the payload is expected to be.
+         */
         const val DEFAULT_PREFIX_BIN: String = "/data/local/tmp/masamune/usr/bin"
 
         /** QEMU's full-system binaries are named `qemu-system-<arch>` (e.g. `qemu-system-aarch64`). */
         const val QEMU_SYSTEM_PREFIX: String = "qemu-system-"
 
+        /** The APK-shipped form, in `jniLibs/<abi>/`, on the same naming rule as busybox and proot. */
+        const val QEMU_PAYLOAD_PREFIX: String = "libmasamuneqemu"
+
+        /** True for either name the QEMU payload can legitimately carry. */
+        fun isQemuName(name: String): Boolean =
+            name.startsWith(QEMU_SYSTEM_PREFIX) ||
+                (name.startsWith(QEMU_PAYLOAD_PREFIX) && name.endsWith(".so"))
+
         /** The exact sentence from docs/ROM-LAUNCH.md. */
         const val REASON: String =
-            "No QEMU binary in the Masamune prefix. Install it from the subsystem package manager."
+            "This build ships no QEMU payload for this device's ABI, and none is installed in the " +
+                "Masamune prefix. Without an emulator there is no kernel to boot."
+
+        /**
+         * The real search order: the installer-owned native library directory first — the one place
+         * an app can execute from with no privilege rung — then the legacy prefix.
+         */
+        fun real(context: Context): TcgBackend = TcgBackend(
+            listOf(
+                File(context.applicationInfo.nativeLibraryDir),
+                File(DEFAULT_PREFIX_BIN),
+            ),
+        )
     }
 }

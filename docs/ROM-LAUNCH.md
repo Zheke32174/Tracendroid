@@ -59,14 +59,38 @@ swallowed:
   not platform-signed. Native-speed VMs need a signature permission a sideloaded
   app cannot hold."*
 - KVM → *"/dev/kvm is not present or not readable by uid 2000."*
-- TCG → *"No QEMU binary in the Masamune prefix. Install it from the subsystem
-  package manager."*
+- TCG → *"This build ships no QEMU payload for this device's ABI, and none is
+  installed in the Masamune prefix. Without an emulator there is no kernel to
+  boot."*
 
 The probe result decides what the UI offers. It never decides it silently.
 
+## Where the QEMU binary lives (corrected)
+
+The TCG reason above used to read *"No QEMU binary in the Masamune prefix.
+Install it from the subsystem package manager"*, and the probe searched only
+`/data/local/tmp/masamune/usr/bin`. Both were written for the Termux-prefix era
+and became **wrong once the shell capsule landed**: `/data/local/tmp` is not
+app-writable, and Android's W^X rule refuses to execute a binary out of
+app-writable storage in any case. A QEMU cross-built and dropped into that
+prefix would have been found by nothing and run by no one — the surface would
+have gone on reporting ABSENT with a working payload sitting on the device.
+
+QEMU is therefore a **shipped payload**, on exactly the same footing as the
+capsule's busybox and proot: it belongs in `jniLibs/<abi>/` as
+`libmasamuneqemu<arch>.so`, is extracted and marked executable by the installer,
+and runs from `applicationInfo.nativeLibraryDir` at the app's own uid with no
+privilege rung at all. The probe searches that directory first and accepts
+either the `lib*.so` payload name or a plain `qemu-system-*`.
+
+The legacy prefix is still searched, second. On a rooted or ADB-provisioned
+device a binary genuinely can be placed and executed there, and a path that is
+closed by default is not the same as one closed always.
+
 ## What TCG actually gets you
 
-QEMU full-system, running from the Masamune prefix as uid 2000, no root:
+QEMU full-system, running at Masamune's own app uid — no root, no uid 2000, no
+ADB rung:
 
 - **aarch64 guest on an aarch64 host** — still emulated without KVM, but
   same-arch TCG is the fast case. A console-mode Alpine or postmarketOS boots in
@@ -80,10 +104,11 @@ local framebuffer/VNC path into a Compose view. Networking goes through QEMU's
 user-mode stack (SLIRP), which needs no `tun` and therefore no privilege — the
 same socket-space-versus-kernel-space split that governs Godwall.
 
-**Storage lives outside the prefix.** A ROM image is measured in gigabytes and
-`/data/local/tmp` is not the place for it; the image goes to app-scoped external
-storage with the prefix holding only the QEMU binaries. This also means the
-image survives a prefix rebuild.
+**Storage is separate from the binary.** A ROM image is measured in gigabytes
+and belongs nowhere near either the APK or `/data/local/tmp`; it goes to
+app-scoped external storage, while the emulator itself rides in the APK's native
+library directory. The split also means the image survives an app update that
+replaces the payload.
 
 ## Where AVF becomes reachable
 
@@ -100,7 +125,8 @@ The same is true of KVM on a rooted device: the chain finds it.
 
 | Claim | Status |
 |---|---|
-| ELF-repatched prefix can host QEMU binaries at uid 2000 | Follows from the verified repatcher; **not device-tested** |
+| ELF-repatched prefix can host QEMU binaries at uid 2000 | Follows from the verified repatcher; **not device-tested**. Superseded as the primary plan — see "Where the QEMU binary lives" |
+| `nativeLibraryDir` can host and execute a QEMU payload at the app's own uid | Same mechanism as the shipped busybox and proot, which **are** built; QEMU itself is **not built yet** |
 | TCG boots a guest kernel with no root and no special permission | **Not yet built or tested here** |
 | AVF is unreachable for a sideloaded APK | Strong reading of the permission's protection level; **verify on-device** before the UI asserts it as fact rather than as a probe result |
 | Native-speed ROM without root or platform signing | **Not possible.** Do not build a control that implies it |
