@@ -35,3 +35,31 @@ internal fun Value?.asNumOrNull(): Double? = when (this) {
 internal const val TARGET_VAR = "variable"
 
 internal fun FlowNode.targetVariable(): String? = outputs[TARGET_VAR]?.takeIf { it.isNotBlank() }
+
+/**
+ * A `flag(...)` argument as a real boolean.
+ *
+ * The trap this closes: a flag in *constant* mode arrives as `Value.Text("true")` or
+ * `Value.Text("false")`, and `Value.isTrue` on a non-empty string is `true` — so the naïve
+ * `args["append"].isTrue` reads a checkbox the user cleared as *set*. So a constant flag is parsed
+ * by its text: the words the editor writes ("true"/"false", plus the obvious synonyms) map to the
+ * boolean they name; only in *expression* mode (an arbitrary computed value) do we fall back to the
+ * language's own truthiness. Absent means the block's documented default, never a silent `false`
+ * that could hide a mis-bound input.
+ */
+internal fun Value?.asFlag(default: Boolean = false): Boolean = when (this) {
+    null, Value.Null -> default
+    is Value.Text -> when (value.trim().lowercase()) {
+        "true", "1", "yes", "on" -> true
+        "false", "0", "no", "off", "" -> false
+        else -> value.isNotBlank()
+    }
+    is Value.Num -> !value.isNaN() && value != 0.0
+    else -> isTrue
+}
+
+/** A text argument, or null when it is absent — distinct from an empty string a user typed. */
+internal fun Value?.asTextOrNull(): String? = when (this) {
+    null, Value.Null -> null
+    else -> asText()
+}

@@ -21,10 +21,21 @@ import dev.pleiades.masamune.flow.runtime.impl.FiberStopBlock
 import dev.pleiades.masamune.flow.runtime.impl.FlowBeginningBlock
 import dev.pleiades.masamune.flow.runtime.impl.FlowStopBlock
 import dev.pleiades.masamune.flow.runtime.impl.ForEachBlock
+import dev.pleiades.masamune.flow.runtime.impl.FileCopyBlock
+import dev.pleiades.masamune.flow.runtime.impl.FileDeleteBlock
+import dev.pleiades.masamune.flow.runtime.impl.FileExistsBlock
+import dev.pleiades.masamune.flow.runtime.impl.FileListBlock
+import dev.pleiades.masamune.flow.runtime.impl.FileMakeDirectoryBlock
+import dev.pleiades.masamune.flow.runtime.impl.FileMoveBlock
+import dev.pleiades.masamune.flow.runtime.impl.FileReadBlock
+import dev.pleiades.masamune.flow.runtime.impl.FileWriteBlock
 import dev.pleiades.masamune.flow.runtime.impl.ForkBlock
 import dev.pleiades.masamune.flow.runtime.impl.GotoBlock
 import dev.pleiades.masamune.flow.runtime.impl.LabelBlock
 import dev.pleiades.masamune.flow.runtime.impl.SubroutineBlock
+import dev.pleiades.masamune.flow.runtime.impl.ZipCompressBlock
+import dev.pleiades.masamune.flow.runtime.impl.ZipExtractBlock
+import dev.pleiades.masamune.flow.runtime.impl.ZipListBlock
 import dev.pleiades.masamune.flow.runtime.impl.TimeZoneGetBlock
 import dev.pleiades.masamune.flow.runtime.impl.VariableSetBlock
 import kotlinx.coroutines.CoroutineScope
@@ -92,6 +103,21 @@ class BlockRegistry(
         // Date & time — the two that need only a clock.
         register(DelayBlock(scope))
         register(TimeZoneGetBlock())
+
+        // Storage — the local-filesystem core (file + zip). The FTP/Drive/OneDrive/SAF and the
+        // StatFs-backed storage_* blocks need a subsystem this build lacks and stay gated by
+        // omission; these eleven need only a path the process can reach.
+        register(FileReadBlock())
+        register(FileWriteBlock())
+        register(FileExistsBlock())
+        register(FileMakeDirectoryBlock())
+        register(FileDeleteBlock())
+        register(FileCopyBlock())
+        register(FileMoveBlock())
+        register(FileListBlock())
+        register(ZipCompressBlock())
+        register(ZipExtractBlock())
+        register(ZipListBlock())
     }
 
     /** The lookup the scheduler consults: a registered impl, or null (gated) for everything else. */
