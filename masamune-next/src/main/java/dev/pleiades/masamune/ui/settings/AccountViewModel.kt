@@ -184,33 +184,48 @@ class AccountViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
+    /**
+     * Browser sign-in, the way a terminal CLI does it: bind a loopback listener, send the browser
+     * to the provider, catch the redirect on `127.0.0.1`, exchange the code. The user taps once and
+     * pastes nothing.
+     *
+     * The ordering matters and is why the browser is launched from *inside*
+     * [AccountStore.signInWithLoopback] via the `onOpenBrowser` callback rather than before it: the
+     * listener must already be bound when the provider redirects, and on a fast provider (or a
+     * browser that restores a live session) that redirect can arrive almost immediately. Opening
+     * the browser first and binding after is a race that fails as "no callback arrived".
+     *
+     * A browser that cannot be opened is reported through the same failure path as any other, so
+     * the button never looks like it did nothing.
+     */
     private fun signInWithRedirect(profile: OAuthProfile) {
-        val url = accounts.beginRedirectSignIn(profile).getOrElse {
-            report(it.message ?: "Could not start sign-in.", ok = false)
-            return
-        }
-        val opened = runCatching {
-            // From an application context, so NEW_TASK is required rather than optional.
-            appContext.startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-        }
-        if (opened.isFailure) {
-            report(
-                "No browser on this device could open the provider's sign-in page, so the " +
-                    "flow was not started: ${opened.exceptionOrNull()?.message}",
-                ok = false,
-            )
-            return
-        }
         launchFlow(profile.id) {
-            finishSignIn(
-                profile,
-                accounts.completeRedirectSignIn(profile) { phase ->
-                    _state.value = _state.value.copy(phase = phase)
+            var browserError: Throwable? = null
+            val result = accounts.signInWithLoopback(
+                profile = profile,
+                onPhase = { phase -> _state.value = _state.value.copy(phase = phase) },
+                onOpenBrowser = { url ->
+                    // From an application context, so NEW_TASK is required rather than optional.
+                    runCatching {
+                        appContext.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }.onFailure { browserError = it }
                 },
             )
+            val browserFailure = browserError
+            if (browserFailure != null && result.isFailure) {
+                // Name the real cause: with no browser the wait could only ever have timed out.
+                report(
+                    "No browser on this device could open the provider's sign-in page, so the " +
+                        "flow was not started: ${browserFailure.message}",
+                    ok = false,
+                )
+                _state.value = _state.value.copy(phase = null, busyProfileId = null)
+            } else {
+                finishSignIn(profile, result)
+            }
         }
     }
 
