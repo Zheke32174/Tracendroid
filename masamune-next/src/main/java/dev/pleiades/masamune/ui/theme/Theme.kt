@@ -55,8 +55,31 @@ private val Slate900 = Color(0xFF1A1A1A)
 private val Slate600 = Color(0xFF5A5A5A)
 private val LightOutline = Color(0xFFCFCFCF)
 
-/** Masamune's accent seed. Electric teal — the harness is a control plane. */
-val MasamuneSeed = Color(0xFF2FD3C3)
+/**
+ * Masamune's accent seeds — one per theme, because one cannot serve both.
+ *
+ * This file previously declared a single `MasamuneSeed = Color(0xFF2FD3C3)`, which is
+ * BYTE-IDENTICAL to `UnderstoryAccent.YOJIMBO` in common-security. That is the exact defect
+ * already reported once ("make menu appearances unique and matching" — Yojimbo and Genji had
+ * shipped as the same accent), reproduced independently in a second repo through a hand-written
+ * copy of the suite theme. Two apps in the same suite rendered as the same app.
+ *
+ * Masamune is Fold — *the hottest part of the flame is not orange*. Quench rose sits at 320°,
+ * clear of every sibling and of the semantic Danger/Caution/Success hues, so nothing on a
+ * Masamune screen reads as an alarm by accident.
+ *
+ * [MasamuneSeedLight] is a separate, darker value: the light scheme below pairs `primary` with
+ * `onPrimary = Paper50` (white), and white on the bright seed measures under 3:1 — unreadable on
+ * every filled button. Darkened until white-on-accent clears 5.9:1.
+ *
+ * The real fix is for this module to consume `common-security` instead of mirroring it; until
+ * that lands these values are kept in step with `UnderstoryAccent.MASAMUNE` BY HAND, which is
+ * exactly the fragility that produced the collision. Treat divergence here as a bug.
+ */
+val MasamuneSeed = Color(0xFFF27ACA)
+
+/** White-on-accent readable variant for the light scheme. See [MasamuneSeed]. */
+val MasamuneSeedLight = Color(0xFFB22078)
 
 private fun darkColors(seed: Color): ColorScheme = darkColorScheme(
     primary = seed,
@@ -168,7 +191,7 @@ fun MasamuneTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    val scheme = if (darkTheme) darkColors(MasamuneSeed) else lightColors(MasamuneSeed)
+    val scheme = if (darkTheme) darkColors(MasamuneSeed) else lightColors(MasamuneSeedLight)
     val semantic = if (darkTheme) DarkSemantic else LightSemantic
     CompositionLocalProvider(
         LocalSemanticColors provides semantic,
