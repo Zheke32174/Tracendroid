@@ -11,6 +11,9 @@ import dev.pleiades.masamune.flow.runtime.impl.AtomicClearAllBlock
 import dev.pleiades.masamune.flow.runtime.impl.AtomicLoadBlock
 import dev.pleiades.masamune.flow.runtime.impl.AtomicStore
 import dev.pleiades.masamune.flow.runtime.impl.AtomicStoreBlock
+import dev.pleiades.masamune.flow.runtime.impl.HandoffStore
+import dev.pleiades.masamune.flow.runtime.impl.VariablesGiveBlock
+import dev.pleiades.masamune.flow.runtime.impl.VariablesTakeBlock
 import dev.pleiades.masamune.flow.runtime.impl.DelayBlock
 import dev.pleiades.masamune.flow.runtime.impl.DestructuringAssignBlock
 import dev.pleiades.masamune.flow.runtime.impl.DictionaryPutBlock
@@ -53,8 +56,8 @@ import kotlinx.coroutines.CoroutineScope
  *
  * ### Honest gate by omission
  * Only genuinely runnable blocks are registered. Everything else — a block whose payload or
- * permission is absent, or one (`Flow start`, the pickers, `Variables give`/`take`, `Log append`)
- * that needs a subsystem this build does not have — is deliberately **not** put in the map. The
+ * permission is absent, or one (`Flow start`, the pickers, `Log append`) that needs a subsystem
+ * this build does not have — is deliberately **not** put in the map. The
  * scheduler treats a spec with no impl as gated and reports the reason. That silence is the honest
  * signal; a registered no-op would be the exact silent failure the whole plane is built to remove.
  */
@@ -64,6 +67,9 @@ class BlockRegistry(
 ) {
     /** This flow's shared atomic cells — created here so they are shared among the flow's fibers and no wider. */
     private val atomics = AtomicStore()
+
+    /** This flow's inter-fiber hand-off mailboxes — shared among the flow's fibers and no wider. */
+    private val handoffs = HandoffStore()
 
     private val byId: Map<String, BlockImpl> = buildMap {
         fun register(impl: BlockImpl) {
@@ -93,12 +99,14 @@ class BlockRegistry(
         register(AndroidVersionBlock())
         register(ForEachBlock())
 
-        // Concurrency — the flow-wide atomics (give/take intentionally omitted; see class KDoc).
+        // Concurrency — the flow-wide atomics and the give/take hand-off mailboxes.
         register(AtomicStoreBlock(atomics))
         register(AtomicLoadBlock(atomics))
         register(AtomicAddBlock(atomics))
         register(AtomicCasBlock(atomics))
         register(AtomicClearAllBlock(atomics))
+        register(VariablesGiveBlock(handoffs))
+        register(VariablesTakeBlock(handoffs))
 
         // Date & time — the two that need only a clock.
         register(DelayBlock(scope))

@@ -58,10 +58,10 @@ internal class DelayBlock(private val scope: CoroutineScope) : BlockImpl {
 private class TimerWaker(private val scope: CoroutineScope, private val millis: Long) : Waker {
     private var job: Job? = null
 
-    override fun start(resume: (Port) -> Unit) {
+    override fun start(resume: (Port, Map<String, Value>) -> Unit) {
         job = scope.launch {
             delay(millis)
-            resume(Port.OK)
+            resume(Port.OK, emptyMap())
         }
     }
 

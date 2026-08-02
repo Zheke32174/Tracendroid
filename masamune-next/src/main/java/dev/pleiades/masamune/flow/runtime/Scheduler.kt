@@ -272,16 +272,18 @@ class Scheduler(
         val parked = fiber.copy(status = FiberStatus.AWAITING, awaitReason = await.reason)
         persist(id, parked)
         wakers[id] = await.wake
-        await.wake.start { port ->
-            // Fired: bind nothing new, move on the given port. Re-enters the loop via `ready`.
+        await.wake.start { port, writes ->
+            // Fired: bind any values the wait produced (empty for a bare completion), then move on
+            // the given port. Re-enters the loop via `ready`.
             scope.launch {
                 mutex.withLock { wakers.remove(id) }
                 val current = mutex.withLock { fibers[id] } ?: return@launch
-                val nextNode = graph.next(current.currentNode ?: return@launch, port)
+                val bound = writes.entries.fold(current) { f, (k, v) -> f.withVariable(k, v) }
+                val nextNode = graph.next(bound.currentNode ?: return@launch, port)
                 if (nextNode == null) {
-                    terminate(id, current.stopped())
+                    terminate(id, bound.stopped())
                 } else {
-                    persist(id, current.moveTo(nextNode, port))
+                    persist(id, bound.moveTo(nextNode, port))
                     ready.trySend(id)
                 }
             }

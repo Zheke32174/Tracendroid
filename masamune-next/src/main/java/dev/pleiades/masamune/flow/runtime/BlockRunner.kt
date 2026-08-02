@@ -134,8 +134,17 @@ sealed interface Outcome {
  * declarative waker can.
  */
 interface Waker {
-    /** Arm the wait. [resume] is called with the exit port when the condition is met. */
-    fun start(resume: (Port) -> Unit)
+    /**
+     * Arm the wait. [resume] is called when the condition is met, with the exit [Port] and any
+     * [Value]s the wait produced to bind into the fiber's frame before it leaves the block.
+     *
+     * The writes map is what lets an awaiting block *deliver a result on resume* — a value that
+     * did not exist when the block parked (a `Variables take` receiving what a later `Variables
+     * give` handed it, a completion carrying its payload). A wait that produces nothing passes an
+     * empty map, which is the old "bind nothing, move on the port" behaviour. The scheduler binds
+     * these writes exactly as it binds an [Outcome.Proceed]'s, then routes on [Port].
+     */
+    fun start(resume: (Port, Map<String, Value>) -> Unit)
 
     /** Tear down the wait — the fiber was stopped or the flow shut down before it fired. */
     fun cancel()

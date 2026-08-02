@@ -214,7 +214,7 @@ class FlowExecutionTest {
         assertTrue("delay must park, not proceed", outcome is Outcome.Await)
 
         var resumedBy: Port? = null
-        (outcome as Outcome.Await).wake.start { resumedBy = it }
+        (outcome as Outcome.Await).wake.start { port, _ -> resumedBy = port }
         assertNull("still parked before the timer elapses", resumedBy)   // parked
         testScheduler.advanceUntilIdle()
         assertEquals(Port.OK, resumedBy)                                 // resumed by OK
