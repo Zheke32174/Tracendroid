@@ -72,11 +72,17 @@ class TermuxShellBackend(private val appContext: Context) {
      *
      * Blocking is bounded by [timeoutMillis]; a command that outlives it reports [Outcome.TimedOut]
      * rather than hanging the surface.
+     *
+     * When [failsafe] is set the command runs under `bash --norc --noprofile`, i.e. without the
+     * user's startup files — the one-shot analogue of Termux's own "Failsafe" session, which
+     * exists so a broken `~/.bashrc` cannot lock the user out. This is NOT a live failsafe PTY;
+     * it is a clean-environment dispatch over the same background contract.
      */
     suspend fun run(
         commandLine: String,
         workdir: String = TermuxContract.HOME,
         timeoutMillis: Long = 120_000L,
+        failsafe: Boolean = false,
     ): Outcome {
         when (availability()) {
             Availability.NotInstalled ->
@@ -103,7 +109,12 @@ class TermuxShellBackend(private val appContext: Context) {
         val request = Intent(TermuxContract.ACTION).apply {
             component = ComponentName(TermuxContract.PACKAGE, TermuxContract.SERVICE_CLASS)
             putExtra(TermuxContract.EXTRA_PATH, TermuxContract.BASH)
-            putExtra(TermuxContract.EXTRA_ARGUMENTS, arrayOf("-c", commandLine))
+            val args = if (failsafe) {
+                arrayOf("--norc", "--noprofile", "-c", commandLine)
+            } else {
+                arrayOf("-c", commandLine)
+            }
+            putExtra(TermuxContract.EXTRA_ARGUMENTS, args)
             putExtra(TermuxContract.EXTRA_WORKDIR, workdir)
             putExtra(TermuxContract.EXTRA_BACKGROUND, true)
             putExtra(TermuxContract.EXTRA_SESSION_ACTION, "0")

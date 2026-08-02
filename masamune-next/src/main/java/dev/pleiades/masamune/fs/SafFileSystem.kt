@@ -289,6 +289,16 @@ class SafFileSystem(
     override fun parentOf(path: String): String? =
         if (path == rootPath) null else parents[path]
 
+    /**
+     * The document's content URI inside the granted tree.
+     *
+     * A SAF document is already a `content://` URI, so Open-with and Share need no FileProvider here:
+     * the caller attaches this URI to the intent with a per-launch read grant. `localPathOf` stays
+     * null (the default) because a document id is not an on-disk path — a shell cwd or archive target
+     * cannot be derived from it.
+     */
+    override fun externalUri(path: String): Uri = docUri(path)
+
     override fun displayPath(path: String): String {
         if (path == rootPath) return "/"
         val trail = ArrayList<String>()

@@ -1,5 +1,6 @@
 package dev.pleiades.masamune.ui.files
 
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -7,8 +8,10 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -29,14 +32,20 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SdStorage
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,7 +55,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,14 +65,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalContext
+import dev.pleiades.masamune.R
 import dev.pleiades.masamune.fs.FileSystemRegistry
 import dev.pleiades.masamune.fs.FsEntry
 import dev.pleiades.masamune.ui.components.Notice
 import dev.pleiades.masamune.ui.components.NoticeTone
 import dev.pleiades.masamune.ui.components.SectionCard
-import dev.pleiades.masamune.ui.masamuneViewModel
 import dev.pleiades.masamune.ui.theme.MasamuneTheme
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -70,14 +86,153 @@ import java.util.Locale
 /**
  * The file explorer. Start destination — this is the first thing the app shows.
  *
- * Everything on this screen goes through the [dev.pleiades.masamune.fs.FileSystem] interface,
- * so the same UI drives the java.io mounts and the SAF mounts with no branching. A future
- * SFTP / SMB / privileged backend appears here as another entry in the storage picker.
+ * Everything on a pane goes through the [dev.pleiades.masamune.fs.FileSystem] interface, so the
+ * same UI drives the java.io mounts and the SAF mounts with no branching. A future SFTP / SMB /
+ * privileged backend appears as another entry in the storage picker.
+ *
+ * This screen is the Total Commander two-pane host (DONOR-SURFACES §6 line 105): a dual-pane toggle
+ * gives a second, fully independent pane (its own path, sort, filter, selection) laid out side by
+ * side on a wide screen or one-at-a-time behind a switcher on a phone, with Copy / Move across the
+ * two panes. Each pane is a [FilesViewModel] keyed into the store, so the panes never share state.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FilesScreen() {
-    val vm = masamuneViewModel { ctx -> FilesViewModel(ctx) }
+    var dual by remember { mutableStateOf(false) }
+    var activePane by remember { mutableStateOf(0) }
+
+    val leftVm = keyedFilesViewModel("files-pane-left")
+    val rightVm = keyedFilesViewModel("files-pane-right")
+    val leftState by leftVm.state.collectAsState()
+    val rightState by rightVm.state.collectAsState()
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val wide = maxWidth >= 720.dp
+        Column(modifier = Modifier.fillMaxSize()) {
+            PaneToolbar(
+                dual = dual,
+                onToggleDual = { dual = !dual; if (!dual) activePane = 0 },
+                activePane = activePane,
+                onSelectPane = { activePane = it },
+                showSwitcher = dual && !wide,
+                leftState = leftState,
+                rightState = rightState,
+                onCopyToOther = { moveIt ->
+                    val (src, dst) = if (activePane == 0) leftState to rightVm else rightState to leftVm
+                    dst.receiveTransfer(src.fsId, src.selection.toList(), moveIt)
+                    (if (activePane == 0) leftVm else rightVm).clearSelection()
+                },
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            if (!dual) {
+                FilesPane(leftVm, modifier = Modifier.weight(1f).fillMaxWidth())
+            } else if (wide) {
+                Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    FilesPane(
+                        leftVm,
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        focused = activePane == 0,
+                        onFocus = { activePane = 0 },
+                    )
+                    VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    FilesPane(
+                        rightVm,
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        focused = activePane == 1,
+                        onFocus = { activePane = 1 },
+                    )
+                }
+            } else {
+                val vm = if (activePane == 0) leftVm else rightVm
+                FilesPane(vm, modifier = Modifier.weight(1f).fillMaxWidth(), onFocus = {})
+            }
+        }
+    }
+}
+
+/** A [FilesViewModel] pinned to [key] in the store, so two panes stay independent. */
+@Composable
+private fun keyedFilesViewModel(key: String): FilesViewModel {
+    val appContext = LocalContext.current.applicationContext
+    return viewModel<FilesViewModel>(
+        key = key,
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                FilesViewModel(appContext) as T
+        },
+    )
+}
+
+@Composable
+private fun PaneToolbar(
+    dual: Boolean,
+    onToggleDual: () -> Unit,
+    activePane: Int,
+    onSelectPane: (Int) -> Unit,
+    showSwitcher: Boolean,
+    leftState: FilesUiState,
+    rightState: FilesUiState,
+    onCopyToOther: (Boolean) -> Unit,
+) {
+    Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 1.dp) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FilterChip(
+                    selected = dual,
+                    onClick = onToggleDual,
+                    label = { Text(stringResource(R.string.explorer_dual_pane)) },
+                    leadingIcon = { Icon(Icons.Filled.Layers, null, Modifier.size(16.dp)) },
+                )
+                if (showSwitcher) {
+                    FilterChip(
+                        selected = activePane == 0,
+                        onClick = { onSelectPane(0) },
+                        label = { Text(stringResource(R.string.explorer_dual_left)) },
+                    )
+                    FilterChip(
+                        selected = activePane == 1,
+                        onClick = { onSelectPane(1) },
+                        label = { Text(stringResource(R.string.explorer_dual_right)) },
+                    )
+                }
+            }
+            if (dual) {
+                val sourceSelection =
+                    if (activePane == 0) leftState.selection else rightState.selection
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TextButton(
+                        onClick = { onCopyToOther(false) },
+                        enabled = sourceSelection.isNotEmpty(),
+                    ) { Text(stringResource(R.string.explorer_dual_copy_to_other)) }
+                    TextButton(
+                        onClick = { onCopyToOther(true) },
+                        enabled = sourceSelection.isNotEmpty(),
+                    ) { Text(stringResource(R.string.explorer_dual_move_to_other)) }
+                }
+                Text(
+                    stringResource(R.string.explorer_dual_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MasamuneTheme.semantic.dim,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun FilesPane(
+    vm: FilesViewModel,
+    modifier: Modifier = Modifier,
+    focused: Boolean = false,
+    onFocus: () -> Unit = {},
+) {
     val state by vm.state.collectAsState()
     val mounts by vm.mounts.collectAsState()
 
@@ -87,21 +242,40 @@ fun FilesScreen() {
     var renameTarget by remember { mutableStateOf<FsEntry?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
     var searchOpen by remember { mutableStateOf(false) }
+    var viewSettingsOpen by remember { mutableStateOf(false) }
+    var shellOpen by remember { mutableStateOf(false) }
+    var shellWorkdir by remember { mutableStateOf<String?>(null) }
+    var compressOpen by remember { mutableStateOf(false) }
+    var selectionMenuOpen by remember { mutableStateOf(false) }
+    var gatedMessage by remember { mutableStateOf<String?>(null) }
 
+    val context = LocalContext.current
     val treePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri -> if (uri != null) vm.addSafTree(uri) }
+    val shellPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { vm.refreshShell() }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    LaunchedEffect(Unit) { vm.refreshShell() }
 
-        // --- location bar --------------------------------------------------------------
-        Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
+    val paneBorder = if (focused) {
+        Modifier.padding(2.dp)
+    } else {
+        Modifier
+    }
+
+    Column(modifier = modifier.then(paneBorder)) {
+
+        // --- location bar ----------------------------------------------------------------
+        Surface(
+            color = if (focused) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
+            tonalElevation = 2.dp,
+            modifier = Modifier.combinedClickable(onClick = onFocus, onLongClick = onFocus),
+        ) {
             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = { vm.navigateUp() },
-                        enabled = !state.atRoot,
-                    ) {
+                    IconButton(onClick = { onFocus(); vm.navigateUp() }, enabled = !state.atRoot) {
                         Icon(Icons.Filled.ArrowUpward, contentDescription = "Up")
                     }
                     Column(modifier = Modifier.weight(1f)) {
@@ -117,36 +291,49 @@ fun FilesScreen() {
                             maxLines = 1,
                         )
                     }
-                    IconButton(onClick = { showStoragePicker = true }) {
+                    IconButton(onClick = { onFocus(); showStoragePicker = true }) {
                         Icon(Icons.Filled.SdStorage, contentDescription = "Storage")
                     }
-                    IconButton(onClick = { vm.refresh() }) {
+                    IconButton(onClick = { onFocus(); vm.refresh() }) {
                         Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
                     }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                ) {
                     AssistChip(
-                        onClick = { searchOpen = true },
+                        onClick = { onFocus(); searchOpen = true },
                         enabled = state.canFind,
                         label = { Text("Search") },
                         leadingIcon = { Icon(Icons.Filled.Search, null, Modifier.size(16.dp)) },
                     )
                     AssistChip(
-                        onClick = { newFolderOpen = true },
+                        onClick = { onFocus(); viewSettingsOpen = true },
+                        label = { Text(stringResource(R.string.explorer_view_settings)) },
+                    )
+                    AssistChip(
+                        onClick = { onFocus(); shellWorkdir = vm.currentLocalPath(); vm.refreshShell(); shellOpen = true },
+                        enabled = state.isLocalMount,
+                        label = { Text(stringResource(R.string.explorer_shell_chip)) },
+                        leadingIcon = { Icon(Icons.Filled.Terminal, null, Modifier.size(16.dp)) },
+                    )
+                    AssistChip(
+                        onClick = { onFocus(); newFolderOpen = true },
                         enabled = state.canWrite,
                         label = { Text("Folder") },
                         leadingIcon = { Icon(Icons.Filled.CreateNewFolder, null, Modifier.size(16.dp)) },
                     )
                     AssistChip(
-                        onClick = { newFileOpen = true },
+                        onClick = { onFocus(); newFileOpen = true },
                         enabled = state.canWrite,
                         label = { Text("File") },
                         leadingIcon = { Icon(Icons.Filled.Add, null, Modifier.size(16.dp)) },
                     )
                     if (state.clipboard != null) {
                         AssistChip(
-                            onClick = { vm.paste() },
+                            onClick = { onFocus(); vm.paste() },
                             label = { Text("Paste ${state.clipboard!!.paths.size}") },
                             leadingIcon = { Icon(Icons.Filled.ContentPaste, null, Modifier.size(16.dp)) },
                         )
@@ -165,7 +352,7 @@ fun FilesScreen() {
             )
         }
 
-        // --- selection bar -------------------------------------------------------------
+        // --- selection bar ---------------------------------------------------------------
         if (state.selection.isNotEmpty()) {
             Surface(color = MaterialTheme.colorScheme.primaryContainer) {
                 Row(
@@ -180,9 +367,7 @@ fun FilesScreen() {
                         Icon(Icons.Filled.ContentCut, contentDescription = "Cut")
                     }
                     IconButton(
-                        onClick = {
-                            renameTarget = state.entries.firstOrNull { it.path in state.selection }
-                        },
+                        onClick = { renameTarget = state.entries.firstOrNull { it.path in state.selection } },
                         enabled = state.canWrite && state.selection.size == 1,
                     ) {
                         Icon(Icons.Filled.DriveFileRenameOutline, contentDescription = "Rename")
@@ -190,12 +375,39 @@ fun FilesScreen() {
                     IconButton(onClick = { confirmDelete = true }, enabled = state.canWrite) {
                         Icon(Icons.Filled.Delete, contentDescription = "Delete")
                     }
+                    Box {
+                        IconButton(onClick = { selectionMenuOpen = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.explorer_action_more))
+                        }
+                        DropdownMenu(expanded = selectionMenuOpen, onDismissRequest = { selectionMenuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.explorer_action_select_all)) },
+                                onClick = { selectionMenuOpen = false; vm.selectAll() },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.explorer_action_share)) },
+                                onClick = {
+                                    selectionMenuOpen = false
+                                    val chosen = state.entries.filter { it.path in state.selection }
+                                    launchShare(context, vm, chosen) { gatedMessage = it }
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.explorer_action_compress)) },
+                                onClick = {
+                                    selectionMenuOpen = false
+                                    if (state.isLocalMount) compressOpen = true
+                                    else gatedMessage = context.getString(R.string.explorer_compress_gated)
+                                },
+                            )
+                        }
+                    }
                     TextButton(onClick = { vm.clearSelection() }) { Text("Clear") }
                 }
             }
         }
 
-        // --- messages ------------------------------------------------------------------
+        // --- messages --------------------------------------------------------------------
         state.error?.let { err ->
             Notice(
                 title = "Operation refused or failed",
@@ -217,7 +429,7 @@ fun FilesScreen() {
             )
         }
 
-        // --- listing -------------------------------------------------------------------
+        // --- listing ---------------------------------------------------------------------
         val shown = if (state.searchResults.isNotEmpty()) state.searchResults else state.entries
         if (state.searchResults.isNotEmpty()) {
             Row(
@@ -234,7 +446,7 @@ fun FilesScreen() {
             }
         }
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             if (state.loading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else if (shown.isEmpty()) {
@@ -259,11 +471,31 @@ fun FilesScreen() {
                             entry = entry,
                             selected = entry.path in state.selection,
                             selectionActive = state.selection.isNotEmpty(),
+                            hasExternalUri = vm.externalUriOf(entry) != null,
+                            canOpenInTerminal = vm.shellWorkdirFor(entry) != null,
+                            localMount = state.isLocalMount,
+                            canWrite = state.canWrite,
                             onClick = {
+                                onFocus()
                                 if (state.selection.isNotEmpty()) vm.toggleSelection(entry)
                                 else vm.navigateTo(entry)
                             },
-                            onLongClick = { vm.toggleSelection(entry) },
+                            onLongClick = { onFocus(); vm.toggleSelection(entry) },
+                            onOpenWith = { launchOpenWith(context, vm, entry) { gatedMessage = it } },
+                            onShare = { launchShare(context, vm, listOf(entry)) { gatedMessage = it } },
+                            onOpenInTerminal = { shellWorkdir = vm.shellWorkdirFor(entry); vm.refreshShell(); shellOpen = true },
+                            onCompress = {
+                                if (entry.path !in state.selection) vm.toggleSelection(entry)
+                                compressOpen = true
+                            },
+                            onExtract = { vm.extract(entry) },
+                            onProperties = { vm.openProperties(entry) },
+                            onRename = { renameTarget = entry },
+                            onDelete = {
+                                if (entry.path !in state.selection) vm.toggleSelection(entry)
+                                confirmDelete = true
+                            },
+                            onExplainGated = { gatedMessage = it },
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
@@ -275,61 +507,14 @@ fun FilesScreen() {
     // --- dialogs -----------------------------------------------------------------------
 
     if (showStoragePicker) {
-        AlertDialog(
-            onDismissRequest = { showStoragePicker = false },
-            title = { Text("Storage") },
-            text = {
-                Column(
-                    modifier = Modifier.heightIn(max = 420.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    mounts.forEach { mount ->
-                        SectionCard(
-                            title = mount.displayName,
-                            subtitle = mount.boundaryNote,
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                TextButton(onClick = {
-                                    vm.openMount(mount.id)
-                                    showStoragePicker = false
-                                }) { Text("Open") }
-                                FileSystemRegistry.freeSpaceOf(mount)?.let {
-                                    Text(
-                                        "$it free",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MasamuneTheme.semantic.dim,
-                                    )
-                                }
-                                if (mount.id.startsWith("saf:")) {
-                                    TextButton(onClick = { vm.removeMount(mount.id) }) {
-                                        Text("Unmount")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Notice(
-                        title = "Backends implemented in this build",
-                        body = "java.io and SAF document trees only. SFTP, WebDAV, SMB, " +
-                            "installed-apps and a Yojimbo-brokered privileged backend are " +
-                            "designed for — they are further implementations of the same " +
-                            "FileSystem interface — but none of them are written yet.",
-                        tone = NoticeTone.INFO,
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showStoragePicker = false
-                    treePicker.launch(null)
-                }) { Text("Add storage (SAF)") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showStoragePicker = false }) { Text("Close") }
-            },
+        StoragePickerDialog(
+            mounts = mounts,
+            onOpen = { vm.openMount(it); showStoragePicker = false },
+            onUnmount = { vm.removeMount(it) },
+            onAddSaf = { showStoragePicker = false; treePicker.launch(null) },
+            onDismiss = { showStoragePicker = false },
         )
     }
-
     if (newFolderOpen) {
         NameDialog("New folder", "Folder name") { name ->
             newFolderOpen = false
@@ -354,48 +539,53 @@ fun FilesScreen() {
             title = { Text("Delete ${state.selection.size} item(s)?") },
             text = { Text("Directories are removed recursively. This cannot be undone.") },
             confirmButton = {
-                TextButton(onClick = {
-                    confirmDelete = false
-                    vm.deleteSelection()
-                }) { Text("Delete") }
+                TextButton(onClick = { confirmDelete = false; vm.deleteSelection() }) { Text("Delete") }
             },
-            dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
-            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
         )
     }
     if (searchOpen) {
-        var query by remember { mutableStateOf(state.searchQuery) }
-        AlertDialog(
-            onDismissRequest = { searchOpen = false },
-            title = { Text("Search under ${state.displayPath}") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        label = { Text("Name contains") },
-                        singleLine = true,
-                    )
-                    Text(
-                        "Recursive name match, case-insensitive, capped at 300 results. " +
-                            "Content grep is not implemented.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MasamuneTheme.semantic.dim,
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    searchOpen = false
-                    vm.setSearchQuery(query)
-                    vm.runSearch()
-                }) { Text("Search") }
-            },
-            dismissButton = {
-                TextButton(onClick = { searchOpen = false }) { Text("Cancel") }
-            },
+        SearchDialog(
+            initialQuery = state.searchQuery,
+            displayPath = state.displayPath,
+            onSearch = { q -> searchOpen = false; vm.setSearchQuery(q); vm.runSearch() },
+            onDismiss = { searchOpen = false },
         )
+    }
+    if (viewSettingsOpen) {
+        ViewSettingsDialog(
+            view = state.view,
+            onChange = { transform -> vm.setView(transform) },
+            onDismiss = { viewSettingsOpen = false },
+        )
+    }
+    if (compressOpen) {
+        CompressDialog(
+            defaultName = defaultArchiveName(state),
+            onConfirm = { name -> compressOpen = false; vm.compressSelection(name) },
+            onDismiss = { compressOpen = false },
+        )
+    }
+    if (shellOpen) {
+        ShellActionDialog(
+            workdir = shellWorkdir,
+            availability = state.shellAvailability,
+            granted = state.shellGranted,
+            run = state.shellRun,
+            onGrant = { vm.grantShell() },
+            onRecheck = { vm.refreshShell() },
+            onRequestPermission = {
+                shellPermissionLauncher.launch(dev.pleiades.masamune.shell.TermuxContract.PERMISSION)
+            },
+            onRun = { cmd -> shellWorkdir?.let { vm.runHere(cmd, it) } },
+            onClose = { shellOpen = false; vm.clearShellRun() },
+        )
+    }
+    state.properties?.let { props ->
+        PropertiesDialog(state = props, onDismiss = { vm.closeProperties() })
+    }
+    gatedMessage?.let { message ->
+        GatedExplainDialog(message = message, onDismiss = { gatedMessage = null })
     }
 
     state.viewer?.let { viewer ->
@@ -407,20 +597,39 @@ fun FilesScreen() {
     }
 }
 
+private fun defaultArchiveName(state: FilesUiState): String {
+    val selected = state.entries.filter { it.path in state.selection }
+    return if (selected.size == 1) "${selected.first().name}.zip" else "archive.zip"
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FileRow(
     entry: FsEntry,
     selected: Boolean,
     selectionActive: Boolean,
+    hasExternalUri: Boolean,
+    canOpenInTerminal: Boolean,
+    localMount: Boolean,
+    canWrite: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onOpenWith: () -> Unit,
+    onShare: () -> Unit,
+    onOpenInTerminal: () -> Unit,
+    onCompress: () -> Unit,
+    onExtract: () -> Unit,
+    onProperties: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    onExplainGated: (String) -> Unit,
 ) {
+    var menuOpen by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(start = 12.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -455,7 +664,110 @@ private fun FileRow(
                 maxLines = 1,
             )
         }
+        Box {
+            IconButton(onClick = { menuOpen = true }) {
+                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.explorer_action_more))
+            }
+            FileRowActionsMenu(
+                expanded = menuOpen,
+                entry = entry,
+                hasExternalUri = hasExternalUri,
+                canOpenInTerminal = canOpenInTerminal,
+                localMount = localMount,
+                canWrite = canWrite,
+                onDismiss = { menuOpen = false },
+                onOpenWith = onOpenWith,
+                onShare = onShare,
+                onOpenInTerminal = onOpenInTerminal,
+                onCompress = onCompress,
+                onExtract = onExtract,
+                onProperties = onProperties,
+                onRename = onRename,
+                onDelete = onDelete,
+                onExplainGated = onExplainGated,
+            )
+        }
     }
+}
+
+@Composable
+private fun StoragePickerDialog(
+    mounts: List<dev.pleiades.masamune.fs.FileSystem>,
+    onOpen: (String) -> Unit,
+    onUnmount: (String) -> Unit,
+    onAddSaf: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Storage") },
+        text = {
+            Column(
+                modifier = Modifier.heightIn(max = 420.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                mounts.forEach { mount ->
+                    SectionCard(title = mount.displayName, subtitle = mount.boundaryNote) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = { onOpen(mount.id) }) { Text("Open") }
+                            FileSystemRegistry.freeSpaceOf(mount)?.let {
+                                Text(
+                                    "$it free",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MasamuneTheme.semantic.dim,
+                                )
+                            }
+                            if (mount.id.startsWith("saf:")) {
+                                TextButton(onClick = { onUnmount(mount.id) }) { Text("Unmount") }
+                            }
+                        }
+                    }
+                }
+                Notice(
+                    title = "Backends implemented in this build",
+                    body = "java.io and SAF document trees only. SFTP, WebDAV, SMB, " +
+                        "installed-apps and a Yojimbo-brokered privileged backend are " +
+                        "designed for — they are further implementations of the same " +
+                        "FileSystem interface — but none of them are written yet.",
+                    tone = NoticeTone.INFO,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onAddSaf) { Text("Add storage (SAF)") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}
+
+@Composable
+private fun SearchDialog(
+    initialQuery: String,
+    displayPath: String,
+    onSearch: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var query by remember { mutableStateOf(initialQuery) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Search under $displayPath") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("Name contains") },
+                    singleLine = true,
+                )
+                Text(
+                    "Recursive name match, case-insensitive, capped at 300 results. " +
+                        "Content grep is not implemented.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MasamuneTheme.semantic.dim,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSearch(query) }) { Text("Search") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable

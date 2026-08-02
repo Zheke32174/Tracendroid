@@ -255,6 +255,16 @@ class LocalFileSystem(
         return f.parentFile?.absolutePath
     }
 
+    /**
+     * The canonical on-disk path, once containment has confirmed it sits inside this mount.
+     *
+     * This is what a shell working directory and the archive helper consume. Containment runs first,
+     * so a path that escaped the mount returns null (no real path is offered for it) rather than
+     * leaking a location outside the granted root.
+     */
+    override fun localPathOf(path: String): String? =
+        runCatching { resolve(path).absolutePath }.getOrNull()
+
     override fun displayPath(path: String): String {
         val p = path.removePrefix(canonicalRoot)
         return if (p.isEmpty()) "/" else p

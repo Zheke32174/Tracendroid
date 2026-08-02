@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Strings for the Terminal surface (DONOR-SURFACES §4, donor: Termux com.termux_1022).
+
+  Kept in their own file on purpose: the shared strings.xml is edited concurrently and a
+  collision there has broken CI before. Nothing here is referenced outside ui/shell/.
+
+  Action labels, dialog titles and menu wording are transcribed one-for-one from the Termux
+  teardown at understory-firewall/docs/donors/teardown/com.termux_1022/strings.txt — e.g.
+  action_new_session="New session", action_new_session_failsafe="Failsafe",
+  title_rename_session="Set session name", title_confirm_kill_process="Really kill this
+  session?", action_share_transcript, action_share_selected_text, action_select_url,
+  action_toggle_keep_screen_on, action_style_terminal, action_open_help, action_open_settings,
+  action_report_issue, action_kill_process="Kill process (%d)", action_autofill_username,
+  action_autofill_password, action_reset_terminal="Reset". Sentences that name a missing
+  capability are ours, not the donor's — the donor ships live controls; this build gates the
+  ones it cannot back and says which channel is absent.
+-->
+<resources>
+
+    <!-- Session drawer  (§4 line 78) -->
+    <string name="terminal_sessions_title">Sessions</string>
+    <string name="terminal_action_new_session">New session</string>
+    <string name="terminal_action_new_session_failsafe">Failsafe</string>
+    <string name="terminal_rename_session_title">Set session name</string>
+    <string name="terminal_rename_session_confirm">Set</string>
+    <string name="terminal_confirm_kill_title">Really kill this session?</string>
+    <string name="terminal_confirm_kill_body">Closing a session drops its transcript from view. It cannot kill anything still executing inside Termux — a background RUN_COMMAND returns no live process handle to signal.</string>
+    <string name="terminal_action_close_session">Close session</string>
+    <string name="terminal_session_failsafe_tag">clean environment</string>
+    <string name="terminal_session_hint_longpress">Long-press a session to rename it.</string>
+    <string name="terminal_sessions_model_note">A session here is a named run-group over the one-shot RUN_COMMAND contract, not a live interactive PTY. A failsafe session dispatches under bash --norc --noprofile so a broken startup file cannot lock you out. A real interactive terminal needs an NDK build; every native tree in this repository is empty.</string>
+
+    <!-- Extra keys + text-input toolbar  (§4 line 79) -->
+    <string name="terminal_textinput_toolbar_label">Insert</string>
+    <string name="terminal_extrakeys_blocked_title">Extra-keys toolbar needs a live terminal view</string>
+    <string name="terminal_extrakeys_blocked_body">ESC / CTRL / TAB / arrow keys act on a live terminal view, which this build does not host — commands are dispatched one-shot in the background, with no key stream to feed. The text-insert row below is backable and enabled; the modifier keys are not.</string>
+
+    <!-- Context menu  (§4 lines 80-82) -->
+    <string name="terminal_menu_title">Terminal actions</string>
+    <string name="terminal_action_select_url">Select URL</string>
+    <string name="terminal_action_share_transcript">Share transcript</string>
+    <string name="terminal_action_share_selected_text">Share selected text</string>
+    <string name="terminal_action_copy">Copy</string>
+    <string name="terminal_action_reset">Reset</string>
+    <string name="terminal_action_keep_screen_on">Keep screen on</string>
+    <string name="terminal_action_style">Style</string>
+    <string name="terminal_action_help">Help</string>
+    <string name="terminal_action_settings">Settings</string>
+    <string name="terminal_action_report_issue">Report Issue</string>
+    <string name="terminal_action_autofill_username">Autofill username</string>
+    <string name="terminal_action_autofill_password">Autofill password</string>
+    <string name="terminal_action_kill_process">Kill process</string>
+
+    <string name="terminal_select_url_dialog_title">Click a URL to copy it</string>
+    <string name="terminal_select_url_none">No URL found in the transcript.</string>
+    <string name="terminal_url_copied">URL copied to clipboard</string>
+    <string name="terminal_copied_transcript">Transcript copied to clipboard</string>
+    <string name="terminal_share_selected_title">Trim to the text you want, then share</string>
+    <string name="terminal_share_chooser">Share transcript</string>
+    <string name="terminal_help_url">https://wiki.termux.com/</string>
+
+    <!-- Gated context-menu items: named missing channel -->
+    <string name="terminal_gated_style">Terminal appearance (font, cursor, colours) lives under Settings ▸ Terminal &amp; Editor and is not wired to this surface, so Style is inert here rather than a control that changes nothing.</string>
+    <string name="terminal_gated_settings">Terminal settings live under Settings ▸ Terminal &amp; Editor; no route reaches them from the Shell screen yet, so this opens nothing rather than pretending to.</string>
+    <string name="terminal_gated_kill">Killing a process needs a live pid, which the one-shot background RUN_COMMAND never returns. There is no pid to signal from here.</string>
+    <string name="terminal_gated_autofill">Autofill targets a live terminal view\'s input field. This build hosts no such view, so there is nothing to fill.</string>
+
+    <!-- Background jobs  (§4 line 91) -->
+    <string name="terminal_jobs_title">Background jobs</string>
+    <string name="terminal_jobs_empty">No jobs yet. Each command you run becomes a background job here, so a long command never freezes the composer.</string>
+    <string name="terminal_job_read_output">Read output</string>
+    <string name="terminal_job_dismiss">Dismiss</string>
+    <string name="terminal_job_stop">Stop</string>
+    <string name="terminal_job_stop_gated">Stopping a background RUN_COMMAND is not cleanly cancellable over the one-shot contract; the job keeps running inside Termux. Dismiss only stops tracking it here.</string>
+    <string name="terminal_jobs_clear_finished">Clear finished</string>
+
+    <!-- Environments  (§4 lines 83-90) -->
+    <string name="terminal_environments_title">Environments</string>
+
+    <!-- Start configuration checklist  (§4 line 86) -->
+    <string name="terminal_checklist_title">Start configuration checklist</string>
+    <string name="terminal_checklist_subtitle">Each row is `command -v X &amp;&amp; X --version` over the installed Termux. An absent tool reports not detected — the readout cannot claim what is not there.</string>
+    <string name="terminal_checklist_recheck">Re-check</string>
+    <string name="terminal_not_detected">not detected</string>
+
+    <!-- Packages  (§4 line 88) -->
+    <string name="terminal_packages_title">Packages</string>
+    <string name="terminal_packages_subtitle">Backed by pkg/apt inside Termux: list-installed, du -sh, install, upgrade, uninstall.</string>
+    <string name="terminal_packages_install_hint">Package to install</string>
+    <string name="terminal_packages_install">Install</string>
+    <string name="terminal_packages_quick_install">Quick install</string>
+    <string name="terminal_packages_upgrade">Upgrade all</string>
+    <string name="terminal_packages_refresh">Refresh installed list</string>
+    <string name="terminal_packages_remove">Remove</string>
+    <string name="terminal_packages_disk_usage">Disk usage (PREFIX)</string>
+    <string name="terminal_packages_empty">No installed packages parsed. Refresh, or the list is empty.</string>
+
+    <!-- Health check  (§4 line 89) -->
+    <string name="terminal_health_title">Health check</string>
+    <string name="terminal_health_subtitle">proot · system shell · storage permissions · distro · network · abnormalities — each a scripted probe, each reporting whatever it actually found.</string>
+    <string name="terminal_health_run">Run health check</string>
+    <string name="terminal_health_pass">PASS</string>
+    <string name="terminal_health_fail">FAIL</string>
+
+    <!-- Installed rootfs  (proot-distro; §4 lines 84-85) -->
+    <string name="terminal_rootfs_title">Installed rootfs</string>
+    <string name="terminal_rootfs_subtitle">Read from proot-distro list. Install, upgrade, reset and uninstall are destructive rootfs operations held in reserve and not wired to a live control here.</string>
+    <string name="terminal_rootfs_probe">Check proot-distro</string>
+    <string name="terminal_rootfs_absent">proot-distro is not installed inside Termux, so there is no rootfs list to read. Install it from Packages first.</string>
+    <string name="terminal_rootfs_installed">installed</string>
+    <string name="terminal_rootfs_available">available</string>
+    <string name="terminal_rootfs_reserved">Reserved</string>
+
+    <!-- Boot tasks  (Termux:Boot; §4 line 87) -->
+    <string name="terminal_boot_title">Boot tasks</string>
+    <string name="terminal_boot_subtitle">Scripts under ~/.termux/boot. Listing, editing, enabling and running them is backed by RUN_COMMAND file ops. Boot-time execution itself depends on the separate Termux:Boot app, which this build has no way to detect (no queries entry for it) — treat enablement as a filesystem fact, not a guarantee it runs at boot.</string>
+    <string name="terminal_boot_load">Load boot tasks</string>
+    <string name="terminal_boot_new">New boot task</string>
+    <string name="terminal_boot_none_dir">The ~/.termux/boot directory does not exist yet. Creating a boot task will make it.</string>
+    <string name="terminal_boot_empty">No boot scripts in ~/.termux/boot.</string>
+    <string name="terminal_boot_start_now">Start now</string>
+    <string name="terminal_boot_edit">Edit</string>
+    <string name="terminal_boot_delete">Delete</string>
+    <string name="terminal_boot_enabled">Executable (enabled)</string>
+    <string name="terminal_boot_name_hint">Script name</string>
+    <string name="terminal_boot_body_hint">Script body</string>
+    <string name="terminal_boot_save">Save</string>
+
+    <!-- Backup / Restore / SAF  (§4 line 90) -->
+    <string name="terminal_backup_title">Backup · Restore · Expose over SAF</string>
+    <string name="terminal_backup_run">Back up HOME</string>
+    <string name="terminal_backup_subtitle">Backup tars ~ into a timestamped archive under HOME (backable). Restore reads an archive from a Storage Access Framework tree, which needs a content-URI stream into Termux that the one-shot contract cannot cleanly provide — it is gated. Expose over SAF opens a folder picker so another app can reach a chosen tree.</string>
+    <string name="terminal_backup_expose_saf">Expose over SAF</string>
+    <string name="terminal_backup_saf_picked">Exposed tree: %1$s</string>
+    <string name="terminal_backup_restore">Restore from SAF</string>
+    <string name="terminal_backup_restore_gated">Restoring means streaming an archive from a SAF content URI into Termux\'s filesystem. The background RUN_COMMAND contract has no clean way to pipe that content in, so restore is inert here rather than a control that silently drops your data.</string>
+
+    <!-- Shared -->
+    <string name="terminal_close">Close</string>
+    <string name="terminal_cancel">Cancel</string>
+    <string name="terminal_running">running</string>
+
+</resources>

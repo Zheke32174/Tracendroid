@@ -32,6 +32,9 @@ import dev.pleiades.masamune.ui.about.RyznixRoadmapScreen
 import dev.pleiades.masamune.flow.ui.FlowPlaneScreen
 import dev.pleiades.masamune.operator.ui.OperatorScreen
 import dev.pleiades.masamune.ui.chat.ChatScreen
+import dev.pleiades.masamune.ui.editor.EditorScreen
+import dev.pleiades.masamune.ui.editor.onboarding.DisclaimerScreen
+import dev.pleiades.masamune.ui.editor.onboarding.WelcomeScreen
 import dev.pleiades.masamune.ui.files.FilesScreen
 import dev.pleiades.masamune.ui.settings.AccountScreen
 import dev.pleiades.masamune.ui.settings.CapabilitiesScreen
@@ -126,7 +129,10 @@ fun MasamuneRoot() {
             startDestination = RouteCatalog.START,
             modifier = Modifier.padding(inner),
         ) {
-            registerRoutes(navigate = { navController.navigate(it) })
+            registerRoutes(
+                navigate = { navController.navigate(it) },
+                back = { navController.popBackStack() },
+            )
         }
     }
 }
@@ -136,12 +142,19 @@ fun MasamuneRoot() {
  * constants; a new constant without a branch fails to compile the screen into the graph, which
  * is the compile-time half of the reachability guarantee.
  */
-private fun NavGraphBuilder.registerRoutes(navigate: (String) -> Unit) {
+private fun NavGraphBuilder.registerRoutes(navigate: (String) -> Unit, back: () -> Unit) {
     RouteCatalog.all.forEach { entry ->
         composable(entry.route) {
             when (entry.route) {
                 RouteCatalog.FILES -> FilesScreen()
                 RouteCatalog.SHELL -> ShellScreen(onOpenCapabilities = { navigate(RouteCatalog.SETTINGS_CAPABILITIES) })
+                RouteCatalog.EDITOR -> EditorScreen(
+                    onOpenDisclaimer = { navigate(RouteCatalog.EDITOR_DISCLAIMER) },
+                    onOpenWelcome = { navigate(RouteCatalog.EDITOR_WELCOME) },
+                    onOpenCapabilities = { navigate(RouteCatalog.SETTINGS_CAPABILITIES) },
+                )
+                RouteCatalog.EDITOR_DISCLAIMER -> DisclaimerScreen(onDone = back)
+                RouteCatalog.EDITOR_WELCOME -> WelcomeScreen(onDone = back)
                 RouteCatalog.CHAT -> ChatScreen(
                     onOpenProviderSettings = { navigate(RouteCatalog.SETTINGS_PROVIDER) },
                     onOpenCapabilities = { navigate(RouteCatalog.SETTINGS_CAPABILITIES) },

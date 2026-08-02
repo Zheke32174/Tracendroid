@@ -3,6 +3,7 @@ package dev.pleiades.masamune.nav
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.SmartToy
@@ -40,10 +41,14 @@ object RouteCatalog {
 
     const val FILES = "files"
     const val SHELL = "shell"
+    const val EDITOR = "editor"
     const val CHAT = "chat"
     const val FLOWS = "flows"
     const val OPERATOR = "operator"
     const val ABOUT = "about"
+
+    const val EDITOR_DISCLAIMER = "editor/disclaimer"
+    const val EDITOR_WELCOME = "editor/welcome"
 
     const val SETTINGS_PROVIDER = "settings/provider"
     const val SETTINGS_ACCOUNT = "settings/account"
@@ -62,6 +67,17 @@ object RouteCatalog {
         MasamuneRoute(FLOWS, "Flows", Icons.Filled.AccountTree, Surface.BOTTOM_NAV, 3, "bottom nav → Flows"),
         MasamuneRoute(OPERATOR, "Operator", Icons.Filled.SmartToy, Surface.BOTTOM_NAV, 4, "bottom nav → Operator"),
         MasamuneRoute(ABOUT, "About", Icons.Filled.Info, Surface.BOTTOM_NAV, 5, "bottom nav → About"),
+        // Editor shares order 1 with Shell; the stable sort keeps it immediately after Shell, so
+        // the three workspace surfaces (Files/Shell/Editor) sit together in the bottom bar.
+        MasamuneRoute(EDITOR, "Editor", Icons.Filled.Edit, Surface.BOTTOM_NAV, 1, "bottom nav → Editor"),
+        MasamuneRoute(
+            EDITOR_DISCLAIMER, "Terms of Use & Disclaimer", null, Surface.DETAIL, 20,
+            "bottom nav → Editor → command palette → Terms of Use & Disclaimer",
+        ),
+        MasamuneRoute(
+            EDITOR_WELCOME, "Welcome", null, Surface.DETAIL, 21,
+            "bottom nav → Editor → command palette → Show welcome",
+        ),
         MasamuneRoute(
             SETTINGS_PROVIDER, "AI provider", null, Surface.DETAIL, 10,
             "bottom nav → About → AI provider (also the gear on Chat)",

@@ -15,7 +15,11 @@ import dev.pleiades.masamune.fs.FileSystemRegistry
 import dev.pleiades.masamune.fs.FsEntry
 import dev.pleiades.masamune.fs.FsException
 import dev.pleiades.masamune.fs.FsOp
+import dev.pleiades.masamune.fs.ZipArchiver
 import dev.pleiades.masamune.fs.looksTextual
+import dev.pleiades.masamune.shell.ShellDispatcher
+import dev.pleiades.masamune.shell.TermuxShellBackend
+import java.io.File
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +27,45 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class Clipboard(val fsId: String, val paths: List<String>, val move: Boolean)
+
+/** Sort key for the listing (Amaze "Sort By"). Direction is carried separately. */
+enum class SortMode(val label: String) { NAME("Name"), SIZE("Size"), DATE("Date") }
+
+/**
+ * The per-listing view settings (DONOR-SURFACES §6 line 117; Amaze "Sort", "Hidden Files").
+ *
+ * These are applied in the ViewModel over whatever a backend's [FileSystem.list] returned, so the
+ * same control drives java.io and SAF mounts identically. [compactFolders] and [indexing] have no
+ * engine in this build and are carried only so the sheet can render them as disabled with a sentence
+ * naming what is missing — they never silently do nothing.
+ */
+data class ViewSettings(
+    val showHidden: Boolean = false,
+    val sortMode: SortMode = SortMode.NAME,
+    val sortAscending: Boolean = true,
+    val foldersFirst: Boolean = true,
+    val nameMask: String = "",
+)
+
+/** What the Properties sheet shows (DONOR-SURFACES §6 line 116; Amaze "Properties"). */
+data class PropertiesState(
+    val entry: FsEntry,
+    val displayPath: String,
+    val childFolders: Int? = null,
+    val childFiles: Int? = null,
+    val computing: Boolean = false,
+)
+
+/** State of a single "Run in Termux (RUN_COMMAND)" dispatch launched from the shell action sheet. */
+data class ShellRunState(
+    val command: String,
+    val workdir: String,
+    val running: Boolean = false,
+    val stdout: String = "",
+    val stderr: String = "",
+    val exitCode: Int? = null,
+    val failure: String? = null,
+)
 
 data class ViewerState(
     val entry: FsEntry,
@@ -52,6 +95,13 @@ data class FilesUiState(
     val canWrite: Boolean = false,
     val canFind: Boolean = false,
     val atRoot: Boolean = true,
+    val view: ViewSettings = ViewSettings(),
+    /** True only for a java.io mount: shell cwd and archive create/extract need a real path. */
+    val isLocalMount: Boolean = false,
+    val shellAvailability: TermuxShellBackend.Availability = TermuxShellBackend.Availability.NotInstalled,
+    val shellGranted: Boolean = false,
+    val shellRun: ShellRunState? = null,
+    val properties: PropertiesState? = null,
 )
 
 /**
@@ -69,6 +119,7 @@ class FilesViewModel(private val appContext: Context) : ViewModel() {
 
     private val registry = FileSystemRegistry.get(appContext)
     private val gate = CapabilityGate.get(appContext)
+    private val shell = ShellDispatcher(appContext)
 
     private val _state = MutableStateFlow(FilesUiState())
     val state: StateFlow<FilesUiState> = _state.asStateFlow()
@@ -77,8 +128,12 @@ class FilesViewModel(private val appContext: Context) : ViewModel() {
 
     private var searchJob: Job? = null
 
+    /** Unfiltered, unsorted listing straight from the backend; [applyView] derives what the UI shows. */
+    private var rawEntries: List<FsEntry> = emptyList()
+
     init {
         openMount(registry.default().id)
+        refreshShell()
     }
 
     private fun fs(): FileSystem? = registry.byId(_state.value.fsId)
@@ -97,6 +152,7 @@ class FilesViewModel(private val appContext: Context) : ViewModel() {
             viewer = null,
             canWrite = FsOp.WRITE in target.capabilities,
             canFind = FsOp.FIND in target.capabilities,
+            isLocalMount = target.localPathOf(target.rootPath) != null,
         )
         refresh()
     }
@@ -128,9 +184,9 @@ class FilesViewModel(private val appContext: Context) : ViewModel() {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
             try {
-                val entries = backend.list(_state.value.path)
+                rawEntries = backend.list(_state.value.path)
                 _state.value = _state.value.copy(
-                    entries = entries,
+                    entries = applyView(rawEntries, _state.value.view),
                     loading = false,
                     error = null,
                     displayPath = backend.displayPath(_state.value.path),
@@ -146,6 +202,36 @@ class FilesViewModel(private val appContext: Context) : ViewModel() {
                 )
             }
         }
+    }
+
+    // --- view settings  (§6 line 117) --------------------------------------------------
+
+    /**
+     * Filters and sorts [raw] per [v]. Hidden-file suppression drops dotfiles; the name mask keeps
+     * only entries whose name contains the mask (case-insensitive substring, not a glob — an honest
+     * live filter, distinct from the recursive Search). Sort applies the chosen key and direction,
+     * with directories floated to the top when [ViewSettings.foldersFirst] is set.
+     */
+    private fun applyView(raw: List<FsEntry>, v: ViewSettings): List<FsEntry> {
+        var out = raw.asSequence()
+        if (!v.showHidden) out = out.filter { !it.name.startsWith(".") }
+        val mask = v.nameMask.trim().lowercase()
+        if (mask.isNotEmpty()) out = out.filter { it.name.lowercase().contains(mask) }
+        val keyComparator: Comparator<FsEntry> = when (v.sortMode) {
+            SortMode.NAME -> compareBy { it.name.lowercase() }
+            SortMode.SIZE -> compareBy { it.sizeBytes }
+            SortMode.DATE -> compareBy { it.lastModified }
+        }
+        val directioned = if (v.sortAscending) keyComparator else keyComparator.reversed()
+        val comparator =
+            if (v.foldersFirst) compareByDescending<FsEntry> { it.isDirectory }.then(directioned)
+            else directioned
+        return out.sortedWith(comparator).toList()
+    }
+
+    fun setView(transform: (ViewSettings) -> ViewSettings) {
+        val next = transform(_state.value.view)
+        _state.value = _state.value.copy(view = next, entries = applyView(rawEntries, next))
     }
 
     // --- selection ---------------------------------------------------------------------
@@ -179,6 +265,19 @@ class FilesViewModel(private val appContext: Context) : ViewModel() {
 
     fun clearClipboard() {
         _state.value = _state.value.copy(clipboard = null)
+    }
+
+    /**
+     * Cross-pane transfer (Total Commander's copy-across-panes, DONOR-SURFACES §6 line 105).
+     *
+     * The other pane hands us its selection; we load it as our clipboard and paste. Same-mount
+     * transfers stream through the backend; a transfer whose source mount differs from this pane's
+     * hits the same honest cross-filesystem decline [paste] already enforces — no fabricated bridge.
+     */
+    fun receiveTransfer(sourceFsId: String, paths: List<String>, move: Boolean) {
+        if (paths.isEmpty()) return
+        _state.value = _state.value.copy(clipboard = Clipboard(sourceFsId, paths, move))
+        paste()
     }
 
     fun paste() {
@@ -397,6 +496,173 @@ class FilesViewModel(private val appContext: Context) : ViewModel() {
     }
 
     fun boundaryNoteFor(fsId: String): String = registry.byId(fsId)?.boundaryNote.orEmpty()
+
+    // --- external hand-off  (§6 line 114: open with / share) ---------------------------
+
+    /** The document content URI another app can read, or null for a mount that has none (java.io). */
+    fun externalUriOf(entry: FsEntry): Uri? = fs()?.externalUri(entry.path)
+
+    // --- shell action  (§6 line 119: Run here | Run in Termux) -------------------------
+
+    fun refreshShell() {
+        _state.value = _state.value.copy(
+            shellAvailability = shell.availability(),
+            shellGranted = gate.isGranted(Caller.User, Capability.SHELL),
+        )
+    }
+
+    fun grantShell() {
+        gate.grant(Caller.User, Capability.SHELL)
+        _state.value = _state.value.copy(shellGranted = true)
+    }
+
+    /** The on-disk directory a shell should open in for [entry]: the dir itself, or a file's parent. */
+    fun shellWorkdirFor(entry: FsEntry): String? {
+        val backend = fs() ?: return null
+        return if (entry.isDirectory) backend.localPathOf(entry.path)
+        else backend.parentOf(entry.path)?.let { backend.localPathOf(it) }
+    }
+
+    /** The current directory's on-disk path, or null on a SAF / remote mount. */
+    fun currentLocalPath(): String? = fs()?.localPathOf(_state.value.path)
+
+    /**
+     * Runs [command] inside Termux with [workdir] as the working directory, through the gated
+     * [ShellDispatcher]. Every honest outcome the dispatcher can report — a capability denial, an
+     * absent Termux, a Termux refusal, a timeout — lands in [ShellRunState] verbatim; nothing is a
+     * fabricated session.
+     */
+    fun runHere(command: String, workdir: String) {
+        if (command.isBlank()) return
+        _state.value = _state.value.copy(
+            shellRun = ShellRunState(command = command, workdir = workdir, running = true),
+        )
+        viewModelScope.launch {
+            val run = when (val d = shell.dispatch(Caller.User, command, workdir)) {
+                is ShellDispatcher.Dispatch.Ran -> when (val o = d.outcome) {
+                    is TermuxShellBackend.Outcome.Completed ->
+                        ShellRunState(command, workdir, false, o.stdout, o.stderr, o.exitCode, null)
+                    is TermuxShellBackend.Outcome.RefusedByTermux ->
+                        ShellRunState(command, workdir, false, failure = "Termux refused the call (err=${o.err}): ${o.errmsg}")
+                    is TermuxShellBackend.Outcome.DispatchFailed ->
+                        ShellRunState(command, workdir, false, failure = o.message)
+                    is TermuxShellBackend.Outcome.TimedOut ->
+                        ShellRunState(command, workdir, false, failure = "No result within ${o.afterMillis / 1000}s. The command may still be running inside Termux.")
+                }
+                is ShellDispatcher.Dispatch.Gated ->
+                    ShellRunState(command, workdir, false, failure = d.message)
+                is ShellDispatcher.Dispatch.Unavailable -> {
+                    refreshShell()
+                    ShellRunState(command, workdir, false, failure = "No shell backend to drive (${d.availability::class.simpleName}).")
+                }
+            }
+            _state.value = _state.value.copy(shellRun = run)
+        }
+    }
+
+    fun clearShellRun() {
+        _state.value = _state.value.copy(shellRun = null)
+    }
+
+    // --- properties  (§6 line 116) -----------------------------------------------------
+
+    fun openProperties(entry: FsEntry) {
+        val backend = fs() ?: return
+        _state.value = _state.value.copy(
+            properties = PropertiesState(
+                entry = entry,
+                displayPath = backend.displayPath(entry.path),
+                computing = entry.isDirectory,
+            ),
+        )
+        if (!entry.isDirectory) return
+        viewModelScope.launch {
+            val (folders, files) = try {
+                val children = backend.list(entry.path)
+                children.count { it.isDirectory } to children.count { !it.isDirectory }
+            } catch (_: Exception) {
+                0 to 0
+            }
+            val current = _state.value.properties
+            if (current?.entry?.path == entry.path) {
+                _state.value = _state.value.copy(
+                    properties = current.copy(childFolders = folders, childFiles = files, computing = false),
+                )
+            }
+        }
+    }
+
+    fun closeProperties() {
+        _state.value = _state.value.copy(properties = null)
+    }
+
+    // --- archive  (§6 line 114: compress / unzip) --------------------------------------
+
+    /**
+     * Zips the current selection into [archiveName] in the current directory. Local mounts only —
+     * the helper needs real java.io paths, and a SAF selection has none, so this is gated off in the
+     * UI there and defended here.
+     */
+    fun compressSelection(archiveName: String) {
+        val backend = fs() ?: return
+        val destDir = currentLocalPath()?.let { File(it) } ?: run {
+            _state.value = _state.value.copy(
+                error = "Compress needs on-disk paths. This mount exposes none (SAF / remote), so a " +
+                    "zip cannot be written here.",
+            )
+            return
+        }
+        val sources = _state.value.entries
+            .filter { it.path in _state.value.selection }
+            .mapNotNull { backend.localPathOf(it.path)?.let(::File) }
+        if (sources.isEmpty()) return
+        val decision = gate.check(Caller.User, Capability.FILE_WRITE, "compress ${sources.size} item(s)")
+        if (decision is GateDecision.Denied) {
+            _state.value = _state.value.copy(error = decision.message)
+            return
+        }
+        viewModelScope.launch {
+            _state.value = _state.value.copy(busy = "Compressing…", error = null)
+            try {
+                val out = ZipArchiver.compress(sources, destDir, archiveName) { p ->
+                    _state.value = _state.value.copy(busy = "Compressing ${p.entryName} (${p.index}/${p.total})")
+                }
+                _state.value = _state.value.copy(busy = null, selection = emptySet(), notice = "Wrote ${out.name}")
+                refresh()
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(busy = null, error = renderError(e))
+            }
+        }
+    }
+
+    /** Extracts [entry] (a local `.zip`) into a new sibling folder in the current directory. */
+    fun extract(entry: FsEntry) {
+        val backend = fs() ?: return
+        val archive = backend.localPathOf(entry.path)?.let(::File) ?: run {
+            _state.value = _state.value.copy(
+                error = "Extract needs an on-disk path. This mount exposes none (SAF / remote).",
+            )
+            return
+        }
+        val destDir = currentLocalPath()?.let(::File) ?: archive.parentFile ?: return
+        val decision = gate.check(Caller.User, Capability.FILE_WRITE, "extract ${entry.name}")
+        if (decision is GateDecision.Denied) {
+            _state.value = _state.value.copy(error = decision.message)
+            return
+        }
+        viewModelScope.launch {
+            _state.value = _state.value.copy(busy = "Extracting ${entry.name}…", error = null)
+            try {
+                val out = ZipArchiver.extract(archive, destDir) { p ->
+                    _state.value = _state.value.copy(busy = "Extracting ${p.entryName} (${p.index}/${p.total})")
+                }
+                _state.value = _state.value.copy(busy = null, notice = "Extracted to ${out.name}")
+                refresh()
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(busy = null, error = renderError(e))
+            }
+        }
+    }
 
     // --- misc --------------------------------------------------------------------------
 

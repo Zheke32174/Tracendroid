@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Strings for the Explorer surface (DONOR-SURFACES §6, donors: Total Commander architecture +
+  Amaze file manager com.amaze.filemanager_124).
+
+  Kept in their own file on purpose: the shared strings.xml is edited concurrently and a collision
+  there has broken CI before. Nothing here is referenced outside ui/files/.
+
+  Menu labels are transcribed one-for-one from the Amaze teardown at
+  understory-firewall/docs/donors/teardown/com.amaze.filemanager_124/strings.txt and menu.txt —
+  e.g. compress="Compress", extract="Extract", "Open with", "Share", "Properties",
+  hiddenfiles="Hidden Files", directorysort="Directory Sort Mode", ascending="Ascending",
+  descending="Descending", foldersOnTop="Folders On Top", "Select All", "Deselect All",
+  enterzipname="Enter Zip Name", comment="Comment", compressed="Compressed",
+  lastModified="Last Modified", folderfilecount="%1$d folders and %2$d files". The shell-action
+  labels [Run here] / [Run in Termux (RUN_COMMAND)] come from the Total Commander contract line in
+  docs/DONOR-SURFACES.md §6. Sentences that name a missing capability (a FileProvider, an in-app
+  PTY, an archive backend, an editor hand-off, an index engine) are ours, not a donor's — the
+  donors ship live controls; this build gates the ones it cannot back and says which channel is
+  absent.
+-->
+<resources>
+
+    <!-- Row / selection actions  (§6 line 114; Amaze menu/item_extras, menu/contextual) -->
+    <string name="explorer_action_more">More actions</string>
+    <string name="explorer_action_open_with">Open with</string>
+    <string name="explorer_action_open_in_terminal">Open in terminal</string>
+    <string name="explorer_action_open_as_project">Open as project</string>
+    <string name="explorer_action_share">Share</string>
+    <string name="explorer_action_compress">Compress</string>
+    <string name="explorer_action_extract">Extract</string>
+    <string name="explorer_action_properties">Properties</string>
+    <string name="explorer_action_rename">Rename</string>
+    <string name="explorer_action_delete">Delete</string>
+    <string name="explorer_action_select_all">Select All</string>
+    <string name="explorer_action_deselect_all">Deselect All</string>
+    <string name="explorer_close">Close</string>
+    <string name="explorer_cancel">Cancel</string>
+    <string name="explorer_share_chooser">Share via</string>
+    <string name="explorer_open_with_chooser">Open with</string>
+
+    <!-- Honest-gating sentences for the hand-off actions (ours) -->
+    <string name="explorer_open_with_gated">Open with needs a content:// URI another app can read. A java.io file would need a FileProvider (authority + file_paths.xml) declared in the app manifest; this build declares none, so external hand-off is available only for SAF-mounted files, which already are content URIs.</string>
+    <string name="explorer_share_gated">Share needs a content:// URI another app can read. A java.io file would need a FileProvider declared in the app manifest; this build declares none, so Share is available only for SAF-mounted files, which already are content URIs.</string>
+    <string name="explorer_open_in_terminal_gated">A shell working directory needs an on-disk path. This mount (SAF / remote) exposes none, so there is nothing for a shell to cd into.</string>
+    <string name="explorer_open_as_project_gated">Opening a file or folder as an editor project is the Editor surface\'s hand-off. No navigation hook into it is wired into the Explorer in this build, so it cannot route there yet — this is a tracked cross-surface dependency, not a silent no-op.</string>
+    <string name="explorer_compress_gated">Compress writes a zip through java.util.zip against on-disk paths. This mount (SAF / remote) exposes none, so a zip cannot be written here.</string>
+    <string name="explorer_extract_gated">Extract reads a zip through java.util.zip against on-disk paths. This mount (SAF / remote) exposes none.</string>
+
+    <!-- Shell action  (§6 line 119: [Run here] | [Run in Termux (RUN_COMMAND)]) -->
+    <string name="explorer_shell_chip">Shell</string>
+    <string name="explorer_shell_title">Shell action</string>
+    <string name="explorer_shell_run_here">Run here</string>
+    <string name="explorer_shell_run_termux">Run in Termux (RUN_COMMAND)</string>
+    <string name="explorer_shell_workdir_label">Working directory</string>
+    <string name="explorer_shell_command_label">Command</string>
+    <string name="explorer_shell_run_here_disabled">Run here would execute in an in-app console. This build hosts no in-process shell or PTY — every native tree in the repository is empty — so the only backend is an installed Termux, driven one-shot over its RUN_COMMAND contract.</string>
+    <string name="explorer_shell_workdir_gated">This directory has no on-disk path (SAF / remote mount), so it cannot be a shell working directory.</string>
+    <string name="explorer_shell_not_installed_title">No shell backend on this device</string>
+    <string name="explorer_shell_not_installed_body">com.termux is not installed, so there is nothing to drive. This app will not install it and bundles no copy. The shell action is inert until a Termux is present.</string>
+    <string name="explorer_shell_perm_title">Termux is installed; this app cannot call it yet</string>
+    <string name="explorer_shell_perm_body">com.termux.permission.RUN_COMMAND has not been granted to Masamune.</string>
+    <string name="explorer_shell_ready_title">Backend ready</string>
+    <string name="explorer_shell_ready_body">Termux is installed and RUN_COMMAND is granted. If allow-external-apps=true is off in termux.properties, Termux\'s own refusal is printed verbatim below rather than interpreted here.</string>
+    <string name="explorer_shell_cap_title">SHELL capability not granted</string>
+    <string name="explorer_shell_cap_body">The capability gate denies shell dispatch for caller \"user\" by default. Nothing runs until this is granted.</string>
+    <string name="explorer_shell_grant">Grant SHELL to \"user\"</string>
+    <string name="explorer_shell_request_perm">Request permission</string>
+    <string name="explorer_shell_recheck">Re-check</string>
+    <string name="explorer_shell_running">Running…</string>
+    <string name="explorer_shell_no_output">(no output)</string>
+    <string name="explorer_shell_exit">exit %1$d</string>
+
+    <!-- View settings  (§6 line 117; Amaze "Sort", "Hidden Files") -->
+    <string name="explorer_view_settings">View settings</string>
+    <string name="explorer_view_title">View settings</string>
+    <string name="explorer_view_hidden">Hidden Files</string>
+    <string name="explorer_view_hidden_sub">Show dotfiles and dot-folders in the listing.</string>
+    <string name="explorer_view_sort_by">Sort By</string>
+    <string name="explorer_view_sort_name">Name</string>
+    <string name="explorer_view_sort_size">Size</string>
+    <string name="explorer_view_sort_date">Date</string>
+    <string name="explorer_view_ascending">Ascending</string>
+    <string name="explorer_view_descending">Descending</string>
+    <string name="explorer_view_folders_first">Folders On Top</string>
+    <string name="explorer_view_filter">Filter</string>
+    <string name="explorer_view_filter_label">Name contains</string>
+    <string name="explorer_view_filter_sub">A live substring filter of the current listing (case-insensitive). Distinct from Search, which walks subdirectories.</string>
+    <string name="explorer_view_compact">Compact folders</string>
+    <string name="explorer_view_compact_gated">Chaining single-child folders into one row is not implemented in this build. There is no engine behind this control, so it stays disabled rather than shipping a switch that does nothing.</string>
+    <string name="explorer_view_indexing">Indexing</string>
+    <string name="explorer_view_indexing_gated">No background index and no index statistics exist in this build. Search walks the tree live instead, so this control stays disabled.</string>
+    <string name="explorer_view_indexing_stat">Not indexed.</string>
+
+    <!-- Properties sheet  (§6 line 116) -->
+    <string name="explorer_props_title">Properties</string>
+    <string name="explorer_props_name">Name</string>
+    <string name="explorer_props_path">Path</string>
+    <string name="explorer_props_type">Type</string>
+    <string name="explorer_props_type_folder">Folder</string>
+    <string name="explorer_props_type_file">File</string>
+    <string name="explorer_props_size">Size</string>
+    <string name="explorer_props_modified">Last Modified</string>
+    <string name="explorer_props_contents">Contents</string>
+    <string name="explorer_props_contents_value">%1$d folders and %2$d files</string>
+    <string name="explorer_props_mime">MIME type</string>
+    <string name="explorer_props_archive_title">Compressed size · ratio · method · CRC-32 · comment</string>
+    <string name="explorer_props_archive_absent">These are archive-entry fields. This build browses a flat filesystem and mounts no archive-as-filesystem, so a loose file exposes no compressed size, ratio, method, CRC-32 or comment. They report absent until an archive backend lands.</string>
+
+    <!-- Compress dialog  (Amaze "Enter Zip Name") -->
+    <string name="explorer_compress_title">Compress</string>
+    <string name="explorer_compress_name_label">Enter Zip Name</string>
+    <string name="explorer_compress_hint">It\'s recommended to use \".zip\" as the file extension.</string>
+
+    <!-- Dual pane  (§6 line 105) -->
+    <string name="explorer_dual_pane">Dual pane</string>
+    <string name="explorer_dual_left">Left</string>
+    <string name="explorer_dual_right">Right</string>
+    <string name="explorer_dual_copy_to_other">Copy to other pane</string>
+    <string name="explorer_dual_move_to_other">Move to other pane</string>
+    <string name="explorer_dual_hint">Two independent panes, each with its own path, sort and filter. On a narrow screen one pane shows at a time — use the switcher. Copy / Move across panes runs when both panes are the same mount and is honestly declined across mounts: this build has no cross-backend stream bridge.</string>
+
+</resources>

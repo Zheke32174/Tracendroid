@@ -1,5 +1,7 @@
 package dev.pleiades.masamune.fs
 
+import android.net.Uri
+
 /**
  * The one filesystem abstraction, shaped per docs/donors/RE-total-commander.md §4.1.
  *
@@ -86,6 +88,28 @@ interface FileSystem {
 
     /** What to show in the location bar. */
     fun displayPath(path: String): String
+
+    /**
+     * The real java.io path behind [path], or null when this backend is not java.io-backed.
+     *
+     * A shell working directory, an archive create/extract target and a raw-file hand-off all need
+     * a concrete on-disk path. A [LocalFileSystem] returns one; a [SafFileSystem] (document ids) and
+     * any future remote backend return null, and every surface that needs a real path gates on that
+     * null rather than fabricating one. Default is null so a new backend opts in only when it can.
+     */
+    fun localPathOf(path: String): String? = null
+
+    /**
+     * A system-usable `content://` URI for [path] that another app can read, or null when this
+     * backend cannot hand one out.
+     *
+     * A [SafFileSystem] already addresses documents by content URI and returns it directly, so
+     * Open-with and Share work against SAF mounts with a per-intent read grant. A [LocalFileSystem]
+     * would need a `FileProvider` (authority + `file_paths.xml`) declared in the app manifest; this
+     * build declares none, so it returns null and the external-hand-off controls gate honestly on
+     * that absence instead of throwing `FileUriExposedException` at an intent. Default is null.
+     */
+    fun externalUri(path: String): Uri? = null
 
     companion object {
         const val DEFAULT_READ_LIMIT = 512 * 1024
