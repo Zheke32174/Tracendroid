@@ -22,47 +22,80 @@ class UrlConfigManager(private val context: Context) {
     companion object {
         private val URL_CONFIG_KEY = stringPreferencesKey("url_config")
         
-        // 预设配置
+        // Preset providers. The rule the user set:
+        //   Google, Anthropic, OpenAI, DeepSeek, Nous Research -> ACCOUNT LOGIN.
+        //   The user signs into their own account on the provider's real site
+        //   inside the WebView; the session token is captured from that page.
+        //   No client id, no OAuth-app registration, no pasted key.
+        //   OpenCode -> the ONLY api-key provider (apiKeyOnly = true).
+        //
+        // signInUrl is the provider's real login page. apiKeyUrl is where a
+        // signed-in user's key lives, which is also the page the capture script
+        // reads the session token from. These endpoints are provider-owned and
+        // move over time; each is the current best-known URL and should be
+        // re-verified against the live site (see docs/PROVIDER-LOGIN-PORTAL.md).
         val PRESET_CONFIGS = listOf(
             UrlConfig(
-                name = "Claude",
-                signInUrl = "https://claude.ai/login",
+                name = "Anthropic",
+                signInUrl = "https://console.anthropic.com/login",
+                apiKeyUrl = "https://console.anthropic.com/settings/keys",
                 tabs = listOf(
-                    TabConfig("Chat", "https://claude.ai/chats"),
-                    TabConfig("Projects", "https://claude.ai/projects"),
-                    TabConfig("Artifacts", "https://claude.ai/artifacts"),
-                    TabConfig("Settings", "https://claude.ai/settings")
+                    TabConfig("API Keys", "https://console.anthropic.com/settings/keys"),
+                    TabConfig("Usage", "https://console.anthropic.com/settings/usage"),
+                    TabConfig("Billing", "https://console.anthropic.com/settings/billing"),
+                    TabConfig("Account", "https://console.anthropic.com/settings/profile")
                 )
             ),
             UrlConfig(
-                name = "ChatGPT",
-                signInUrl = "https://chat.openai.com/auth/login",
+                name = "OpenAI",
+                signInUrl = "https://platform.openai.com/login",
+                apiKeyUrl = "https://platform.openai.com/api-keys",
                 tabs = listOf(
-                    TabConfig("Chat", "https://chat.openai.com/"),
-                    TabConfig("GPTs", "https://chat.openai.com/gpts"),
-                    TabConfig("Settings", "https://chat.openai.com/settings"),
+                    TabConfig("API Keys", "https://platform.openai.com/api-keys"),
+                    TabConfig("Usage", "https://platform.openai.com/usage"),
+                    TabConfig("Billing", "https://platform.openai.com/account/billing"),
                     TabConfig("Account", "https://platform.openai.com/account")
                 )
             ),
             UrlConfig(
-                name = "Gemini",
-                signInUrl = "https://gemini.google.com/",
+                name = "Google",
+                signInUrl = "https://aistudio.google.com/",
+                apiKeyUrl = "https://aistudio.google.com/app/apikey",
                 tabs = listOf(
-                    TabConfig("Chat", "https://gemini.google.com/app"),
-                    TabConfig("History", "https://gemini.google.com/history"),
-                    TabConfig("Settings", "https://gemini.google.com/settings"),
-                    TabConfig("Help", "https://support.google.com/gemini")
+                    TabConfig("API Keys", "https://aistudio.google.com/app/apikey"),
+                    TabConfig("Studio", "https://aistudio.google.com/"),
+                    TabConfig("Usage", "https://aistudio.google.com/app/usage"),
+                    TabConfig("Account", "https://myaccount.google.com/")
                 )
             ),
             UrlConfig(
-                name = "Poe",
-                signInUrl = "https://poe.com/login",
+                name = "DeepSeek",
+                signInUrl = "https://platform.deepseek.com/sign_in",
+                apiKeyUrl = "https://platform.deepseek.com/api_keys",
                 tabs = listOf(
-                    TabConfig("Chat", "https://poe.com/"),
-                    TabConfig("Explore", "https://poe.com/explore"),
-                    TabConfig("Create", "https://poe.com/create"),
-                    TabConfig("Settings", "https://poe.com/settings")
+                    TabConfig("API Keys", "https://platform.deepseek.com/api_keys"),
+                    TabConfig("Usage", "https://platform.deepseek.com/usage"),
+                    TabConfig("Top Up", "https://platform.deepseek.com/top_up"),
+                    TabConfig("Account", "https://platform.deepseek.com/profile")
                 )
+            ),
+            UrlConfig(
+                name = "Nous Research",
+                signInUrl = "https://portal.nousresearch.com/login",
+                apiKeyUrl = "https://portal.nousresearch.com/api-keys",
+                tabs = listOf(
+                    TabConfig("API Keys", "https://portal.nousresearch.com/api-keys"),
+                    TabConfig("Usage", "https://portal.nousresearch.com/usage"),
+                    TabConfig("Models", "https://portal.nousresearch.com/models"),
+                    TabConfig("Account", "https://portal.nousresearch.com/account")
+                )
+            ),
+            UrlConfig(
+                name = "OpenCode",
+                signInUrl = "https://opencode.ai/",
+                apiKeyOnly = true,
+                apiKeyUrl = "https://opencode.ai/docs/",
+                tabs = emptyList()
             )
         )
     }

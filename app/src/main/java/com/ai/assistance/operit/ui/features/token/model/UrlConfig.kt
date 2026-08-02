@@ -20,6 +20,15 @@ data class TabConfig(
 data class UrlConfig(
     val name: String = "DeepSeek",
     val signInUrl: String = "https://platform.deepseek.com/sign_in",
+    /**
+     * When true, this provider is configured by pasting an API key directly —
+     * there is no hosted account-login page to sign into. Only OpenCode uses
+     * this. Every other provider signs in on its real site and the session
+     * token is captured from the WebView; none of them ask for a client id.
+     */
+    val apiKeyOnly: Boolean = false,
+    /** Page where a signed-in user finds/creates the key to capture. */
+    val apiKeyUrl: String? = null,
     val tabs: List<TabConfig> = listOf(
         TabConfig(OperitApplication.instance.getString(R.string.url_config_api_key), "https://platform.deepseek.com/api_keys"),
         TabConfig(OperitApplication.instance.getString(R.string.url_config_usage), "https://platform.deepseek.com/usage"),
