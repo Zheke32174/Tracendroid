@@ -11,12 +11,14 @@ import dev.pleiades.masamune.flow.model.Port
 import dev.pleiades.masamune.flow.model.Requirement
 import dev.pleiades.masamune.apps.AppInspector
 import dev.pleiades.masamune.apps.PowerState
+import dev.pleiades.masamune.apps.SensorReader
 import dev.pleiades.masamune.apps.SystemSettings
 import dev.pleiades.masamune.flow.runtime.ArgResolver
 import dev.pleiades.masamune.flow.runtime.BlockRegistry
 import dev.pleiades.masamune.flow.runtime.ExprEvalAdapter
 import dev.pleiades.masamune.flow.runtime.impl.appsLookup
 import dev.pleiades.masamune.flow.runtime.impl.powerLookup
+import dev.pleiades.masamune.flow.runtime.impl.sensorLookup
 import dev.pleiades.masamune.flow.runtime.impl.settingsLookup
 import dev.pleiades.masamune.flow.runtime.Fiber
 import dev.pleiades.masamune.flow.runtime.InMemoryFiberStore
@@ -69,11 +71,20 @@ import java.util.UUID
  * there is no seam, and each Battery&Power block fails by name with `POWER_ABSENT` rather than
  * pretending to read a device reading. A factory holding a `Context` passes
  * `{ AndroidPowerState(context) }` to make them live; nothing in the runtime changes.
+ *
+ * @param sensorReader supplies the hardware-sensor-backed [SensorReader] the Sensor blocks
+ * (`ambient_light`, `ambient_temperature`, `atmospheric_pressure`, `device_acceleration`,
+ * `device_orientation`, `hinge_angle`, `magnetic_field_strength`, `proximity`, `relative_humidity`) run
+ * against. It defaults to `{ null }` on the same honest terms as the seams above: with no `Context`
+ * there is no seam, and each Sensor block fails by name with `SENSOR_ABSENT` rather than pretending to
+ * read a hardware sensor. A factory holding a `Context` passes `{ AndroidSensorReader(context) }` to
+ * make them live; nothing in the runtime changes.
  */
 class FlowPlaneViewModel(
     private val appInspector: () -> AppInspector? = { null },
     private val systemSettings: () -> SystemSettings? = { null },
     private val powerState: () -> PowerState? = { null },
+    private val sensorReader: () -> SensorReader? = { null },
 ) : ViewModel() {
 
     private val _graph = MutableStateFlow(FlowGraph(id = UUID.randomUUID().toString(), name = "Untitled flow"))
@@ -178,10 +189,14 @@ class FlowPlaneViewModel(
             // found here first, else Settings, else Apps, else the base registry. A null seam fails
             // each by name (POWER_ABSENT) — honest, not silent — exactly as the layers below do.
             val power = powerLookup(powerState)
+            // Compose the Sensor device-state reads the same way, layered ahead of Battery&Power:
+            // found here first, else Power, else Settings, else Apps, else the base registry. A null
+            // seam fails each by name (SENSOR_ABSENT) — honest, not silent — exactly as the layers below.
+            val sensors = sensorLookup(sensorReader)
             val scheduler = Scheduler(
                 graph = snapshot,
                 specs = { BlockCatalog[it] },
-                impls = { id -> power[id] ?: settings[id] ?: apps[id] ?: registry.lookup(id) },
+                impls = { id -> sensors[id] ?: power[id] ?: settings[id] ?: apps[id] ?: registry.lookup(id) },
                 resolver = ArgResolver(ExprEvalAdapter()),
                 store = InMemoryFiberStore(),
                 scope = viewModelScope,
