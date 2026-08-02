@@ -12,6 +12,8 @@ import dev.pleiades.masamune.flow.runtime.impl.AtomicLoadBlock
 import dev.pleiades.masamune.flow.runtime.impl.AtomicStore
 import dev.pleiades.masamune.flow.runtime.impl.AtomicStoreBlock
 import dev.pleiades.masamune.flow.runtime.impl.FlowLog
+import dev.pleiades.masamune.flow.runtime.impl.FlowStartBlock
+import dev.pleiades.masamune.flow.runtime.impl.FlowStarter
 import dev.pleiades.masamune.flow.runtime.impl.HandoffStore
 import dev.pleiades.masamune.flow.runtime.impl.InMemoryFlowLog
 import dev.pleiades.masamune.flow.runtime.impl.LogAppendBlock
@@ -59,14 +61,20 @@ import kotlinx.coroutines.CoroutineScope
  *
  * ### Honest gate by omission
  * Only genuinely runnable blocks are registered. Everything else — a block whose payload or
- * permission is absent, or one (`Flow start`, the pickers) that needs a subsystem this build does
- * not have — is deliberately **not** put in the map. The
- * scheduler treats a spec with no impl as gated and reports the reason. That silence is the honest
- * signal; a registered no-op would be the exact silent failure the whole plane is built to remove.
+ * permission is absent, or one (the pickers) that needs a subsystem this build does not have — is
+ * deliberately **not** put in the map. The scheduler treats a spec with no impl as gated and reports
+ * the reason. That silence is the honest signal; a registered no-op would be the exact silent
+ * failure the whole plane is built to remove.
+ *
+ * `Flow start` is the one registered block that can still fail for a *missing host* rather than a
+ * bad input: it needs the [FlowStarter] multi-flow host, injected here and defaulting to none. With
+ * no host it fails by name at run — the honest report that this build cannot reach another flow —
+ * which is why it is registered (the impl exists) yet still gates itself honestly.
  */
 class BlockRegistry(
     graph: FlowGraph,
     scope: CoroutineScope,
+    flowStarter: () -> FlowStarter? = { null },
 ) {
     /** This flow's shared atomic cells — created here so they are shared among the flow's fibers and no wider. */
     private val atomics = AtomicStore()
@@ -93,6 +101,7 @@ class BlockRegistry(
         register(FlowStopBlock())
         register(FiberStopBlock())
         register(LogAppendBlock(flowLog))
+        register(FlowStartBlock(flowStarter))
 
         // General — conditional, mutations, loop.
         register(ExpressionTrueBlock())

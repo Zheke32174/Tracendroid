@@ -211,3 +211,32 @@ internal class LogAppendBlock(private val log: FlowLog) : BlockImpl {
         return Outcome.Proceed(Port.OK)
     }
 }
+
+/**
+ * `Flow start` — launch another flow through the injected [FlowStarter] host.
+ *
+ * Honest gate-at-run: with no host wired ([starterProvider] yields null) the block fails by name —
+ * this build cannot reach another flow — rather than pretending to start one. A blank `flowUri` has
+ * no flow to name and fails; a `flowUri` the host cannot resolve returns null and also fails, so a
+ * mistyped reference is visible instead of a silent no-op. On success it binds the started fiber's
+ * URI to `varChildFiberURI`, the handle a later `Flow stop` / `Variables give` addresses. The
+ * `stopWithParent` option is read from the node's options and passed through to the host.
+ */
+internal class FlowStartBlock(private val starterProvider: () -> FlowStarter?) : BlockImpl {
+    override val specId = "flow_start"
+    override suspend fun run(fiber: Fiber, node: FlowNode, args: Map<String, Value>): Outcome {
+        val starter = starterProvider()
+            ?: return Outcome.Fail(
+                "Flow start cannot reach another flow: no multi-flow host is wired in this build.",
+            )
+        val flowUri = args["flowUri"].asTextOrNull()?.takeIf { it.isNotBlank() }
+            ?: return Outcome.Fail("Flow start needs a flowUri.")
+        val payload = args["payload"] ?: Value.Null
+        val stopWithParent = Value.Text(node.options["stopWithParent"].orEmpty()).asFlag(default = false)
+        val childUri = starter.start(flowUri, payload, stopWithParent, fiber.flowId)
+            ?: return Outcome.Fail("Flow start: no flow resolves to '$flowUri'.")
+        val writes = LinkedHashMap<String, Value>()
+        node.outputs["varChildFiberURI"]?.takeIf { it.isNotBlank() }?.let { writes[it] = Value.Text(childUri) }
+        return Outcome.Proceed(Port.OK, writes)
+    }
+}
