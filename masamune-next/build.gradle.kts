@@ -36,6 +36,32 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    /**
+     * The SUITE debug keystore, explicitly.
+     *
+     * This block did not exist, and the comment below it claimed "Debug signing config retained
+     * so the suite certificate pin matches". It did not match. With no signingConfigs block,
+     * AGP falls back to the per-developer `~/.android/debug.keystore`, so this module signed
+     * with cert 4a25b3af… while every other app in the suite signs with aba68a81… — measured
+     * with apksigner, not assumed.
+     *
+     * That is not cosmetic. Yojimbo brokers privilege to siblings by SIGNATURE MATCH, and
+     * SuiteAttestation cross-verifies peers the same way, so an app signed with a different key
+     * can never be a suite sibling no matter what its manifest declares. It would also have
+     * been invisible until the first time privilege brokering was tried on a device.
+     *
+     * The keystore is committed on purpose (see keystore/README.md) precisely so any developer's
+     * `assembleDebug` produces a cert matching SuitePins.DEBUG_CERT_SHA256.
+     */
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         debug {
             // Honour -PminifyDebug=true from the build command.
@@ -46,7 +72,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // Debug signing config retained so the suite certificate pin matches.
+            // Signs with the SUITE keystore configured above, so the cert digest matches
+            // SuitePins.DEBUG_CERT_SHA256 and this app can act as a suite sibling.
             signingConfig = signingConfigs.getByName("debug")
         }
         release {
