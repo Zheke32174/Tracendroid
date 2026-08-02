@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  THE SHIPPED OAUTH CLIENTS.
+
+  This is how a desktop app signs you in with one tap: it carries its own registered OAuth client,
+  opens your browser at the provider, and takes the redirect back. Claude Desktop, gcloud, gh, and
+  every CLI that "just works" does exactly this — the client ID is compiled in, and the user never
+  sees it.
+
+  A client ID for a native/installed app is NOT a secret. Google, OpenAI and the OAuth specs all say
+  so plainly: it names the app asking for consent, it is visible in every authorize URL, and it
+  cannot be used to reach any API on its own. That is why it can live in a resource file in the open
+  and why PKCE (RFC 7636), not client secrecy, is what protects the flow.
+
+  WHEN A VALUE HERE IS NON-EMPTY, THAT PROVIDER'S ROW BECOMES A SINGLE BUTTON — no Client ID box,
+  ever, for anyone installing this build.
+
+  WHEN IT IS EMPTY, the row honestly says a client has to be created and offers a one-tap link to
+  the exact page that creates it. Empty is the shipped state here because Masamune has no client
+  registered with these providers yet; filling one in is a config change, not a code change.
+
+  To fill one in for Google:
+    console.cloud.google.com/apis/credentials → Create credentials → OAuth client ID
+    → application type "TV and Limited Input devices"  (this is the type the device grant accepts,
+      and it requires no redirect URI at all)
+    → paste the client ID between the tags below.
+
+  For OpenAI: platform.openai.com → an OAuth app with http://127.0.0.1/callback allowed as a
+  loopback redirect. RFC 8252 §7.3 has servers ignore the port on loopback, so no port is listed.
+-->
+<resources>
+    <string name="oauth_client_google" translatable="false"></string>
+    <string name="oauth_client_openai" translatable="false"></string>
+
+    <!-- Deep links to the exact page that creates a client, so "create one" is one tap. -->
+    <string name="oauth_console_google" translatable="false">https://console.cloud.google.com/apis/credentials</string>
+    <string name="oauth_console_openai" translatable="false">https://platform.openai.com/settings/organization/general</string>
+</resources>

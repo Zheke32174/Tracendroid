@@ -25,3 +25,6 @@
 [submodule "fbx/third_party/ufbx"]
 	path = fbx/third_party/ufbx
 	url = https://github.com/ufbx/ufbx.git
+[submodule "mmd/third_party/bullet3"]
+	path = mmd/third_party/bullet3
+	url = https://github.com/bulletphysics/bullet3.git

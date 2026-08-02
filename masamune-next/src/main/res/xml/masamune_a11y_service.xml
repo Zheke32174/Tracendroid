@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Configuration for MasamuneA11yService — the AI operator's eyes and hands.
+
+  canRetrieveWindowContent + flagRetrieveInteractiveWindows: read the on-screen node tree
+    (the observe step's simplifyLayout port).
+  canPerformGestures: dispatch taps/swipes via dispatchGesture (the act step).
+  feedbackGeneric, typeWindowStateChanged|typeWindowContentChanged: the minimum event surface a
+    content-retrieving service must declare; the service itself does NOT act on these events — the
+    operator pulls the screen on demand from its flow graph, it does not react to pushes.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagReportViewIds"
+    android:canPerformGestures="true"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/operator_a11y_description"
+    android:notificationTimeout="100" />

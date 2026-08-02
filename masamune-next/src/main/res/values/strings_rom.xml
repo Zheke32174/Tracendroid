@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Strings for the ROM-launcher surface (docs/ROM-LAUNCH.md).
+
+  Kept in their own file on purpose: the shared strings.xml is edited concurrently and a collision
+  there has broken CI before. Nothing here is referenced outside rom/.
+
+  These are the surface's own chrome — titles, section headers, button labels, the intro that
+  keeps the ROM apart from the Linux subsystem. The three backend UNAVAILABLE sentences are NOT
+  here: they are domain data owned by the backend probes (AvfBackend.REASON, KvmBackend.REASON,
+  TcgBackend.REASON) so they can be unit-tested off-device, and the screen renders them verbatim
+  from the probe result. This file never restates them.
+-->
+<resources>
+
+    <string name="rom_title">Launch a ROM</string>
+    <string name="rom_intro">Booting a real OS means running a second kernel under emulation — its own kernel, its own init, its own userland and uid space. That is genuinely a ROM booting, just slowly. There are three ways to do it, two gated by a privilege a sideloaded app cannot hold; the chain below probes all three and names what it finds.</string>
+    <string name="rom_not_subsystem_title">This is not the Linux subsystem</string>
+    <string name="rom_not_subsystem_body">The per-app Termux prefix runs a Linux userland at full native speed because it shares Android\'s kernel — the right answer for packages, daemons and toolchains. A ROM is the wrong tool for those and the only tool for running an OS whose kernel differs from Android\'s. If you want a package, you want the subsystem, not this.</string>
+
+    <string name="rom_backends_title">Backend chain</string>
+    <string name="rom_backends_subtitle">AVF → KVM → QEMU TCG → ABSENT. Probed in order; the best available is the one in use, and each closed path names what it lacks.</string>
+    <string name="rom_backend_available">AVAILABLE</string>
+    <string name="rom_backend_unavailable">UNAVAILABLE</string>
+    <string name="rom_backend_unknown">UNKNOWN</string>
+    <string name="rom_backend_native_speed">native speed</string>
+    <string name="rom_backend_emulated">emulated, 5–20× slower</string>
+
+    <string name="rom_live_title">Backend in use: %1$s</string>
+    <string name="rom_absent_title">No ROM backend available in this build</string>
+    <string name="rom_absent_body">Every path is closed on a stock sideloaded build, so there is nothing to launch. Each reason below names exactly what is missing:</string>
+
+    <string name="rom_images_title">ROM images</string>
+    <string name="rom_images_subtitle">Images live in app-scoped external storage, not the prefix — they are measured in gigabytes and survive a prefix rebuild. None are bundled; add your own.</string>
+    <string name="rom_images_empty">No ROM images added. Pick an OS image (postmarketOS, Alpine, Android-x86 …) and it is copied here.</string>
+    <string name="rom_image_size">%1$s on disk</string>
+
+    <string name="rom_add_title">Add an image</string>
+    <string name="rom_add_arch_label">Image architecture</string>
+    <string name="rom_add_button">Add image</string>
+    <string name="rom_importing">Copying the image into app storage… this is a real file copy and can take a while for a multi-gigabyte image.</string>
+
+    <string name="rom_launch">Launch</string>
+    <string name="rom_launch_disabled_hint">Launch is disabled because no ROM backend is available in this build — see the reasons above. A disabled control that names what is missing is the honest state here; there is no faked boot.</string>
+
+    <string name="rom_refresh">Re-probe backends</string>
+    <string name="rom_remove">Remove</string>
+    <string name="rom_dismiss">Dismiss</string>
+
+</resources>

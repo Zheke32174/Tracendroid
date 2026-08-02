@@ -10,6 +10,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.kotlin.parcelize)
+    alias(libs.plugins.ksp)
     id("io.objectbox")
     id("kotlin-kapt")
 }
@@ -308,9 +309,11 @@ dependencies {
     // Room 数据库
     implementation(libs.room.runtime)
     implementation(libs.room.ktx) // Kotlin扩展和协程支持
-    kapt(libs.room.compiler) // 使用kapt代替ksp
+    ksp(libs.room.compiler) // Room via KSP (kapt breaks on JDK 21; KSP is JDK-agnostic)
 
-    // ObjectBox
+    // ObjectBox — still kapt: ObjectBox has no KSP processor yet
+    // (objectbox-java#1075 open). Its kapt is made JDK-21-safe by
+    // kapt.use.worker.api=false + the jdk.compiler --add-opens in gradle.properties.
     implementation(libs.objectbox.kotlin)
     kapt(libs.objectbox.processor)
     implementation(libs.commons.compress.v2)

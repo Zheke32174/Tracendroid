@@ -261,7 +261,25 @@ fun OperitApp(
         navigateTo(Screen.TokenConfig)
     }
 
-    BackHandler(enabled = currentScreen !is Screen.AiChat, onBack = { goBack() })
+    // UNCONDITIONAL, and that is the fix.
+    //
+    // This read `enabled = currentScreen !is Screen.AiChat`, so on the home screen the handler
+    // switched ITSELF off and the platform default took over — and the platform default for
+    // back at the root of a task is finish(). Masamune exists to keep an agent harness and its
+    // services running, so a stray back press on the screen the user spends most of their time
+    // on destroyed exactly the thing the app is for. Reported directly: the apps "close when
+    // exited instead of minimizing".
+    //
+    // Back now always belongs to us, and the contract matches every other app in the suite
+    // (common-security's SuiteNav): pop one level, else return to the home screen, else
+    // MINIMIZE the task the way the Home button does. finish() is never the answer.
+    BackHandler(enabled = true) {
+        if (routerState.canPop || currentScreen !is Screen.AiChat) {
+            goBack()
+        } else {
+            (context as? android.app.Activity)?.moveTaskToBack(true)
+        }
+    }
 
     val canGoBack = routerState.canPop
 

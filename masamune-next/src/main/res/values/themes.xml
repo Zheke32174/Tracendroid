@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Platform-level theme only (splash + window background). All in-app styling is Compose,
+      via dev.pleiades.masamune.ui.theme.MasamuneTheme.
+    -->
+    <style name="Theme.Masamune" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/masamune_window_background</item>
+        <item name="android:statusBarColor">@color/masamune_window_background</item>
+        <item name="android:navigationBarColor">@color/masamune_window_background</item>
+    </style>
+</resources>

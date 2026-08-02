@@ -1,0 +1,348 @@
+package dev.pleiades.masamune.flow.ui
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dev.pleiades.masamune.core.halt.HaltController
+import dev.pleiades.masamune.flow.catalog.BlockCatalog
+import dev.pleiades.masamune.flow.model.BlockSpec
+import dev.pleiades.masamune.flow.model.FlowGraph
+import dev.pleiades.masamune.flow.model.FlowNode
+import dev.pleiades.masamune.flow.model.Port
+import dev.pleiades.masamune.flow.model.Requirement
+import dev.pleiades.masamune.apps.AppInspector
+import dev.pleiades.masamune.apps.AudioController
+import dev.pleiades.masamune.apps.ConnectivityReader
+import dev.pleiades.masamune.apps.ContentReader
+import dev.pleiades.masamune.apps.DeviceOutput
+import dev.pleiades.masamune.apps.DeviceUi
+import dev.pleiades.masamune.apps.LocationReader
+import dev.pleiades.masamune.apps.PowerState
+import dev.pleiades.masamune.apps.SensorReader
+import dev.pleiades.masamune.apps.SystemSettings
+import dev.pleiades.masamune.apps.TelephonyReader
+import dev.pleiades.masamune.flow.runtime.ArgResolver
+import dev.pleiades.masamune.flow.runtime.BlockRegistry
+import dev.pleiades.masamune.flow.runtime.ExprEvalAdapter
+import dev.pleiades.masamune.flow.runtime.impl.appsLookup
+import dev.pleiades.masamune.flow.runtime.impl.audioLookup
+import dev.pleiades.masamune.flow.runtime.impl.connectivityLookup
+import dev.pleiades.masamune.flow.runtime.impl.contentLookup
+import dev.pleiades.masamune.flow.runtime.impl.deviceOutputLookup
+import dev.pleiades.masamune.flow.runtime.impl.deviceUiLookup
+import dev.pleiades.masamune.flow.runtime.impl.locationLookup
+import dev.pleiades.masamune.flow.runtime.impl.powerLookup
+import dev.pleiades.masamune.flow.runtime.impl.sensorLookup
+import dev.pleiades.masamune.flow.runtime.impl.settingsLookup
+import dev.pleiades.masamune.flow.runtime.impl.telephonyLookup
+import dev.pleiades.masamune.flow.runtime.Fiber
+import dev.pleiades.masamune.flow.runtime.InMemoryFiberStore
+import dev.pleiades.masamune.flow.runtime.Scheduler
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import java.util.UUID
+
+/**
+ * Holds the one editable [FlowGraph] and the view's selection, and applies every mutation through
+ * the graph's own methods so the model's invariants (an output port holds at most one edge; a
+ * removed node drops every edge touching it) are the graph's to keep, not the UI's to reinvent.
+ *
+ * ### Honest state, not simulated state
+ * [satisfied] is the set of [Requirement]s the device actually grants. This build has no detector
+ * for the flow-block grants (an enabled AccessibilityService, the Yojimbo uid-2000 server, a
+ * NotificationListener, a device-admin receiver), so the honest, fail-closed answer is the empty
+ * set: nothing is assumed granted. That is what makes the palette's gating visible rather than
+ * decorative — a block whose grant cannot be confirmed reports unavailable, it does not pretend.
+ *
+ * [fibers] is the live list the running [Scheduler] holds — empty until [runFlow] starts one, then
+ * the fibers actually executing this graph, current block and variable frame and all. The monitor
+ * renders exactly what the runtime hands it; there is no invented state.
+ *
+ * @param appInspector supplies the package-manager-backed [AppInspector] the Apps blocks
+ * (`app_installed`, `app_list`, `resolve_activity`, `activity_start`, `activity_start_result`) run
+ * against. It defaults to `{ null }` so this ViewModel constructs with no Android `Context` — and a
+ * null inspector is honest: those blocks then fail by name with `APPS_ABSENT` rather than pretending
+ * to read the package manager. A factory holding a `Context` passes
+ * `{ PackageManagerAppInspector(context) }` to make them live; nothing in the runtime changes.
+ *
+ * @param systemSettings supplies the settings-store-backed [SystemSettings] the Settings blocks
+ * (`system_setting_get`/`_set`, `screen_brightness`/`_set`, `screen_off_timeout`/`_set`,
+ * `ringer_mode`/`_set`, `system_property_get`, `system_language_get`) run against. It defaults to
+ * `{ null }` on the same honest terms as [appInspector]: with no `Context` there is no seam, and each
+ * Settings block fails by name with `SETTINGS_ABSENT` rather than pretending to read or write a
+ * setting. A factory holding a `Context` passes `{ AndroidSystemSettings(context) }` to make them
+ * live; nothing in the runtime changes.
+ *
+ * @param powerState supplies the battery/power-state-backed [PowerState] the Battery&Power blocks
+ * (`battery_charging`, `battery_level`, `battery_properties`, `power_source_plugged`,
+ * `power_save_mode_enabled`, `device_idle_mode_active`, `device_interactive`) run against. It defaults
+ * to `{ null }` on the same honest terms as [appInspector] and [systemSettings]: with no `Context`
+ * there is no seam, and each Battery&Power block fails by name with `POWER_ABSENT` rather than
+ * pretending to read a device reading. A factory holding a `Context` passes
+ * `{ AndroidPowerState(context) }` to make them live; nothing in the runtime changes.
+ *
+ * @param sensorReader supplies the hardware-sensor-backed [SensorReader] the Sensor blocks
+ * (`ambient_light`, `ambient_temperature`, `atmospheric_pressure`, `device_acceleration`,
+ * `device_orientation`, `hinge_angle`, `magnetic_field_strength`, `proximity`, `relative_humidity`) run
+ * against. It defaults to `{ null }` on the same honest terms as the seams above: with no `Context`
+ * there is no seam, and each Sensor block fails by name with `SENSOR_ABSENT` rather than pretending to
+ * read a hardware sensor. A factory holding a `Context` passes `{ AndroidSensorReader(context) }` to
+ * make them live; nothing in the runtime changes.
+ *
+ * @param locationReader supplies the location-subsystem-backed [LocationReader] the Location blocks
+ * (`geocoding_reverse`, `geocoding`, `location_at`, `location_get`, `location_provider_enabled`) run
+ * against. It defaults to `{ null }` on the same honest terms as the seams above: with no `Context`
+ * there is no seam, and each Location block fails by name with `LOCATION_ABSENT` rather than pretending
+ * to read a place. A factory holding a `Context` passes `{ AndroidLocationReader(context) }` to make
+ * them live; nothing in the runtime changes.
+ *
+ * @param connectivityReader supplies the radio/network-stack-backed [ConnectivityReader] the Connectivity
+ * read blocks (`airplane_mode_enabled`, `wifi_enabled`, `wifi_ap_enabled`, `wifi_network_connected`,
+ * `wifi_signal_level`, `bluetooth_enabled`, `bluetooth_device_connected`, `nfc_enabled`,
+ * `mobile_data_enabled`, `mobile_data_network_type`, `network_connected`, `network_type`) run against. It
+ * defaults to `{ null }` on the same honest terms as the seams above: with no `Context` there is no seam,
+ * and each Connectivity block fails by name with `CONNECTIVITY_ABSENT` rather than pretending to read a
+ * radio state. A factory holding a `Context` passes `{ AndroidConnectivityReader(context) }` to make them
+ * live; nothing in the runtime changes.
+ *
+ * @param telephonyReader supplies the telephony-stack-backed [TelephonyReader] the Telephony read blocks
+ * (`call_state`, `cell_signal_level`, `mobile_operator`, `mobile_service_state`, `subscription_default_get`,
+ * `roaming`) run against. It defaults to `{ null }` on the same honest terms as the seams above: with no
+ * `Context` there is no seam, and each Telephony block fails by name with `TELEPHONY_ABSENT` rather than
+ * pretending to read a cellular state. A factory holding a `Context` passes
+ * `{ AndroidTelephonyReader(context) }` to make them live; nothing in the runtime changes. The unprivileged
+ * read subset only — every call, SMS, USSD, dial, DTMF, set-state, await and SHELL-gated Telephony block
+ * stays gated by omission.
+ *
+ * @param audioController supplies the audio-stack-backed [AudioController] the CameraAndSound audio blocks
+ * (`audio_stream_muted`, `audio_volume`, `audio_volume_set`, `audio_stream_set_mute`, `microphone_muted`,
+ * `microphone_set_mute`, `speakerphone_on`, `speakerphone_set_state`) run against. It defaults to `{ null }`
+ * on the same honest terms as the seams above: with no `Context` there is no seam, and each audio block fails
+ * by name with `AUDIO_ABSENT` rather than pretending to read an audio state or apply an effect. A factory
+ * holding a `Context` passes `{ AndroidAudioController(context) }` to make them live; nothing in the runtime
+ * changes. The unprivileged audio state-read + simple volume/mode-effect subset only — every capture,
+ * recording, screenshot, media/tone/sound playback, TTS, vibration, image, media-session, Bluetooth-routing
+ * and picker block stays gated by omission.
+ *
+ * @param contentReader supplies the content-stack-backed [ContentReader] the Content read/query blocks
+ * (`calendar_event_get`, `calendar_event_query`, `contact_query`, `content_query`) run against. It defaults
+ * to `{ null }` on the same honest terms as the seams above: with no `Context` there is no seam, and each
+ * Content block fails by name with `CONTENT_ABSENT` rather than pretending to read content. A factory holding
+ * a `Context` passes `{ AndroidContentReader(context) }` to make them live; nothing in the runtime changes.
+ * The unprivileged `ContentResolver`-query read subset only — every insert/update/delete/write, add, account,
+ * offer/share/view intent, provider-call, await, content-to-storage copy, SQLite and picker Content block
+ * stays gated by omission.
+ *
+ * @param deviceUi supplies the device-UI-stack-backed [DeviceUi] the Interface device-UI blocks
+ * (`clipboard_get`, `device_secure`, `device_unlocked`, `display_on`, `night_mode_enabled`,
+ * `car_mode_enabled`, `screen_orientation`, `display_metrics_get`, `hardware_keyboard_visible`,
+ * `clipboard_set`, `toast_show`, `notification_show`, `notification_cancel`) run against. It defaults to
+ * `{ null }` on the same honest terms as the seams above: with no `Context` there is no seam, and each
+ * device-UI block fails by name with `DEVICE_UI_ABSENT` rather than pretending to read a UI state or apply
+ * an effect. A factory holding a `Context` passes `{ AndroidDeviceUi(context) }` to make them live; nothing
+ * in the runtime changes. The unprivileged UI state-read + simple clipboard/toast/notification-effect
+ * subset only — every a11y interaction/inspection block (operator-owned), notification-listener,
+ * device-admin, SHELL, dialog, picker, custom-interface, state-setter and await/callback Interface block
+ * stays gated by omission.
+ *
+ * @param deviceOutput supplies the device-output-stack-backed [DeviceOutput] the CameraAndSound output
+ * blocks (`vibrate_start`, `vibrate_stop`, `speak_play`, `speak_stop`) run against. It defaults to
+ * `{ null }` on the same honest terms as the seams above: with no `Context` there is no seam, and each
+ * device-output block fails by name with `DEVICE_OUTPUT_ABSENT` rather than claiming an effect it never
+ * applied. A factory holding a `Context` passes `{ AndroidDeviceOutput(context) }` to make them live;
+ * nothing in the runtime changes. The pure vibration + text-to-speech output-effect subset only — every
+ * capture, recording, media/sound/tone playback, image, file-writing speech, barcode/QR/OCR and audio
+ * state-read/volume-effect CameraAndSound block stays gated by omission.
+ */
+class FlowPlaneViewModel(
+    private val appInspector: () -> AppInspector? = { null },
+    private val systemSettings: () -> SystemSettings? = { null },
+    private val powerState: () -> PowerState? = { null },
+    private val sensorReader: () -> SensorReader? = { null },
+    private val locationReader: () -> LocationReader? = { null },
+    private val connectivityReader: () -> ConnectivityReader? = { null },
+    private val telephonyReader: () -> TelephonyReader? = { null },
+    private val audioController: () -> AudioController? = { null },
+    private val contentReader: () -> ContentReader? = { null },
+    private val deviceUi: () -> DeviceUi? = { null },
+    private val deviceOutput: () -> DeviceOutput? = { null },
+) : ViewModel() {
+
+    private val _graph = MutableStateFlow(FlowGraph(id = UUID.randomUUID().toString(), name = "Untitled flow"))
+    val graph: StateFlow<FlowGraph> = _graph.asStateFlow()
+
+    private val _selectedNodeId = MutableStateFlow<String?>(null)
+    val selectedNodeId: StateFlow<String?> = _selectedNodeId.asStateFlow()
+
+    /** Real device grants. Empty until a capability detector is wired — fail-closed by design. */
+    val satisfied: Set<Requirement> = emptySet()
+
+    /** Live fibers from the running scheduler. Empty when nothing is running; never fabricated. */
+    private val _fibers = MutableStateFlow<List<Fiber>>(emptyList())
+    val fibers: StateFlow<List<Fiber>> = _fibers.asStateFlow()
+
+    /** Execution is wired on this screen: a real scheduler runs the current graph. */
+    val executionWired: Boolean = true
+
+    /** True while a run is in flight, so the Run control can guard against launching a second. */
+    private val _running = MutableStateFlow(false)
+    val running: StateFlow<Boolean> = _running.asStateFlow()
+
+    private var runJob: Job? = null
+
+    private var placed = 0
+
+    fun addBlock(spec: BlockSpec) {
+        // Cascade new blocks so they do not stack exactly on top of one another.
+        val step = placed % 6
+        val row = placed / 6
+        val node = FlowNode(
+            id = UUID.randomUUID().toString(),
+            specId = spec.id,
+            x = 96f + step * 56f,
+            y = 96f + step * 40f + row * 24f,
+        )
+        placed++
+        _graph.update { it.copy(nodes = it.nodes + node) }
+        _selectedNodeId.value = node.id
+    }
+
+    fun selectNode(id: String) {
+        _selectedNodeId.value = id
+    }
+
+    fun moveNode(id: String, x: Float, y: Float) {
+        _graph.update { g ->
+            g.copy(nodes = g.nodes.map { if (it.id == id) it.copy(x = x, y = y) else it })
+        }
+    }
+
+    fun connect(fromNode: String, fromPort: Port, toNode: String) {
+        if (fromNode == toNode) return
+        _graph.update { it.connect(fromNode, fromPort, toNode) }
+    }
+
+    fun updateNode(node: FlowNode) {
+        _graph.update { g ->
+            g.copy(nodes = g.nodes.map { if (it.id == node.id) node else it })
+        }
+    }
+
+    fun deleteNode(id: String) {
+        _graph.update { it.removeNode(id) }
+        if (_selectedNodeId.value == id) _selectedNodeId.value = null
+    }
+
+    /** A fiber's `currentNode` (a node id) resolved to its block's display name, for the monitor. */
+    fun blockNameOf(nodeId: String): String? =
+        _graph.value.node(nodeId)?.let { BlockCatalog[it.specId]?.name }
+
+    /**
+     * Run the current graph to completion on a background coroutine, streaming the live fiber list
+     * into [fibers] as it goes.
+     *
+     * A [Scheduler] is built fresh per run from the graph snapshot, the real [BlockRegistry]
+     * (whose gate reports any block this build cannot run), the [ExprEvalAdapter] over the actual
+     * expression evaluator, and an [InMemoryFiberStore]. The scheduler's `isHalted` seam is bound
+     * to [HaltController], so the shared stop control parks this flow exactly as it stops every
+     * other privileged surface — halt is a property of the run, not a flag this screen invents.
+     *
+     * The registry closes over [viewModelScope], so a `Delay`'s waker and the run itself share the
+     * ViewModel's lifecycle: clearing the screen cancels an in-flight run and its parked timers.
+     * A lightweight poll mirrors the scheduler's snapshot into [fibers] while it runs, then a final
+     * snapshot captures the terminal state.
+     */
+    fun runFlow() {
+        if (runJob?.isActive == true) return
+        val snapshot = _graph.value
+        _running.value = true
+        runJob = viewModelScope.launch {
+            val registry = BlockRegistry(snapshot, viewModelScope)
+            // Compose the Apps inspect-and-launch blocks over the base registry, the same way
+            // OperatorLoop composes its Interface actions: found here first, else the base registry.
+            // With a null inspector each Apps block fails by name (APPS_ABSENT) — honest, not silent.
+            val apps = appsLookup(appInspector)
+            // Compose the Settings read/write blocks the same way, layered ahead of the Apps blocks:
+            // found here first, else Apps, else the base registry. A null seam fails each by name
+            // (SETTINGS_ABSENT) — honest, not silent — exactly as the Apps layer does with APPS_ABSENT.
+            val settings = settingsLookup(systemSettings)
+            // Compose the Battery&Power device-state reads the same way, layered ahead of Settings:
+            // found here first, else Settings, else Apps, else the base registry. A null seam fails
+            // each by name (POWER_ABSENT) — honest, not silent — exactly as the layers below do.
+            val power = powerLookup(powerState)
+            // Compose the Sensor device-state reads the same way, layered ahead of Battery&Power:
+            // found here first, else Power, else Settings, else Apps, else the base registry. A null
+            // seam fails each by name (SENSOR_ABSENT) — honest, not silent — exactly as the layers below.
+            val sensors = sensorLookup(sensorReader)
+            // Compose the Location one-shot reads the same way, layered ahead of Sensor: found here
+            // first, else Sensor, else Power, else Settings, else Apps, else the base registry. A null
+            // seam fails each by name (LOCATION_ABSENT) — honest, not silent — exactly as the layers below.
+            val location = locationLookup(locationReader)
+            // Compose the Connectivity one-shot reads the same way, layered ahead of Location: found here
+            // first, else Location, else Sensor, …, else the base registry. A null seam fails each by name
+            // (CONNECTIVITY_ABSENT) — honest, not silent — exactly as the layers below.
+            val connectivity = connectivityLookup(connectivityReader)
+            // Compose the Telephony one-shot reads the same way, layered ahead of Connectivity: found here
+            // first, else Connectivity, else Location, …, else the base registry. A null seam fails each by
+            // name (TELEPHONY_ABSENT) — honest, not silent — exactly as the layers below.
+            val telephony = telephonyLookup(telephonyReader)
+            // Compose the CameraAndSound audio state-read + volume/mode-effect blocks the same way, layered
+            // ahead of Telephony: found here first, else Telephony, else Connectivity, …, else the base
+            // registry. A null seam fails each by name (AUDIO_ABSENT) — honest, not silent — exactly as the
+            // layers below.
+            val audio = audioLookup(audioController)
+            // Compose the Content read/query blocks the same way, layered ahead of CameraAndSound audio:
+            // found here first, else audio, else Telephony, …, else the base registry. A null seam fails each
+            // by name (CONTENT_ABSENT) — honest, not silent — exactly as the layers below.
+            val content = contentLookup(contentReader)
+            // Compose the Interface device-UI state-read + clipboard/toast/notification-effect blocks the
+            // same way, layered ahead of Content as the new top layer: found here first, else Content, else
+            // CameraAndSound audio, …, else the base registry. A null seam fails each by name
+            // (DEVICE_UI_ABSENT) — honest, not silent — exactly as the layers below.
+            val device = deviceUiLookup(deviceUi)
+            // Compose the CameraAndSound device-output (vibration + text-to-speech) effect blocks the same
+            // way, layered ahead of the Interface device-UI blocks as the new top layer: found here first,
+            // else device-UI, else Content, …, else the base registry. A null seam fails each by name
+            // (DEVICE_OUTPUT_ABSENT) — honest, not silent — exactly as the layers below.
+            val deviceOut = deviceOutputLookup(deviceOutput)
+            val scheduler = Scheduler(
+                graph = snapshot,
+                specs = { BlockCatalog[it] },
+                impls = { id ->
+                    deviceOut[id] ?: device[id] ?: content[id] ?: audio[id] ?: telephony[id]
+                        ?: connectivity[id] ?: location[id] ?: sensors[id] ?: power[id] ?: settings[id]
+                        ?: apps[id] ?: registry.lookup(id)
+                },
+                resolver = ArgResolver(ExprEvalAdapter()),
+                store = InMemoryFiberStore(),
+                scope = viewModelScope,
+                isHalted = { HaltController.isHalted },
+                fiberLifecycleHolder = registry.fiberLifecycle,
+            )
+            val mirror = launch {
+                while (isActive) {
+                    _fibers.value = scheduler.snapshot()
+                    delay(FIBER_POLL_MS)
+                }
+            }
+            try {
+                scheduler.start(UUID.randomUUID().toString())
+                scheduler.run()
+            } finally {
+                mirror.cancel()
+                _fibers.value = scheduler.snapshot()
+                _running.value = false
+            }
+        }
+    }
+
+    private companion object {
+        /** How often the monitor mirror samples the scheduler while a flow runs. */
+        const val FIBER_POLL_MS = 120L
+    }
+}

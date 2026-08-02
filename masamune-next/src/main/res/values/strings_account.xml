@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Strings for the Account surface (About -> Account) and the auth-mode row on AI provider.
+
+  Kept in their own file on purpose: the shared strings.xml is edited concurrently and a
+  collision there has broken CI before. Nothing in this file is referenced from anywhere but
+  ui/settings/AccountScreen.kt and ui/settings/ProviderSettingsScreen.kt.
+
+  Wording mirrors the donor teardowns rather than being invented:
+    - RethinkDNS (com.celzero.bravedns) is the only donor with a real subscription surface.
+      "Manage Purchase" / "Cancel, revoke or manage your plan" / "Valid until" / "Expired" /
+      "Grace Period" / "Inactive" / "Run test" / "Retry", the hero line "%1$s • %2$s"
+      (hero_plan_and_account), and its stepwise restore dialog ("Fetching fresh entitlement...",
+      "Registering with tunnel...", plus the hint "This usually completes in a few seconds.
+      Keep your internet connection active.") are all adapted here, one for one.
+    - Amaze File Manager (com.amaze.filemanager) supplies the account-connection idiom:
+      "Cloud Connection" / "New Cloud Connection" / "Failed to authenticate" / "Token lost,
+      please sign-in again" / "Do you want to remove the cloud connection?".
+    - App Manager (io.github.muntashirakon.AppManager) supplies the demoted-API-key framing:
+      pref_vt_apikey_description describes what a key *enables*, never what it is required for.
+    - Xed Editor (com.rk.xededitor) supplies "Account", "Credentials", "Credentials for
+      accessing remote repositories" and "Authorization error. Check your credentials".
+-->
+<resources>
+
+    <!-- Hero -->
+    <string name="account_subtitle">Sign in to a provider account instead of pasting a key</string>
+    <string name="account_hero_fmt">%1$s • %2$s</string>
+    <string name="account_hero_signed_out">Not signed in</string>
+    <string name="account_hero_signed_out_body">No provider account is connected. Chat runs on whichever mode is selected below; in API key mode that is the key from AI provider, in subscription mode nothing is sent until an account is connected.</string>
+
+    <!-- Status labels -->
+    <string name="account_lbl_signed_in_as">Signed in as</string>
+    <string name="account_lbl_valid_until">Valid until</string>
+    <string name="account_lbl_expired">Expired</string>
+    <string name="account_lbl_inactive">Inactive</string>
+    <string name="account_lbl_grace">Grace period — the token is inside its refresh window</string>
+    <string name="account_lbl_scope">Scope</string>
+    <string name="account_lbl_grant">Grant</string>
+    <string name="account_lbl_issuer">Issuer</string>
+    <string name="account_lbl_no_refresh_token">This provider issued no refresh token, so this session cannot be renewed silently.</string>
+
+    <!-- Sign-in method -->
+    <string name="account_cat_method">Sign-in method</string>
+    <string name="account_cat_method_desc">One is in force at a time, and the chat header says which.</string>
+    <string name="account_mode_subscription">Subscription account</string>
+    <string name="account_mode_subscription_desc">Masamune signs in to your provider account over OAuth and sends that account\'s access token. No API key is involved and none is required.</string>
+    <string name="account_mode_api_key">API key</string>
+    <string name="account_mode_api_key_desc">A pasted key enables chat without an account. It is the fallback path, not the requirement, and it is billed per token by the provider separately from any subscription. Set it at About → AI provider.</string>
+
+    <!-- Provider rows -->
+    <string name="account_cat_providers">Accounts</string>
+    <string name="account_cat_providers_desc">One row per provider. A row is enabled only when its sign-in can actually be completed from this device; a row that cannot says why instead of offering a button that opens nothing.</string>
+    <string name="account_action_sign_in">Sign in</string>
+    <string name="account_action_sign_out">Sign out</string>
+    <string name="account_action_refresh">Refresh now</string>
+    <string name="account_action_run_test">Run test</string>
+    <string name="account_action_use_this">Use this account for chat</string>
+    <string name="account_in_use">In use for chat</string>
+
+    <!-- OAuth client registration -->
+    <string name="account_cat_client">Credentials</string>
+    <string name="account_cat_client_desc">Credentials for reaching the provider\'s authorization server. The client ID is not a secret and is not a key to the model API — it only names the app asking for consent.</string>
+    <string name="account_field_client_id">Client ID</string>
+    <string name="account_field_client_secret">Client secret (only if the provider issued one)</string>
+    <string name="account_field_issuer">Issuer URL</string>
+    <string name="account_action_save_client">Save</string>
+    <string name="account_action_forget_client">Forget</string>
+    <string name="account_action_discover">Discover endpoints</string>
+    <string name="account_client_saved">Saved.</string>
+    <string name="account_client_forgotten">Client registration removed.</string>
+
+    <!-- Device flow dialog -->
+    <string name="account_device_title">Approve this device</string>
+    <string name="account_device_hint">This usually completes in a few seconds. Keep your internet connection active.</string>
+    <!--
+      Dynamic client registration (RFC 7591). These three strings exist because the screen used to
+      lead with a Client ID box: signing in read as a configuration task, which is exactly the
+      failure the project rule names. Where an issuer will issue a client on request, the app asks
+      for one itself and the user sees only a button.
+    -->
+    <string name="account_shipped_client">Masamune signs in with its own OAuth client, the way a desktop app does. There is nothing to enter.</string>
+    <string name="account_action_open_console">Create a client ID with this provider</string>
+
+    <string name="account_step_registering">Registering Masamune with the provider…</string>
+    <string name="account_self_register_ready">This provider issues OAuth clients on request, so there is nothing to enter — signing in registers Masamune automatically.</string>
+    <string name="account_self_register_done">Masamune registered its own OAuth client with this provider. Forgetting it makes the next sign-in register a new one.</string>
+
+    <string name="account_device_step_requesting">Requesting a device code…</string>
+    <string name="account_device_step_waiting">Waiting for you to approve in the browser…</string>
+    <string name="account_device_step_exchanging">Exchanging the code for tokens…</string>
+    <string name="account_device_step_identity">Resolving who signed in…</string>
+    <string name="account_device_code_label">Enter this code on the approval page</string>
+    <string name="account_device_open">Open the approval page</string>
+    <string name="account_redirect_step_browser">Opening the provider\'s sign-in page…</string>
+
+    <!-- Sign out -->
+    <string name="account_signout_title">Remove this account connection?</string>
+    <string name="account_signout_message">The session is deleted from this device, and revoked at the provider when it publishes a revocation endpoint. Chat in subscription mode stops working until you sign in again.</string>
+    <string name="account_cancel">Cancel</string>
+
+    <!-- Outcomes -->
+    <string name="account_error_authenticate">Failed to authenticate</string>
+    <string name="account_error_token_lost">Token lost, please sign-in again</string>
+    <string name="account_result_ok">OK</string>
+
+    <!-- Storage disclosure -->
+    <string name="account_cat_storage">Where the tokens are stored</string>
+    <string name="account_storage_body">Sealed with an AES-256-GCM key generated inside the Android Keystore, so the key material never enters this process and is hardware-backed on any device with a TEE. Only the sealed blob reaches SharedPreferences, and allowBackup is off. What this does NOT do: the key is not bound to a screen unlock, because automatic refresh has to run without one — a root shell on the device can still ask the Keystore to unseal.</string>
+
+    <!-- Status word reused by the per-provider rows -->
+    <string name="account_chat_mode_subscription">Signed in</string>
+
+</resources>

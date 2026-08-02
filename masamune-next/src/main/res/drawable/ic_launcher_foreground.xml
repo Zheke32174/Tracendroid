@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Stylised blade: a single diagonal stroke with a guard bar. -->
+    <path
+        android:fillColor="#2FD3C3"
+        android:pathData="M31,77 L69,31 L74,36 L36,82 Z" />
+    <path
+        android:fillColor="#6FB98A"
+        android:pathData="M28,74 L34,80 L26,84 Z" />
+    <path
+        android:fillColor="#E7F0EA"
+        android:pathData="M66,28 L72,34 L78,28 L72,22 Z" />
+</vector>

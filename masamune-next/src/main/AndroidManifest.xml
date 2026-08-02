@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Permission surface is re-derived from what actually ships:
+        INTERNET             - the BYOK chat provider calls.
+        READ_EXTERNAL_STORAGE- legacy shared-storage read, capped at API 32. Above that the
+                               explorer uses SAF trees, which need no permission at all.
+        com.termux.permission.RUN_COMMAND
+                             - the documented Termux RunCommandService contract.
+
+      Deliberately NOT declared: MANAGE_EXTERNAL_STORAGE, QUERY_ALL_PACKAGES,
+      REQUEST_INSTALL_PACKAGES, SYSTEM_ALERT_WINDOW, WRITE_SETTINGS, SMS/phone/location,
+      CAMERA, RECORD_AUDIO, PACKAGE_USAGE_STATS, accessibility binding.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
+
+    <!--
+      Package visibility for exactly one target: Termux, which the Shell surface drives over
+      its public com.termux.RUN_COMMAND contract. This app bundles no installer for it and
+      renders an honest empty state when it is absent.
+    -->
+    <queries>
+        <package android:name="com.termux" />
+    </queries>
+
+    <application
+        android:name=".MasamuneApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Masamune">
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.Masamune"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          OAuth redirect target for the authorization-code + PKCE sign-in.
+
+          Exported because a browser has to be able to reach it — that is the entire point of a
+          redirect URI. It has no UI and no logic beyond handing the callback query to
+          PendingAuthorization, which drops any callback whose `state` it did not itself issue.
+          A custom scheme is claimable by any app on the device, so that state check plus PKCE
+          is what makes an intercepted authorization code useless to the interceptor.
+
+          The device-code flow (RFC 8628 — the preferred path, and the only one Google's
+          endpoint needs) uses no redirect at all and never touches this activity.
+        -->
+        <activity
+            android:name=".ai.auth.OAuthRedirectActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="oauth"
+                    android:path="/callback"
+                    android:scheme="masamune" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          Termux delivers RUN_COMMAND results by firing a PendingIntent that we create and
+          hand it. The PendingIntent targets this service, so it stays un-exported: Termux
+          sends with our identity, no other app can reach it.
+        -->
+        <service
+            android:name=".shell.TermuxResultService"
+            android:exported="false" />
+
+        <!--
+          The AI operator's accessibility service — its eyes and hands (docs/AI-OPERATOR.md).
+
+          Bound by the system, never by another app: the BIND_ACCESSIBILITY_SERVICE permission is
+          held by the system alone, so exporting it (required because it carries an intent-filter)
+          exposes nothing. It runs only while the user has enabled it in Settings → Accessibility
+          AND the operator is driving it; with it disabled the operator surface reports it missing
+          and refuses to act. The config in @xml/masamune_a11y_service declares content retrieval
+          and gesture dispatch and nothing more.
+        -->
+        <service
+            android:name=".operator.a11y.MasamuneA11yService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/masamune_a11y_service" />
+        </service>
+
+    </application>
+
+</manifest>

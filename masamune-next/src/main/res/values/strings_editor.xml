@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Strings for the EDITOR surface (DONOR-SURFACES section 5, Xed — canonical) and the Xed-canonical
+  onboarding slice (section 0: Disclaimer & Consent + Welcome carousel).
+
+  Own file on purpose: the shared strings.xml is edited concurrently and a collision there has
+  broken CI before. Every name here is prefixed `editor_` so it cannot clash with strings.xml or
+  another analyst's file. Nothing in this file is referenced from outside ui/editor/.
+
+  Wording is ported one-for-one from the donor teardown at
+  understory-firewall/docs/donors/teardown/com.rk.xededitor_98/strings.txt rather than invented:
+  the tab model (close_this/close_others/close_all/ask_unsaved/ask_multiple_unsaved/
+  show_tab_icons/smooth_tabs), find/replace (replace/replace_all/ignore_case/regex/whole_word/
+  invalid_regex/sora_editor_next), the gutter (show_line_number/pin_line_number/line_number/
+  jump_to_line), highlighting (highlighting/select_language/lang), undo/redo, the save family
+  (save/save_as/save_all/auto_save/auto_save_delay/format_on_save), the editor toggles
+  (enable_sticky_scroll/render_whitespace/word_wrap/tab_size/use_tabs/default_encoding/
+  show_minimap/show_suggestions), palette/actions/extra-keys (command_palette/actions/add_command/
+  info_toolbar_actions/info_extra_keys), the binary notice (binary_file_notice/detect_bin_files),
+  the LSP strings (language_server/manage_language_servers/lsp_connection_error/go_to_definition/
+  go_to_references/ask_lsp_install/diagnostics), session restore (restore_sessions/
+  restore_sessions_desc/auto_open_new_files), and the disclaimer (disclaimer_heading/
+  data_loss_risk[_content]/terminal_risks/third_party_ext/no_warranty[_content]/not_liable[_content]/
+  consent_statement/decline/i_accept/reset_consent[_desc]).
+
+  Two disclaimer sections (Terminal Risks, Third-Party Extensions) have a donor title but no donor
+  body string in the teardown. Their body text below is this app's own honest statement of the
+  actual risk in THIS build (terminal delegates to an installed Termux over RUN_COMMAND; extensions
+  would run arbitrary code — the latter reuses the donor's real extension_warning_msg), never a
+  fabricated donor claim.
+-->
+<resources>
+
+    <!-- ============================ surface framing ============================ -->
+    <string name="editor_title">Editor</string>
+    <string name="editor_subtitle">A first-class editor surface: tabs, find and replace, a gutter, undo history and a command palette, standing on the same FileSystem backend and capability gate as the explorer.</string>
+    <string name="editor_backend_note">Files are read and written through the FileSystem interface (java.io and SAF), gated as caller \"user\". This build’s editor surface is a plain text field: it backs word wrap, a line-number gutter, whitespace symbols, tab width and undo/redo itself, and honestly reports every capability that would need an engine it does not bundle.</string>
+
+    <!-- ============================ empty / open ============================ -->
+    <string name="editor_no_tabs_title">No file open</string>
+    <string name="editor_no_tabs_body">Open a file to start editing. Files open as tabs; each tab keeps its own undo history and dirty state.</string>
+    <string name="editor_open_file">Open file</string>
+    <string name="editor_open_from">Open from %1$s</string>
+    <string name="editor_new_file">New file</string>
+    <string name="editor_file_name">File name</string>
+    <string name="editor_file_ext_example">File extension (e.g. py)</string>
+    <string name="editor_pick_folder">Choose a folder, then a file</string>
+    <string name="editor_up">Up</string>
+
+    <!-- ============================ tab row ============================ -->
+    <string name="editor_tab_opened">Tab opened</string>
+    <string name="editor_close_this">Close this</string>
+    <string name="editor_close_others">Close others</string>
+    <string name="editor_close_all">Close all</string>
+    <string name="editor_ask_unsaved">Are you sure you want to discard this unsaved document?</string>
+    <string name="editor_ask_multiple_unsaved">Are you sure you want to discard these unsaved documents?</string>
+    <string name="editor_discard">Discard</string>
+    <string name="editor_unsaved_marker">Unsaved changes</string>
+
+    <!-- ============================ save family ============================ -->
+    <string name="editor_save">Save</string>
+    <string name="editor_save_as">Save as</string>
+    <string name="editor_save_all">Save all</string>
+    <string name="editor_saved">Saved %1$s</string>
+    <string name="editor_auto_save">Auto save</string>
+    <string name="editor_auto_save_delay">Auto save delay</string>
+    <string name="editor_format_on_save">Format on save</string>
+    <string name="editor_format_on_save_gate">Format on save needs a formatter or language server, and none is installed in this build — the toggle stays off and no formatting runs.</string>
+
+    <!-- ============================ undo / redo ============================ -->
+    <string name="editor_undo">Undo</string>
+    <string name="editor_redo">Redo</string>
+
+    <!-- ============================ find / replace ============================ -->
+    <string name="editor_search">Search</string>
+    <string name="editor_find">Find</string>
+    <string name="editor_replace">Replace</string>
+    <string name="editor_replace_all">Replace all</string>
+    <string name="editor_ignore_case">Ignore case</string>
+    <string name="editor_regex">Regex</string>
+    <string name="editor_whole_word">Whole word</string>
+    <string name="editor_invalid_regex">Invalid regex pattern</string>
+    <string name="editor_next">Next</string>
+    <string name="editor_previous">Previous</string>
+    <string name="editor_no_matches">No matches</string>
+    <string name="editor_match_count">%1$d of %2$d</string>
+    <string name="editor_replaced_count">Replaced %1$d occurrence(s)</string>
+
+    <!-- ============================ gutter / jump ============================ -->
+    <string name="editor_show_line_number">Show line numbers</string>
+    <string name="editor_pin_line_number">Pin line numbers</string>
+    <string name="editor_line_number">Line number</string>
+    <string name="editor_jump_to_line">Jump to line</string>
+    <string name="editor_line_of">Line %1$d of %2$d</string>
+
+    <!-- ============================ syntax highlighting (GATED on grammar) ======= -->
+    <string name="editor_highlighting">Syntax highlighting</string>
+    <string name="editor_select_language">Select language</string>
+    <string name="editor_lang">Language</string>
+    <string name="editor_lang_plain">Plain text</string>
+    <string name="editor_grammar_absent">Syntax highlighting for %1$s needs its tree-sitter grammar, which is not bundled in this build. The file is shown as plain text.</string>
+    <string name="editor_grammar_absent_short">grammar not bundled — plain text</string>
+
+    <!-- ============================ editor-surface toggles ============================ -->
+    <string name="editor_word_wrap">Word wrap</string>
+    <string name="editor_txt_word_wrap">Wrap TXT files</string>
+    <string name="editor_render_whitespace">Render whitespace</string>
+    <string name="editor_render_whitespace_desc">Render spaces, tabs, and line breaks as visible symbols</string>
+    <string name="editor_render_whitespace_scope">Spaces and tabs are shown as symbols; line breaks are not marked in an editable field.</string>
+    <string name="editor_tab_size">Tab size</string>
+    <string name="editor_use_tabs">Insert tab character</string>
+    <string name="editor_show_minimap">Show minimap</string>
+    <string name="editor_minimap_gate">A minimap needs a code-editor engine that renders a scaled overview, which this build does not bundle. The toggle is disabled.</string>
+    <string name="editor_sticky_scroll">Enable sticky scroll</string>
+    <string name="editor_sticky_scroll_gate">Sticky scroll needs a syntax tree to know the enclosing scope. With no tree-sitter grammar bundled there is nothing to pin, so the toggle is disabled.</string>
+    <string name="editor_show_suggestions">Show keyboard suggestions</string>
+    <string name="editor_suggestions_gate">In-editor completion needs a language server or a symbol index, and neither is present. Keyboard suggestions here are the system keyboard’s own, nothing more.</string>
+    <string name="editor_default_encoding">Default encoding</string>
+    <string name="editor_encoding_gate">The FileSystem backend reads and writes UTF-8. Alternate encodings need a backend decoder that is not built, so UTF-8 is the only choice.</string>
+    <string name="editor_editorconfig">EditorConfig</string>
+    <string name="editor_editorconfig_gate">.editorconfig files are not parsed in this build, so indentation is governed by the tab-size and insert-tab settings above rather than by a project config.</string>
+
+    <!-- ============================ binary read-only ============================ -->
+    <string name="editor_detect_bin_files">Detect binary files</string>
+    <string name="editor_detect_bin_files_desc">Open binary files in read-only mode by default</string>
+    <string name="editor_binary_file_notice">This file appears to be binary. Editing is disabled</string>
+
+    <!-- ============================ command palette / actions / extra keys ====== -->
+    <string name="editor_command_palette">Command palette</string>
+    <string name="editor_actions">Actions</string>
+    <string name="editor_add_command">Add command</string>
+    <string name="editor_info_toolbar_actions">Toolbar actions define which commands are shown in the toolbar when a file is open. You can long-press and drag to change their order, or tap the button to add a new command.</string>
+    <string name="editor_info_extra_keys">Extra keys are commands and symbols shown in a panel above the keyboard. You can long-press and drag to change the order of commands, or tap the button to add a new command. You can also customize the symbols using the final option.</string>
+    <string name="editor_extra_keys">Extra keys</string>
+    <string name="editor_actions_reorder_gate">The toolbar-action and extra-keys sets below are the built-in defaults. Long-press reordering and adding custom commands are not implemented in this build; the sets are fixed.</string>
+
+    <!-- ============================ runners ============================ -->
+    <string name="editor_run">Run</string>
+    <string name="editor_html_preview">HTML preview</string>
+    <string name="editor_markdown_preview">Markdown preview</string>
+    <string name="editor_run_gate">Runners hand a file to the shell backend or a WebView preview. The shell path needs an installed Termux (absent — see the Shell surface) and no preview WebView is wired, so no runner is available.</string>
+
+    <!-- ============================ LSP (GATED, blocked empty state) ============ -->
+    <string name="editor_language_server">Language server</string>
+    <string name="editor_manage_language_servers">Manage language servers</string>
+    <string name="editor_lsp_connection_error">Unable to connect to language server</string>
+    <string name="editor_lsp_blocked">No language server is installed or reachable, so hover, completion, diagnostics and go-to-definition have nothing to talk to. A language server is a separate program this build cannot bundle; connect one over the Endpoint book when that surface lands.</string>
+    <string name="editor_go_to_definition">Go to definition</string>
+    <string name="editor_go_to_references">Go to references</string>
+    <string name="editor_lsp_diagnostics">Diagnostics</string>
+    <string name="editor_document_highlight">Highlight occurrences</string>
+    <string name="editor_ask_lsp_install">Would you like to install ‘%1$s’ language server?</string>
+
+    <!-- ============================ session restore ============================ -->
+    <string name="editor_restore_sessions">Restore sessions</string>
+    <string name="editor_restore_sessions_desc">Restore previous tabs</string>
+    <string name="editor_auto_open_new_files">Open created files</string>
+    <string name="editor_auto_open_new_files_desc">Open a file in a new tab right after the editor creates it</string>
+
+    <!-- ============================ settings section headers ============================ -->
+    <string name="editor_settings">Editor settings</string>
+    <string name="editor_section_editor">Editor</string>
+    <string name="editor_section_content">Content</string>
+    <string name="editor_section_tabs">Tabs</string>
+    <string name="editor_section_other">Other</string>
+    <string name="editor_smooth_tabs">Smooth tabs</string>
+    <string name="editor_show_tab_icons">Show tab icons</string>
+
+    <!-- ============================ generic actions ============================ -->
+    <string name="editor_ok">OK</string>
+    <string name="editor_cancel">Cancel</string>
+    <string name="editor_close">Close</string>
+    <string name="editor_rename">Rename</string>
+    <string name="editor_dismiss">Dismiss</string>
+
+    <!-- ============================ onboarding: disclaimer & consent ============ -->
+    <string name="editor_disclaimer_heading">Terms of Use &amp; Disclaimer</string>
+    <string name="editor_disclaimer_read_carefully">Please read carefully before using this application.</string>
+    <string name="editor_data_loss_risk">Data Loss Risk</string>
+    <string name="editor_data_loss_risk_content">This application is provided for use with the understanding that data loss may occur due to unforeseen circumstances, including but not limited to: software instability, system failures, unexpected termination, or storage hardware issues. Users are solely responsible for maintaining independent, regular backups of all critical data.</string>
+    <string name="editor_terminal_risks">Terminal Risks</string>
+    <string name="editor_terminal_risks_content">The terminal surface hands command lines to a separately installed Termux over its RUN_COMMAND contract and runs them with your permissions. Commands can modify or delete files and reach the network. Only run commands you understand.</string>
+    <string name="editor_third_party_ext">Third-Party Extensions</string>
+    <string name="editor_third_party_ext_content">Extensions can execute arbitrary code and potentially be malicious. Only install extensions if you trust the developer of the extension and has verified the source code of the extension.</string>
+    <string name="editor_no_warranty">No Warranty</string>
+    <string name="editor_no_warranty_content">This software is distributed under the GNU General Public License v3.0 and is provided AS IS, WITHOUT WARRANTY OF ANY KIND, either express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement.</string>
+    <string name="editor_not_liable">Limitation of Liability</string>
+    <string name="editor_not_liable_content">In no event shall the developers or copyright holders be liable for any claims, damages, or losses arising from the use of this software. This includes, without limitation: loss of data, system malfunctions, loss of revenue, or any incidental or consequential damages, even if advised of the possibility of such damage.</string>
+    <string name="editor_consent_statement">By clicking I Accept, you acknowledge that you have read, understood, and agree to these terms.</string>
+    <string name="editor_decline">Decline</string>
+    <string name="editor_i_accept">I Accept</string>
+    <string name="editor_consent_recorded">Consent recorded on this device.</string>
+    <string name="editor_consent_declined">Consent declined. The disclaimer will show again next time it is opened.</string>
+    <string name="editor_reset_consent">Reset consent status</string>
+    <string name="editor_reset_consent_desc">Show the terms of use disclaimer on next startup</string>
+    <string name="editor_consent_status_accepted">Accepted</string>
+    <string name="editor_consent_status_not_accepted">Not accepted</string>
+
+    <!-- ============================ onboarding: welcome carousel ============ -->
+    <string name="editor_welcome_title">Welcome</string>
+    <string name="editor_welcome_next">Next</string>
+    <string name="editor_welcome_back">Back</string>
+    <string name="editor_welcome_done">Get started</string>
+    <string name="editor_welcome_1_title">A real workspace</string>
+    <string name="editor_welcome_1_body">Masamune is an on-device AI harness that is also a terminal, an editor and a file explorer — a place to actually work, not just chat.</string>
+    <string name="editor_welcome_2_title">Editor</string>
+    <string name="editor_welcome_2_body">Open files as tabs, find and replace, jump to a line, undo and redo. Every save goes through the same capability gate as the rest of the app.</string>
+    <string name="editor_welcome_3_title">Honest about limits</string>
+    <string name="editor_welcome_3_body">Where a capability needs something this build cannot bundle — a language server, a tree-sitter grammar, a real terminal — the app says so plainly instead of pretending.</string>
+
+</resources>
