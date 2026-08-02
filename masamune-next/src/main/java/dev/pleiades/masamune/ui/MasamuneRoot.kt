@@ -31,6 +31,7 @@ import dev.pleiades.masamune.ui.about.NavigationMapScreen
 import dev.pleiades.masamune.ui.about.RyznixRoadmapScreen
 import dev.pleiades.masamune.flow.ui.FlowPlaneScreen
 import dev.pleiades.masamune.operator.ui.OperatorScreen
+import dev.pleiades.masamune.rom.ui.RomScreen
 import dev.pleiades.masamune.ui.chat.ChatScreen
 import dev.pleiades.masamune.ui.editor.EditorScreen
 import dev.pleiades.masamune.ui.editor.onboarding.DisclaimerScreen
@@ -171,6 +172,7 @@ private fun NavGraphBuilder.registerRoutes(navigate: (String) -> Unit, back: () 
                 RouteCatalog.SETTINGS_DECLINES -> DeclineLogScreen()
                 RouteCatalog.RYZNIX -> RyznixRoadmapScreen()
                 RouteCatalog.NAV_MAP -> NavigationMapScreen()
+                RouteCatalog.ROM -> RomScreen()
                 else -> UnroutedScreen(entry.route)
             }
         }

@@ -56,6 +56,7 @@ object RouteCatalog {
     const val SETTINGS_DECLINES = "settings/declines"
     const val RYZNIX = "about/ryznix"
     const val NAV_MAP = "about/navmap"
+    const val ROM = "about/rom"
 
     /** Start destination. The file explorer is the primary surface. */
     const val START = FILES
@@ -101,6 +102,10 @@ object RouteCatalog {
         MasamuneRoute(
             NAV_MAP, "Navigation map", null, Surface.DETAIL, 14,
             "bottom nav → About → Navigation map",
+        ),
+        MasamuneRoute(
+            ROM, "Launch a ROM", null, Surface.DETAIL, 15,
+            "bottom nav → About → Launch a ROM",
         ),
     )
 

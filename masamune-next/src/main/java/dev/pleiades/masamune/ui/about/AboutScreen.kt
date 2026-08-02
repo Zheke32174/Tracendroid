@@ -64,6 +64,7 @@ fun AboutScreen(onNavigate: (String) -> Unit) {
 
         SectionCard(title = "Roadmap") {
             NavRow("ryznix / second OS", "Design only — not a feature") { onNavigate(RouteCatalog.RYZNIX) }
+            NavRow("Launch a ROM", "Boot a second kernel — gated on a privilege this build lacks") { onNavigate(RouteCatalog.ROM) }
         }
 
         Notice(
