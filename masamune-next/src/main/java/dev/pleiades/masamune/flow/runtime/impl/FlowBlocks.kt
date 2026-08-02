@@ -190,3 +190,24 @@ internal class FiberStopBlock : BlockImpl {
         return if (uri.isNullOrBlank()) Outcome.Proceed(Port.OK) else Outcome.StopFiber(uri)
     }
 }
+
+/**
+ * `Log append` — append a message to the flow's [FlowLog].
+ *
+ * A missing message is a visible failure rather than an empty line, so a mis-bound input shows
+ * itself. The `whenLogging` flag (default "always log") suppresses the line unless logging is on:
+ * when set and [FlowLog.loggingEnabled] is false the block proceeds without writing, which is the
+ * documented "only when logging" behaviour, not a silent drop. Reads the flag through [asFlag] so a
+ * cleared checkbox arriving as `Value.Text("false")` is honoured.
+ */
+internal class LogAppendBlock(private val log: FlowLog) : BlockImpl {
+    override val specId = "log_append"
+    override suspend fun run(fiber: Fiber, node: FlowNode, args: Map<String, Value>): Outcome {
+        val message = args["message"].asTextOrNull()
+            ?: return Outcome.Fail("Log append needs a message.")
+        val onlyWhenLogging = args["whenLogging"].asFlag(default = false)
+        if (onlyWhenLogging && !log.loggingEnabled) return Outcome.Proceed(Port.OK)
+        log.append(message)
+        return Outcome.Proceed(Port.OK)
+    }
+}

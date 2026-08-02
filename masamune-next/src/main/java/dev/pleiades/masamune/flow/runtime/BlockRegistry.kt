@@ -11,7 +11,10 @@ import dev.pleiades.masamune.flow.runtime.impl.AtomicClearAllBlock
 import dev.pleiades.masamune.flow.runtime.impl.AtomicLoadBlock
 import dev.pleiades.masamune.flow.runtime.impl.AtomicStore
 import dev.pleiades.masamune.flow.runtime.impl.AtomicStoreBlock
+import dev.pleiades.masamune.flow.runtime.impl.FlowLog
 import dev.pleiades.masamune.flow.runtime.impl.HandoffStore
+import dev.pleiades.masamune.flow.runtime.impl.InMemoryFlowLog
+import dev.pleiades.masamune.flow.runtime.impl.LogAppendBlock
 import dev.pleiades.masamune.flow.runtime.impl.VariablesGiveBlock
 import dev.pleiades.masamune.flow.runtime.impl.VariablesTakeBlock
 import dev.pleiades.masamune.flow.runtime.impl.DelayBlock
@@ -56,8 +59,8 @@ import kotlinx.coroutines.CoroutineScope
  *
  * ### Honest gate by omission
  * Only genuinely runnable blocks are registered. Everything else — a block whose payload or
- * permission is absent, or one (`Flow start`, the pickers, `Log append`) that needs a subsystem
- * this build does not have — is deliberately **not** put in the map. The
+ * permission is absent, or one (`Flow start`, the pickers) that needs a subsystem this build does
+ * not have — is deliberately **not** put in the map. The
  * scheduler treats a spec with no impl as gated and reports the reason. That silence is the honest
  * signal; a registered no-op would be the exact silent failure the whole plane is built to remove.
  */
@@ -70,6 +73,9 @@ class BlockRegistry(
 
     /** This flow's inter-fiber hand-off mailboxes — shared among the flow's fibers and no wider. */
     private val handoffs = HandoffStore()
+
+    /** This flow's message log — the sink `Log append` writes to. In-memory by default. */
+    private val flowLog: FlowLog = InMemoryFlowLog()
 
     private val byId: Map<String, BlockImpl> = buildMap {
         fun register(impl: BlockImpl) {
@@ -86,6 +92,7 @@ class BlockRegistry(
         register(FailureCatchBlock())
         register(FlowStopBlock())
         register(FiberStopBlock())
+        register(LogAppendBlock(flowLog))
 
         // General — conditional, mutations, loop.
         register(ExpressionTrueBlock())
