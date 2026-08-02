@@ -171,10 +171,15 @@ exact failure this campaign exists to remove, and a flow plane is a uniquely bad
 place for it: a dead block does not fail visibly, it silently makes the rest of
 the graph wrong.
 
-Blocks needing an AccessibilityService (`Interact`, `Inspect layout`,
-`Inspect text edit`, `Key send`, the `Interface *` family) gate on that service
-being enabled. Blocks needing uid 2000 gate on the Yojimbo server being up.
-Neither is assumed.
+The blocks that reach into **another app's** screen — `Interact`, `Interact
+touch`, `Inspect layout`, `Inspect text edit`, `Key send`, `Key send
+characters` — gate on the AccessibilityService being enabled. The `Interface *`
+family (`Interface request`, `Interface clicked`, `Interface layout update`,
+`Interface adapter update`, `Interface item request`) does **not**: verified
+against the donor's own block pages, those drive Automate's *own* in-flow custom
+UI and need no grant. An earlier draft here lumped the two together and was
+wrong; the shipped catalog follows the donor pages, and this now matches it.
+Blocks needing uid 2000 gate on the Yojimbo server being up. Neither is assumed.
 
 ---
 

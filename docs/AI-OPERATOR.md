@@ -88,7 +88,9 @@ suite and they are non-negotiable:
 - **AccessibilityService gate.** Every operator block carries
   `Requirement.Accessibility`. Service off ⇒ the operator surface is disabled
   with the sentence naming what is missing, exactly as the palette gates the
-  `Interface` blocks. No operator action is even placeable without it.
+  cross-app interaction blocks (`Interact`, `Inspect layout`, `Key send` — not
+  the `Interface *` own-UI family, which needs no grant). No operator action is
+  even placeable without it.
 - **Capability gate.** Actions route through the existing
   `core/capability/CapabilityGate` with `Caller.AiAgent` as the caller. The gate
   already distinguishes an AI caller from a user tap and persists per-(caller ×
