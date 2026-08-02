@@ -20,6 +20,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.pleiades.masamune.apps.AndroidAudioController
+import dev.pleiades.masamune.apps.AndroidConnectivityReader
+import dev.pleiades.masamune.apps.AndroidContentReader
+import dev.pleiades.masamune.apps.AndroidDeviceOutput
+import dev.pleiades.masamune.apps.AndroidDeviceUi
+import dev.pleiades.masamune.apps.AndroidLocationReader
+import dev.pleiades.masamune.apps.AndroidPowerState
+import dev.pleiades.masamune.apps.AndroidSensorReader
+import dev.pleiades.masamune.apps.AndroidSystemSettings
+import dev.pleiades.masamune.apps.AndroidTelephonyReader
+import dev.pleiades.masamune.apps.PackageManagerAppInspector
 import dev.pleiades.masamune.flow.catalog.BlockCatalog
 import dev.pleiades.masamune.ui.components.EmptyState
 import dev.pleiades.masamune.ui.components.Notice
@@ -36,7 +47,26 @@ import dev.pleiades.masamune.ui.masamuneViewModel
  */
 @Composable
 fun FlowPlaneScreen() {
-    val vm = masamuneViewModel { FlowPlaneViewModel() }
+    // Wire the real Android capability impls behind the flow plane's injected seams. Each block still
+    // gates honestly at run: an absent permission makes its seam call return null / a not-granted
+    // write result and the block fails by name — but the seam now RESOLVES on device instead of
+    // being null everywhere, which is what turns the device categories from "reported absent" into
+    // "works when the grant is held".
+    val vm = masamuneViewModel { ctx ->
+        FlowPlaneViewModel(
+            appInspector = { PackageManagerAppInspector(ctx) },
+            systemSettings = { AndroidSystemSettings(ctx) },
+            powerState = { AndroidPowerState(ctx) },
+            sensorReader = { AndroidSensorReader(ctx) },
+            locationReader = { AndroidLocationReader(ctx) },
+            connectivityReader = { AndroidConnectivityReader(ctx) },
+            telephonyReader = { AndroidTelephonyReader(ctx) },
+            audioController = { AndroidAudioController(ctx) },
+            contentReader = { AndroidContentReader(ctx) },
+            deviceUi = { AndroidDeviceUi(ctx) },
+            deviceOutput = { AndroidDeviceOutput(ctx) },
+        )
+    }
     val graph by vm.graph.collectAsState()
     val selectedId by vm.selectedNodeId.collectAsState()
 
