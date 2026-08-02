@@ -8,8 +8,8 @@ import dev.pleiades.masamune.flow.model.ProceedMode
  * Calls, SIM subscriptions, cell towers and the mobile network.
  *
  * `Call incoming` and `Call outgoing` carry a bespoke option rather than a [ProceedMode] list:
- * Automate spends their Proceed option on *which stage of the call* to resume at - ringing,
- * answered, missed, hung up - which is an enumeration of events, not of tense, so it is
+ * Automate spends their Proceed option on *which stage of the call* to resume at — ringing,
+ * answered, missed, hung up — which is an enumeration of events, not of tense, so it is
  * modelled as what it is.
  *
  * Blocks are listed in Automate's own palette order, which is the order this catalog and the

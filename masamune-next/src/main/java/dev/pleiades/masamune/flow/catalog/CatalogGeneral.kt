@@ -8,7 +8,7 @@ import dev.pleiades.masamune.flow.model.BlockSpec
  *
  * `Expression true` is the escape hatch that keeps the other 417 blocks from needing one: any
  * condition the palette does not name can be written in the expression language and branched
- * on here. `For each` is the second of the shape-mapped specials - its `DO` dot becomes YES
+ * on here. `For each` is the second of the shape-mapped specials — its `DO` dot becomes YES
  * and its `OK` dot NO, which happens to read exactly as the loop's own question.
  *
  * Blocks are listed in Automate's own palette order, which is the order this catalog and the

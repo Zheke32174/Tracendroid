@@ -117,35 +117,155 @@ class Scheduler(
             ?: return terminate(id, fiber.errored("unknown block '${node.specId}'"))
 
         val args = resolver.resolve(spec, node, fiber).getOrElse {
-            return terminate(id, fiber.errored(it.message ?: "argument evaluation failed"))
+            // A bad argument is a failure like any other: give an installed `Failure catch` its
+            // chance before the fiber dies, so a transient expression error can be retried too.
+            return failFiber(id, fiber, node.id, it.message ?: "argument evaluation failed", "argument")
         }
         val impl = impls(node.specId)
             ?: return terminate(id, fiber.errored(gateReason(spec)))
 
         val outcome = runCatching { impl.run(fiber.copy(status = FiberStatus.RUNNING), node, args) }
-            .getOrElse { return terminate(id, fiber.errored(it.message ?: "block threw")) }
+            .getOrElse { return failFiber(id, fiber, node.id, it.message ?: "block threw", "exception") }
 
         apply(id, fiber, node.id, outcome)
     }
 
-    /** Apply a block's [Outcome]: bind writes, then route / park / stop / fail. */
+    /** Apply a block's [Outcome]: bind writes, then route / park / stop / fail / jump / fork. */
     private suspend fun apply(id: String, fiber: Fiber, nodeId: String, outcome: Outcome) {
         val written = outcome.writes.entries.fold(fiber) { f, (k, v) -> f.withVariable(k, v) }
         when (outcome) {
-            is Outcome.Proceed -> {
-                val nextNode = graph.next(nodeId, outcome.port)
-                if (nextNode == null) {
-                    terminate(id, written.stopped())       // unconnected port ⇒ normal stop
-                } else {
-                    val moved = written.moveTo(nextNode, outcome.port)
-                    persist(id, moved)
-                    ready.trySend(id)
-                }
-            }
+            is Outcome.Proceed -> advance(id, written, nodeId, outcome.port)
             is Outcome.Await -> park(id, written, outcome)
             is Outcome.Stop -> terminate(id, written.stopped())
-            is Outcome.Fail -> terminate(id, written.errored(outcome.message))
+            is Outcome.Fail -> failFiber(id, written, nodeId, outcome.message, "failure")
+
+            // Direct transfer to a node the graph does not connect us to (Go to / Subroutine).
+            is Outcome.Jump -> {
+                persist(id, written.copy(currentNode = outcome.target, enteredBy = null, status = FiberStatus.READY, awaitReason = null))
+                ready.trySend(id)
+            }
+
+            is Outcome.Fork -> {
+                // The child begins at the NEW/YES dot with a deep copy of the (already-written)
+                // parent frame. No child if that dot is unwired — the parent just continues.
+                graph.next(nodeId, Port.YES)?.let { childAt ->
+                    spawnChild(outcome.childId, childAt, written.variables)
+                }
+                advance(id, written, nodeId, Port.NO)      // parent walks OK/NO
+            }
+
+            is Outcome.StopFlow -> {
+                persist(id, written)                       // keep this block's writes before the sweep
+                stopAllFibers()
+            }
+
+            is Outcome.StopFiber -> {
+                stopNamedFiber(outcome.fiberId)
+                advance(id, written, nodeId, Port.OK)      // the stopper itself continues
+            }
         }
+    }
+
+    /**
+     * Route a fiber out of [nodeId] by [port] — the one place normal routing and subroutine
+     * return meet.
+     *
+     * A connected port moves the fiber. An **unconnected** port is where the two readings diverge:
+     * a top-level fiber (empty call stack) stops normally, exactly as before; a fiber inside a
+     * subroutine (a return address waiting on the stack) *returns* — it pops and resumes at the
+     * caller. This is the whole of the call/return mechanism: entering a `Subroutine` pushes the
+     * caller's continuation, and the body reaching its own unconnected end is what pops it. An
+     * explicit [Outcome.Stop] (`Flow stop` / `Fiber stop`) is unaffected and still ends the fiber.
+     */
+    private suspend fun advance(id: String, fiber: Fiber, nodeId: String, port: Port) {
+        val nextNode = graph.next(nodeId, port)
+        if (nextNode != null) {
+            persist(id, fiber.moveTo(nextNode, port))
+            ready.trySend(id)
+            return
+        }
+        val stack = fiber.callStack()
+        if (stack.isEmpty()) {
+            terminate(id, fiber.stopped())                 // top level ⇒ normal stop
+            return
+        }
+        val returnTo = stack.last()
+        val popped = fiber.withCallStack(stack.dropLast(1))
+        if (returnTo == RETURN_STOP) {
+            terminate(id, popped.stopped())                // caller had nowhere to go
+        } else {
+            persist(id, popped.copy(currentNode = returnTo, enteredBy = null, status = FiberStatus.READY, awaitReason = null))
+            ready.trySend(id)
+        }
+    }
+
+    /**
+     * A block failed. Give the innermost [Outcome]-facing `Failure catch` its turn before the
+     * fiber dies: bump that frame's retry count, and if it is within the limit, route the fiber
+     * back to the catch block carrying the failure detail — the catch block then leaves by its
+     * NO/retry dot. Past the limit the frame is spent, popped, and the failure propagates as a
+     * real error. With no catch frame at all this is exactly the old behaviour: the fiber errors.
+     */
+    private suspend fun failFiber(id: String, fiber: Fiber, nodeId: String, message: String, type: String) {
+        val frames = fiber.catchFrames()
+        if (frames.isEmpty()) {
+            terminate(id, fiber.errored(message))
+            return
+        }
+        val top = frames.last()
+        val nextCount = top.count + 1
+        if (nextCount > top.limit) {
+            // Handler exhausted: drop it and let the failure stand.
+            terminate(id, fiber.withCatchFrames(frames.dropLast(1)).errored(message))
+            return
+        }
+        val bumped = frames.dropLast(1) + top.copy(count = nextCount)
+        val pending = encodePendingFailure(top.node, nextCount, type, message, nodeId)
+        val routed = fiber.withCatchFrames(bumped).withVariable(CATCH_PENDING, pending)
+        persist(id, routed.copy(currentNode = top.node, enteredBy = null, status = FiberStatus.READY, awaitReason = null))
+        ready.trySend(id)
+    }
+
+    /** Create and schedule a fork child. Same-flow, deep-copied frame — [Value] immutability makes the copy structural while the fresh map keeps the two fibers' writes apart. */
+    private suspend fun spawnChild(childId: String, at: String, frame: Map<String, Value>) = mutex.withLock {
+        val child = Fiber(
+            id = childId,
+            flowId = graph.id,
+            currentNode = at,
+            variables = frame.toMap(),
+            status = FiberStatus.READY,
+        )
+        fibers[childId] = child
+        store.save(child)
+        ready.trySend(childId)
+    }
+
+    /** Stop every non-terminal fiber of this flow (`Flow stop`). Each ends as a normal stop; parked wakers are torn down. */
+    private suspend fun stopAllFibers() {
+        mutex.withLock {
+            for (fid in fibers.keys.toList()) {
+                val f = fibers[fid] ?: continue
+                if (f.status.isTerminal) continue
+                wakers.remove(fid)?.cancel()
+                val stopped = f.stopped()
+                fibers[fid] = stopped
+                store.save(stopped)
+            }
+        }
+        ready.trySend("")   // nudge the loop to re-check all-terminal
+    }
+
+    /** Stop one fiber by id if it is present and still running (`Fiber stop`). Unknown or already-terminal ids are a no-op. */
+    private suspend fun stopNamedFiber(fiberId: String) {
+        mutex.withLock {
+            val f = fibers[fiberId] ?: return@withLock
+            if (f.status.isTerminal) return@withLock
+            wakers.remove(fiberId)?.cancel()
+            val stopped = f.stopped()
+            fibers[fiberId] = stopped
+            store.save(stopped)
+        }
+        ready.trySend(fiberId)
     }
 
     private suspend fun park(id: String, fiber: Fiber, await: Outcome.Await) {

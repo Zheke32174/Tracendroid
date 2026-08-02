@@ -4,7 +4,7 @@ import dev.pleiades.masamune.flow.model.BlockCategory
 import dev.pleiades.masamune.flow.model.BlockSpec
 
 /**
- * Charge state, doze, CPU speed and the blunt instruments - reboot, restart, shutdown.
+ * Charge state, doze, CPU speed and the blunt instruments — reboot, restart, shutdown.
  *
  * The read side is unprivileged and the write side almost entirely is not: Android exposes
  * battery and interactivity to any app but hands nobody a public API to reboot itself, so the

@@ -6,9 +6,9 @@ import dev.pleiades.masamune.flow.model.BlockSpec
 /**
  * The largest category, and the one where honest gating does the most work.
  *
- * Three separate grants live here and they are not interchangeable. The interaction family -
- * `Interact`, `Inspect *`, `Key *` - needs an AccessibilityService. The notification family -
- * posted, interact, cancel, snooze - needs notification access, a different toggle in a
+ * Three separate grants live here and they are not interchangeable. The interaction family —
+ * `Interact`, `Inspect *`, `Key *` — needs an AccessibilityService. The notification family —
+ * posted, interact, cancel, snooze — needs notification access, a different toggle in a
  * different settings screen. Locking the device needs device-admin, a third. A palette that
  * collapsed these into one "needs permission" state would send the user to the wrong screen.
  *

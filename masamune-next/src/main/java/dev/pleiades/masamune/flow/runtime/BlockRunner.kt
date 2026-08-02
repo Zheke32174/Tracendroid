@@ -73,6 +73,55 @@ sealed interface Outcome {
      */
     data class Fail(val message: String, override val writes: Map<String, Value> = emptyMap()) :
         Outcome
+
+    /**
+     * Move this fiber directly to [target], not by following a port edge. `Go to` (jump to a
+     * matched `Label`) and `Subroutine` (jump to the callee body) are the two blocks that route
+     * to a node the graph does not connect them to.
+     *
+     * A jump is distinct from a [Proceed] on purpose: [Proceed] hits an unconnected port and that
+     * *terminates* a top-level fiber — so a jump could not be modelled as "proceed to nowhere"
+     * without conflating a deliberate transfer with the end of a fiber. The scheduler applies
+     * [writes] (e.g. the pushed return address) before it moves.
+     */
+    data class Jump(
+        val target: String,
+        override val writes: Map<String, Value> = emptyMap(),
+    ) : Outcome
+
+    /**
+     * Clone this fiber (`Fork`). The scheduler spawns a child with id [childId] at the block's
+     * YES/NEW target, deep-copying the parent's frame **after** [writes] are applied, and then
+     * advances the parent along NO/OK. The impl chooses [childId] so it can bind it to the
+     * block's `varChildFiberURI` output in the same [writes]; the scheduler owns only the spawn.
+     *
+     * If the YES target is unconnected, no child is born — a fork with nowhere for the child to
+     * go is a parent that simply continues, which is the honest reading of an unwired NEW dot.
+     */
+    data class Fork(
+        val childId: String,
+        override val writes: Map<String, Value> = emptyMap(),
+    ) : Outcome
+
+    /**
+     * Stop this flow and every fiber running it (`Flow stop`, current-flow form). The scheduler
+     * terminates all non-terminal fibers — including the one that ran this block — as normal
+     * stops, which is what "stops a flow and all its running fibers" means. Cross-flow stops are
+     * not this: a block asked to stop *another* flow fails honestly, because no multi-flow
+     * registry exists in this build to name one.
+     */
+    data class StopFlow(override val writes: Map<String, Value> = emptyMap()) : Outcome
+
+    /**
+     * Stop another fiber by id (`Fiber stop`), then continue this one along OK. A blank target is
+     * the block's documented default ("no fiber will stop") and is expressed as an ordinary
+     * [Proceed] instead; this outcome carries a real id. Stopping an unknown id is a no-op — the
+     * fiber may already have ended — so the block never fails on a stale reference.
+     */
+    data class StopFiber(
+        val fiberId: String,
+        override val writes: Map<String, Value> = emptyMap(),
+    ) : Outcome
 }
 
 /**

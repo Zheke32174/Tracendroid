@@ -119,18 +119,22 @@ private fun FiberCard(fiber: Fiber, resolveBlockName: (String) -> String?) {
                 )
             }
 
+            // Hide the runtime's private control state (call stack, catch frames, loop cursors),
+            // which is namespaced under a leading `$` a user variable can never carry. The frame
+            // shown is the user's own variables — what a flow author reasons about.
+            val userVars = fiber.variables.filterKeys { !it.startsWith("$") }
             Text(
-                "Variable frame (${fiber.variables.size})",
+                "Variable frame (${userVars.size})",
                 style = MaterialTheme.typography.labelLarge,
             )
-            if (fiber.variables.isEmpty()) {
+            if (userVars.isEmpty()) {
                 Text(
                     "— empty —",
                     style = MaterialTheme.typography.bodySmall,
                     color = MasamuneTheme.semantic.dim,
                 )
             } else {
-                fiber.variables.forEach { (name, value) ->
+                userVars.forEach { (name, value) ->
                     KeyValueRow(
                         key = "$name : ${value.typeName}",
                         value = value.asText().ifEmpty { "(empty)" },

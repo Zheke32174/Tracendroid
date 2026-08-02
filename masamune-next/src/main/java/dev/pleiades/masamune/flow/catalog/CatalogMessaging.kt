@@ -8,7 +8,7 @@ import dev.pleiades.masamune.flow.model.BlockSpec
  *
  * The `Compose *` blocks hand a draft to whichever app the user has and so need no permission;
  * the `send` blocks put a message on the wire themselves and carry the SMS permissions. The
- * two await blocks split the same way - receiving needs [RECEIVE_SMS], watching what this
+ * two await blocks split the same way — receiving needs [RECEIVE_SMS], watching what this
  * device sends needs [READ_SMS].
  *
  * Blocks are listed in Automate's own palette order, which is the order this catalog and the

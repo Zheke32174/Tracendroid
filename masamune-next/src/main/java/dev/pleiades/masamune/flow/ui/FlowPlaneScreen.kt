@@ -104,28 +104,31 @@ fun FlowPlaneScreen() {
 
 @Composable
 private fun FibersPanel(vm: FlowPlaneViewModel) {
+    val fibers by vm.fibers.collectAsState()
+    val running by vm.running.collectAsState()
+
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Notice(
-                title = "Execution is not wired on this screen",
-                body = "The flow runtime — Scheduler, FiberStore and the BlockImpl seam — lives in " +
-                    "flow/runtime, but no block implementations are registered in this build, so " +
-                    "there is nothing to run and no fiber to show. This monitor renders whatever " +
-                    "fibers a scheduler hands it; when one is attached, running blocks appear here " +
-                    "live and single-steppable.",
-                tone = NoticeTone.BLOCKED,
+                title = "Execution is wired on this screen",
+                body = "A real Scheduler runs the current graph through the BlockRegistry of " +
+                    "payload-free blocks, over the actual expression evaluator and an in-memory " +
+                    "FiberStore. Running fibers appear below with their live current block and " +
+                    "variable frame. A block this build cannot run reports its gate rather than " +
+                    "faking a result; the shared halt control parks a running flow.",
+                tone = NoticeTone.INFO,
             )
-            // The seam is stubbed honestly: a disabled control that says why, not a fake run.
-            Button(onClick = {}, enabled = vm.executionWired) {
-                Text("Run flow")
+            // Executes the current graph. Guarded against a second concurrent run while one is live.
+            Button(onClick = { vm.runFlow() }, enabled = vm.executionWired && !running) {
+                Text(if (running) "Running…" else "Run flow")
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         FiberMonitor(
-            fibers = vm.fibers,
+            fibers = fibers,
             modifier = Modifier.fillMaxSize(),
             resolveBlockName = { vm.blockNameOf(it) },
         )

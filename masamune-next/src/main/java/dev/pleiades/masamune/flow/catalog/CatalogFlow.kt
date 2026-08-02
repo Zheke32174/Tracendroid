@@ -4,18 +4,18 @@ import dev.pleiades.masamune.flow.model.BlockCategory
 import dev.pleiades.masamune.flow.model.BlockSpec
 
 /**
- * The graph's own control structures - and the eight-block problem in this port.
+ * The graph's own control structures — and the eight-block problem in this port.
  *
  * Automate gives six of its thirteen Flow blocks connector dots that are neither `OK` nor
  * `YES`/`NO`: `FAIL`, `NEW`, `DO`, `N/A`. Masamune has two shapes and adds no third, so each
  * of those is mapped onto the shape with the matching number of outcomes and the mapping is
  * stated in the block's own summary. `Fork` and `Subroutine` become decisions whose YES is the
  * child fiber's path; `Failure catch` becomes a decision whose NO is the retry path; `Go to`
- * becomes an action because only its `N/A` dot is ever connected - a jump that matches leaves
+ * becomes an action because only its `N/A` dot is ever connected — a jump that matches leaves
  * through the `Label` block, not through a port.
  *
- * Two more of these specials live elsewhere - `For each` in General and `Process text
- * selection` in Interface - for eight in the catalog. The alternative was a third shape, and a
+ * Two more of these specials live elsewhere — `For each` in General and `Process text
+ * selection` in Interface — for eight in the catalog. The alternative was a third shape, and a
  * shape that exists is one every editor, serializer and renderer carries forever.
  *
  * Blocks are listed in Automate's own palette order, which is the order this catalog and the
