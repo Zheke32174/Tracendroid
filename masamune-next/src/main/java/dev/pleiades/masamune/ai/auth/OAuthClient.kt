@@ -228,12 +228,21 @@ class OAuthClient(private val context: Context) {
 
     // ---- authorization code + PKCE ------------------------------------------------------------
 
-    /** Builds the URL the browser is sent to. Pure string work — no network, so no gate. */
+    /**
+     * Builds the URL the browser is sent to. Pure string work — no network, so no gate.
+     *
+     * [redirectUri] defaults to the app's custom scheme but is a parameter because the loopback
+     * flow ([LoopbackRedirect]) mints a different one per sign-in — `http://127.0.0.1:<port>/callback`
+     * on an OS-chosen port. Whatever is used here MUST be echoed byte-for-byte to [exchangeCode]:
+     * the token endpoint compares the two and rejects the exchange if they differ, which is the
+     * single easiest way to get a working authorize followed by a baffling `invalid_grant`.
+     */
     fun buildAuthorizationUrl(
         endpoints: ResolvedEndpoints,
         registration: OAuthClientRegistration,
         pkce: PkcePair,
         state: String,
+        redirectUri: String = OAuthRedirect.URI,
     ): Result<String> {
         val endpoint = endpoints.authorizationEndpoint
             ?: return Result.failure(
@@ -242,7 +251,7 @@ class OAuthClient(private val context: Context) {
         val url = Uri.parse(endpoint).buildUpon()
             .appendQueryParameter("response_type", "code")
             .appendQueryParameter("client_id", registration.clientId)
-            .appendQueryParameter("redirect_uri", OAuthRedirect.URI)
+            .appendQueryParameter("redirect_uri", redirectUri)
             .appendQueryParameter("scope", endpoints.scope)
             .appendQueryParameter("state", state)
             .appendQueryParameter("code_challenge", pkce.challenge)
@@ -257,6 +266,7 @@ class OAuthClient(private val context: Context) {
         registration: OAuthClientRegistration,
         code: String,
         verifier: String,
+        redirectUri: String = OAuthRedirect.URI,
     ): Result<TokenResponse> = withContext(Dispatchers.IO) {
         gateDenial("authorization code exchange at ${endpoints.tokenEndpoint}")
             ?.let { return@withContext Result.failure(AuthException(it)) }
@@ -264,7 +274,7 @@ class OAuthClient(private val context: Context) {
             val form = FormBody.Builder()
                 .add("grant_type", "authorization_code")
                 .add("code", code)
-                .add("redirect_uri", OAuthRedirect.URI)
+                .add("redirect_uri", redirectUri)
                 .add("client_id", registration.clientId)
                 .add("code_verifier", verifier)
                 .apply { registration.clientSecret?.let { add("client_secret", it) } }

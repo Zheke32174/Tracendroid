@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import org.json.JSONObject
 
 /**
@@ -133,6 +135,75 @@ class AccountStore private constructor(appContext: Context) {
             .getOrElse { return Result.failure(it) }
         PendingAuthorization.begin(PendingAuthorization.Request(profile.id, state, pkce.verifier))
         return Result.success(url)
+    }
+
+    /**
+     * The whole browser handshake in one call — the way a terminal CLI does it.
+     *
+     * Binds a loopback listener, hands the caller the URL to open ([onOpenBrowser], which is where
+     * the browser is launched), then waits on that socket for the provider's redirect and exchanges
+     * the code. No callback Activity, no registered custom scheme, and nothing for the user to
+     * paste: the only thing they must have done is registered a client ID whose type allows a
+     * loopback redirect, which is the type these providers give out for native apps.
+     *
+     * `state` is compared to what was sent before the code is spent — the CSRF check RFC 6749
+     * §10.12 requires — and a mismatch fails loudly instead of exchanging a code we did not ask for.
+     * The redirect URI is passed to BOTH the authorize URL and the exchange, because the token
+     * endpoint compares them and rejects the pair if they differ.
+     */
+    suspend fun signInWithLoopback(
+        profile: OAuthProfile,
+        onPhase: (SignInPhase) -> Unit,
+        onOpenBrowser: (String) -> Unit,
+    ): Result<AccountSession> {
+        val (endpoints, registration) = preflight(profile).getOrElse { return Result.failure(it) }
+        val server = LoopbackRedirect.open()
+            ?: return Result.failure(
+                AuthException(
+                    "Could not bind a loopback port for the sign-in callback. Another app may be " +
+                        "holding every port, or the network is restricted for this process."
+                )
+            )
+        return server.use {
+            val pkce = PkcePair.generate()
+            val state = newOauthState()
+            val url = client.buildAuthorizationUrl(endpoints, registration, pkce, state, server.redirectUri)
+                .getOrElse { return Result.failure(it) }
+
+            onOpenBrowser(url)
+            onPhase(SignInPhase.AWAITING_APPROVAL)
+
+            val redirect = withContext(Dispatchers.IO) { server.awaitRedirect() }
+                ?: return Result.failure(
+                    AuthException(
+                        "No callback arrived at ${server.redirectUri} within five minutes. Either " +
+                            "the browser was closed, or this client ID does not allow a loopback " +
+                            "redirect (register it as a native/desktop app)."
+                    )
+                )
+
+            redirect.error?.let { err ->
+                val detail = redirect.errorDescription?.let { ": $it" } ?: ""
+                return Result.failure(AuthException("$err$detail"))
+            }
+            if (redirect.state != state) {
+                return Result.failure(
+                    AuthException(
+                        "The provider returned a different `state` than the one this sign-in sent. " +
+                            "The code was NOT exchanged."
+                    )
+                )
+            }
+            val code = redirect.code
+                ?: return Result.failure(AuthException("The callback carried no authorization code."))
+
+            onPhase(SignInPhase.EXCHANGING)
+            val token = client.exchangeCode(endpoints, registration, code, pkce.verifier, server.redirectUri)
+                .getOrElse { return Result.failure(it) }
+
+            onPhase(SignInPhase.RESOLVING_IDENTITY)
+            Result.success(persist(profile.id, endpoints, token, previous = null))
+        }
     }
 
     /** Step two: waits for the callback activity, then exchanges the code. */
