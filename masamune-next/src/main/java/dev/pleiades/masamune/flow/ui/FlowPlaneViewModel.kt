@@ -15,6 +15,7 @@ import dev.pleiades.masamune.apps.LocationReader
 import dev.pleiades.masamune.apps.PowerState
 import dev.pleiades.masamune.apps.SensorReader
 import dev.pleiades.masamune.apps.SystemSettings
+import dev.pleiades.masamune.apps.TelephonyReader
 import dev.pleiades.masamune.flow.runtime.ArgResolver
 import dev.pleiades.masamune.flow.runtime.BlockRegistry
 import dev.pleiades.masamune.flow.runtime.ExprEvalAdapter
@@ -24,6 +25,7 @@ import dev.pleiades.masamune.flow.runtime.impl.locationLookup
 import dev.pleiades.masamune.flow.runtime.impl.powerLookup
 import dev.pleiades.masamune.flow.runtime.impl.sensorLookup
 import dev.pleiades.masamune.flow.runtime.impl.settingsLookup
+import dev.pleiades.masamune.flow.runtime.impl.telephonyLookup
 import dev.pleiades.masamune.flow.runtime.Fiber
 import dev.pleiades.masamune.flow.runtime.InMemoryFiberStore
 import dev.pleiades.masamune.flow.runtime.Scheduler
@@ -99,6 +101,15 @@ import java.util.UUID
  * and each Connectivity block fails by name with `CONNECTIVITY_ABSENT` rather than pretending to read a
  * radio state. A factory holding a `Context` passes `{ AndroidConnectivityReader(context) }` to make them
  * live; nothing in the runtime changes.
+ *
+ * @param telephonyReader supplies the telephony-stack-backed [TelephonyReader] the Telephony read blocks
+ * (`call_state`, `cell_signal_level`, `mobile_operator`, `mobile_service_state`, `subscription_default_get`,
+ * `roaming`) run against. It defaults to `{ null }` on the same honest terms as the seams above: with no
+ * `Context` there is no seam, and each Telephony block fails by name with `TELEPHONY_ABSENT` rather than
+ * pretending to read a cellular state. A factory holding a `Context` passes
+ * `{ AndroidTelephonyReader(context) }` to make them live; nothing in the runtime changes. The unprivileged
+ * read subset only — every call, SMS, USSD, dial, DTMF, set-state, await and SHELL-gated Telephony block
+ * stays gated by omission.
  */
 class FlowPlaneViewModel(
     private val appInspector: () -> AppInspector? = { null },
@@ -107,6 +118,7 @@ class FlowPlaneViewModel(
     private val sensorReader: () -> SensorReader? = { null },
     private val locationReader: () -> LocationReader? = { null },
     private val connectivityReader: () -> ConnectivityReader? = { null },
+    private val telephonyReader: () -> TelephonyReader? = { null },
 ) : ViewModel() {
 
     private val _graph = MutableStateFlow(FlowGraph(id = UUID.randomUUID().toString(), name = "Untitled flow"))
@@ -223,12 +235,16 @@ class FlowPlaneViewModel(
             // first, else Location, else Sensor, …, else the base registry. A null seam fails each by name
             // (CONNECTIVITY_ABSENT) — honest, not silent — exactly as the layers below.
             val connectivity = connectivityLookup(connectivityReader)
+            // Compose the Telephony one-shot reads the same way, layered ahead of Connectivity: found here
+            // first, else Connectivity, else Location, …, else the base registry. A null seam fails each by
+            // name (TELEPHONY_ABSENT) — honest, not silent — exactly as the layers below.
+            val telephony = telephonyLookup(telephonyReader)
             val scheduler = Scheduler(
                 graph = snapshot,
                 specs = { BlockCatalog[it] },
                 impls = { id ->
-                    connectivity[id] ?: location[id] ?: sensors[id] ?: power[id] ?: settings[id]
-                        ?: apps[id] ?: registry.lookup(id)
+                    telephony[id] ?: connectivity[id] ?: location[id] ?: sensors[id] ?: power[id]
+                        ?: settings[id] ?: apps[id] ?: registry.lookup(id)
                 },
                 resolver = ArgResolver(ExprEvalAdapter()),
                 store = InMemoryFiberStore(),
