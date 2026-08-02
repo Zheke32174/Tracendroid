@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ink900 — the suite "forest floor" background. Mirrors the Compose token. -->
+    <color name="masamune_window_background">#FF0E1512</color>
+    <color name="masamune_launcher_background">#FF0E1512</color>
+</resources>

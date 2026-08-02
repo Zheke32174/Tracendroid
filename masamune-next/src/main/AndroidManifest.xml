@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Permission surface is re-derived from what actually ships:
+        INTERNET             - the BYOK chat provider calls.
+        READ_EXTERNAL_STORAGE- legacy shared-storage read, capped at API 32. Above that the
+                               explorer uses SAF trees, which need no permission at all.
+        com.termux.permission.RUN_COMMAND
+                             - the documented Termux RunCommandService contract.
+
+      Deliberately NOT declared: MANAGE_EXTERNAL_STORAGE, QUERY_ALL_PACKAGES,
+      REQUEST_INSTALL_PACKAGES, SYSTEM_ALERT_WINDOW, WRITE_SETTINGS, SMS/phone/location,
+      CAMERA, RECORD_AUDIO, PACKAGE_USAGE_STATS, accessibility binding.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
+
+    <!--
+      Package visibility for exactly one target: Termux, which the Shell surface drives over
+      its public com.termux.RUN_COMMAND contract. This app bundles no installer for it and
+      renders an honest empty state when it is absent.
+    -->
+    <queries>
+        <package android:name="com.termux" />
+    </queries>
+
+    <application
+        android:name=".MasamuneApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Masamune">
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.Masamune"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          Termux delivers RUN_COMMAND results by firing a PendingIntent that we create and
+          hand it. The PendingIntent targets this service, so it stays un-exported: Termux
+          sends with our identity, no other app can reach it.
+        -->
+        <service
+            android:name=".shell.TermuxResultService"
+            android:exported="false" />
+
+    </application>
+
+</manifest>

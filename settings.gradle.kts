@@ -18,6 +18,8 @@ dependencyResolutionManagement {
 
 rootProject.name = "Operit"
 include(":app")
+// masamune-next: from-scratch AI-harness module, built beside :app. :app is untouched.
+include(":masamune-next")
 include(":dragonbones")
 include(":terminal")
 include(":mnn")
