@@ -10,11 +10,13 @@ import dev.pleiades.masamune.flow.model.FlowNode
 import dev.pleiades.masamune.flow.model.Port
 import dev.pleiades.masamune.flow.model.Requirement
 import dev.pleiades.masamune.apps.AppInspector
+import dev.pleiades.masamune.apps.PowerState
 import dev.pleiades.masamune.apps.SystemSettings
 import dev.pleiades.masamune.flow.runtime.ArgResolver
 import dev.pleiades.masamune.flow.runtime.BlockRegistry
 import dev.pleiades.masamune.flow.runtime.ExprEvalAdapter
 import dev.pleiades.masamune.flow.runtime.impl.appsLookup
+import dev.pleiades.masamune.flow.runtime.impl.powerLookup
 import dev.pleiades.masamune.flow.runtime.impl.settingsLookup
 import dev.pleiades.masamune.flow.runtime.Fiber
 import dev.pleiades.masamune.flow.runtime.InMemoryFiberStore
@@ -59,10 +61,19 @@ import java.util.UUID
  * Settings block fails by name with `SETTINGS_ABSENT` rather than pretending to read or write a
  * setting. A factory holding a `Context` passes `{ AndroidSystemSettings(context) }` to make them
  * live; nothing in the runtime changes.
+ *
+ * @param powerState supplies the battery/power-state-backed [PowerState] the Battery&Power blocks
+ * (`battery_charging`, `battery_level`, `battery_properties`, `power_source_plugged`,
+ * `power_save_mode_enabled`, `device_idle_mode_active`, `device_interactive`) run against. It defaults
+ * to `{ null }` on the same honest terms as [appInspector] and [systemSettings]: with no `Context`
+ * there is no seam, and each Battery&Power block fails by name with `POWER_ABSENT` rather than
+ * pretending to read a device reading. A factory holding a `Context` passes
+ * `{ AndroidPowerState(context) }` to make them live; nothing in the runtime changes.
  */
 class FlowPlaneViewModel(
     private val appInspector: () -> AppInspector? = { null },
     private val systemSettings: () -> SystemSettings? = { null },
+    private val powerState: () -> PowerState? = { null },
 ) : ViewModel() {
 
     private val _graph = MutableStateFlow(FlowGraph(id = UUID.randomUUID().toString(), name = "Untitled flow"))
@@ -163,10 +174,14 @@ class FlowPlaneViewModel(
             // found here first, else Apps, else the base registry. A null seam fails each by name
             // (SETTINGS_ABSENT) — honest, not silent — exactly as the Apps layer does with APPS_ABSENT.
             val settings = settingsLookup(systemSettings)
+            // Compose the Battery&Power device-state reads the same way, layered ahead of Settings:
+            // found here first, else Settings, else Apps, else the base registry. A null seam fails
+            // each by name (POWER_ABSENT) — honest, not silent — exactly as the layers below do.
+            val power = powerLookup(powerState)
             val scheduler = Scheduler(
                 graph = snapshot,
                 specs = { BlockCatalog[it] },
-                impls = { id -> settings[id] ?: apps[id] ?: registry.lookup(id) },
+                impls = { id -> power[id] ?: settings[id] ?: apps[id] ?: registry.lookup(id) },
                 resolver = ArgResolver(ExprEvalAdapter()),
                 store = InMemoryFiberStore(),
                 scope = viewModelScope,
