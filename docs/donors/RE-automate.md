@@ -691,7 +691,7 @@ integer division, distinct from `/`. Comparison yields `Num(1.0)`/`Num(0.0)`,
 | `Num` vs `Text` in comparison | `Num(0.0)` — not an error |
 | `Null` vs anything non-null | compares **less** |
 | `~0b1` | `0xFFFFFFFE` (32-bit) |
-| `~0b1n` | `BigInt(-1)` |
+| `~0b1n` | `BigInt(-2)` — bitwise NOT is `-x-1` at every width, so `~1 = -2`; same value as the row above read as signed, not a different one |
 | `>>>` on `BigInt` | **failure** |
 
 Text comparison is case-sensitive lexicographical.

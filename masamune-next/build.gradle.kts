@@ -147,4 +147,11 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
+    // org.json ships in the Android framework (android.jar) but is a THROW-ing stub in local
+    // JVM unit tests ("Method ... not mocked"). The flow runtime's FiberCodec persists through
+    // org.json, so its round-trip test needs a REAL implementation on the test classpath. This
+    // is test-only; the app still uses the framework org.json on device. Preferred over
+    // testOptions.unitTests.returnDefaultValues, which would make put()/get() no-ops and turn a
+    // round-trip assertion into one that proves nothing.
+    testImplementation("org.json:json:20240303")
 }

@@ -1,7 +1,5 @@
 package dev.pleiades.masamune.flow.model
 
-import kotlinx.serialization.Serializable
-
 /**
  * A placed block: one instance of a [BlockSpec] on the canvas, with its configuration.
  *
@@ -12,8 +10,10 @@ import kotlinx.serialization.Serializable
  * [argIsExpression] records the `fx` toggle per argument. Automate makes the constant/
  * expression distinction explicit in the field itself so the user never has to quote a
  * literal to get one, and that only works if the mode is stored, not inferred.
+ *
+ * Encoded through `org.json` in the flow codec, not a serialization plugin — this module
+ * carries no reflective-serialization surface by design (see the module `build.gradle.kts`).
  */
-@Serializable
 data class FlowNode(
     val id: String,
     val specId: String,
@@ -34,7 +34,6 @@ data class FlowNode(
  * edges — the fan-in is unnamed, so naming it would invent structure the donor does not
  * have and the runtime cannot use.
  */
-@Serializable
 data class Connection(
     val fromNode: String,
     val fromPort: Port,
@@ -45,10 +44,10 @@ data class Connection(
  * The flow — Automate's "source code". Nodes plus edges, and nothing about execution:
  * a running instance is a `Fiber`, and one flow may have many at once.
  *
- * Serializable in full because a flow is a user document — exported, imported, shared and
- * diffed. Field names are the on-disk format; renaming one is a file-format change.
+ * A flow is a user document — exported, imported, shared and diffed — so its encoded form
+ * is stable: the codec's field names are the on-disk format, and renaming one is a
+ * file-format change, not a refactor.
  */
-@Serializable
 data class FlowGraph(
     val id: String,
     val name: String,
