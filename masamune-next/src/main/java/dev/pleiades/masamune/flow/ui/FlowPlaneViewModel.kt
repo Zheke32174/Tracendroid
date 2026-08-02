@@ -12,6 +12,7 @@ import dev.pleiades.masamune.flow.model.Requirement
 import dev.pleiades.masamune.apps.AppInspector
 import dev.pleiades.masamune.apps.AudioController
 import dev.pleiades.masamune.apps.ConnectivityReader
+import dev.pleiades.masamune.apps.ContentReader
 import dev.pleiades.masamune.apps.LocationReader
 import dev.pleiades.masamune.apps.PowerState
 import dev.pleiades.masamune.apps.SensorReader
@@ -23,6 +24,7 @@ import dev.pleiades.masamune.flow.runtime.ExprEvalAdapter
 import dev.pleiades.masamune.flow.runtime.impl.appsLookup
 import dev.pleiades.masamune.flow.runtime.impl.audioLookup
 import dev.pleiades.masamune.flow.runtime.impl.connectivityLookup
+import dev.pleiades.masamune.flow.runtime.impl.contentLookup
 import dev.pleiades.masamune.flow.runtime.impl.locationLookup
 import dev.pleiades.masamune.flow.runtime.impl.powerLookup
 import dev.pleiades.masamune.flow.runtime.impl.sensorLookup
@@ -122,6 +124,15 @@ import java.util.UUID
  * changes. The unprivileged audio state-read + simple volume/mode-effect subset only — every capture,
  * recording, screenshot, media/tone/sound playback, TTS, vibration, image, media-session, Bluetooth-routing
  * and picker block stays gated by omission.
+ *
+ * @param contentReader supplies the content-stack-backed [ContentReader] the Content read/query blocks
+ * (`calendar_event_get`, `calendar_event_query`, `contact_query`, `content_query`) run against. It defaults
+ * to `{ null }` on the same honest terms as the seams above: with no `Context` there is no seam, and each
+ * Content block fails by name with `CONTENT_ABSENT` rather than pretending to read content. A factory holding
+ * a `Context` passes `{ AndroidContentReader(context) }` to make them live; nothing in the runtime changes.
+ * The unprivileged `ContentResolver`-query read subset only — every insert/update/delete/write, add, account,
+ * offer/share/view intent, provider-call, await, content-to-storage copy, SQLite and picker Content block
+ * stays gated by omission.
  */
 class FlowPlaneViewModel(
     private val appInspector: () -> AppInspector? = { null },
@@ -132,6 +143,7 @@ class FlowPlaneViewModel(
     private val connectivityReader: () -> ConnectivityReader? = { null },
     private val telephonyReader: () -> TelephonyReader? = { null },
     private val audioController: () -> AudioController? = { null },
+    private val contentReader: () -> ContentReader? = { null },
 ) : ViewModel() {
 
     private val _graph = MutableStateFlow(FlowGraph(id = UUID.randomUUID().toString(), name = "Untitled flow"))
@@ -257,12 +269,16 @@ class FlowPlaneViewModel(
             // registry. A null seam fails each by name (AUDIO_ABSENT) — honest, not silent — exactly as the
             // layers below.
             val audio = audioLookup(audioController)
+            // Compose the Content read/query blocks the same way, layered ahead of CameraAndSound audio:
+            // found here first, else audio, else Telephony, …, else the base registry. A null seam fails each
+            // by name (CONTENT_ABSENT) — honest, not silent — exactly as the layers below.
+            val content = contentLookup(contentReader)
             val scheduler = Scheduler(
                 graph = snapshot,
                 specs = { BlockCatalog[it] },
                 impls = { id ->
-                    audio[id] ?: telephony[id] ?: connectivity[id] ?: location[id] ?: sensors[id]
-                        ?: power[id] ?: settings[id] ?: apps[id] ?: registry.lookup(id)
+                    content[id] ?: audio[id] ?: telephony[id] ?: connectivity[id] ?: location[id]
+                        ?: sensors[id] ?: power[id] ?: settings[id] ?: apps[id] ?: registry.lookup(id)
                 },
                 resolver = ArgResolver(ExprEvalAdapter()),
                 store = InMemoryFiberStore(),
