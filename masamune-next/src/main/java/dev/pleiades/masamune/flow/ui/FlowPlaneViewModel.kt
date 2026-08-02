@@ -13,6 +13,7 @@ import dev.pleiades.masamune.apps.AppInspector
 import dev.pleiades.masamune.apps.AudioController
 import dev.pleiades.masamune.apps.ConnectivityReader
 import dev.pleiades.masamune.apps.ContentReader
+import dev.pleiades.masamune.apps.DeviceUi
 import dev.pleiades.masamune.apps.LocationReader
 import dev.pleiades.masamune.apps.PowerState
 import dev.pleiades.masamune.apps.SensorReader
@@ -25,6 +26,7 @@ import dev.pleiades.masamune.flow.runtime.impl.appsLookup
 import dev.pleiades.masamune.flow.runtime.impl.audioLookup
 import dev.pleiades.masamune.flow.runtime.impl.connectivityLookup
 import dev.pleiades.masamune.flow.runtime.impl.contentLookup
+import dev.pleiades.masamune.flow.runtime.impl.deviceUiLookup
 import dev.pleiades.masamune.flow.runtime.impl.locationLookup
 import dev.pleiades.masamune.flow.runtime.impl.powerLookup
 import dev.pleiades.masamune.flow.runtime.impl.sensorLookup
@@ -133,6 +135,18 @@ import java.util.UUID
  * The unprivileged `ContentResolver`-query read subset only — every insert/update/delete/write, add, account,
  * offer/share/view intent, provider-call, await, content-to-storage copy, SQLite and picker Content block
  * stays gated by omission.
+ *
+ * @param deviceUi supplies the device-UI-stack-backed [DeviceUi] the Interface device-UI blocks
+ * (`clipboard_get`, `device_secure`, `device_unlocked`, `display_on`, `night_mode_enabled`,
+ * `car_mode_enabled`, `screen_orientation`, `display_metrics_get`, `hardware_keyboard_visible`,
+ * `clipboard_set`, `toast_show`, `notification_show`, `notification_cancel`) run against. It defaults to
+ * `{ null }` on the same honest terms as the seams above: with no `Context` there is no seam, and each
+ * device-UI block fails by name with `DEVICE_UI_ABSENT` rather than pretending to read a UI state or apply
+ * an effect. A factory holding a `Context` passes `{ AndroidDeviceUi(context) }` to make them live; nothing
+ * in the runtime changes. The unprivileged UI state-read + simple clipboard/toast/notification-effect
+ * subset only — every a11y interaction/inspection block (operator-owned), notification-listener,
+ * device-admin, SHELL, dialog, picker, custom-interface, state-setter and await/callback Interface block
+ * stays gated by omission.
  */
 class FlowPlaneViewModel(
     private val appInspector: () -> AppInspector? = { null },
@@ -144,6 +158,7 @@ class FlowPlaneViewModel(
     private val telephonyReader: () -> TelephonyReader? = { null },
     private val audioController: () -> AudioController? = { null },
     private val contentReader: () -> ContentReader? = { null },
+    private val deviceUi: () -> DeviceUi? = { null },
 ) : ViewModel() {
 
     private val _graph = MutableStateFlow(FlowGraph(id = UUID.randomUUID().toString(), name = "Untitled flow"))
@@ -273,12 +288,18 @@ class FlowPlaneViewModel(
             // found here first, else audio, else Telephony, …, else the base registry. A null seam fails each
             // by name (CONTENT_ABSENT) — honest, not silent — exactly as the layers below.
             val content = contentLookup(contentReader)
+            // Compose the Interface device-UI state-read + clipboard/toast/notification-effect blocks the
+            // same way, layered ahead of Content as the new top layer: found here first, else Content, else
+            // CameraAndSound audio, …, else the base registry. A null seam fails each by name
+            // (DEVICE_UI_ABSENT) — honest, not silent — exactly as the layers below.
+            val device = deviceUiLookup(deviceUi)
             val scheduler = Scheduler(
                 graph = snapshot,
                 specs = { BlockCatalog[it] },
                 impls = { id ->
-                    content[id] ?: audio[id] ?: telephony[id] ?: connectivity[id] ?: location[id]
-                        ?: sensors[id] ?: power[id] ?: settings[id] ?: apps[id] ?: registry.lookup(id)
+                    device[id] ?: content[id] ?: audio[id] ?: telephony[id] ?: connectivity[id]
+                        ?: location[id] ?: sensors[id] ?: power[id] ?: settings[id] ?: apps[id]
+                        ?: registry.lookup(id)
                 },
                 resolver = ArgResolver(ExprEvalAdapter()),
                 store = InMemoryFiberStore(),
