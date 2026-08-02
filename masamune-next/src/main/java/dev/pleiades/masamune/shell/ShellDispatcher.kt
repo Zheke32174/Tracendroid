@@ -28,12 +28,29 @@ class ShellDispatcher(context: Context) {
 
     private val appContext = context.applicationContext
     private val backend = TermuxShellBackend(appContext)
+
+    /**
+     * Masamune's own userland. Tried FIRST, and when it is present Termux is never asked — which is
+     * the whole point: an app that has to ask the thing it replaces has not replaced it. The Termux
+     * path stays as a fallback for a device whose ABI this build ships no payload for, so retiring
+     * the delegation costs nobody a working shell.
+     */
+    private val capsule = CapsuleShellBackend(appContext)
+
     private val gate = CapabilityGate.get(appContext)
 
-    /** Name of the one shell design in force, for the surface header. */
-    val designName: String get() = backend.designName
+    /** True when commands run on the bundled userland instead of being handed to another app. */
+    val usingCapsule: Boolean get() = capsule.availability() is CapsuleShellBackend.Availability.Ready
 
-    fun availability(): TermuxShellBackend.Availability = backend.availability()
+    /** Name of the shell design actually in force, for the surface header. */
+    val designName: String get() = if (usingCapsule) capsule.designName else backend.designName
+
+    /**
+     * With the capsule present the shell is unconditionally available — it needs no second app and
+     * no granted permission — so this reports Ready without consulting Termux at all.
+     */
+    fun availability(): TermuxShellBackend.Availability =
+        if (usingCapsule) TermuxShellBackend.Availability.Ready else backend.availability()
 
     /** Outcome of a gated dispatch. [Ran] carries the backend's own honest outcome shape. */
     sealed class Dispatch {
@@ -61,6 +78,13 @@ class ShellDispatcher(context: Context) {
     ): Dispatch {
         val decision = gate.check(caller, Capability.SHELL, "run \"$commandLine\"")
         if (decision is GateDecision.Denied) return Dispatch.Gated(decision.message)
+
+        // Masamune's own userland first. The capability gate above still applies — running on our
+        // own busybox is not a way around it — but no other app, and no Termux permission, is
+        // involved once the payload is present.
+        if (usingCapsule) {
+            return Dispatch.Ran(capsule.run(commandLine, workdir, timeoutMillis, failsafe))
+        }
 
         when (val availability = backend.availability()) {
             TermuxShellBackend.Availability.NotInstalled -> {
