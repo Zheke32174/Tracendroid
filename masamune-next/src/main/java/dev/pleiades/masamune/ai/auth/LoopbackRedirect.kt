@@ -102,6 +102,16 @@ class LoopbackRedirect private constructor(private val server: ServerSocket) : C
         const val LOOPBACK_IP = "127.0.0.1"
         const val PATH = "/callback"
 
+        /**
+         * The loopback redirect as it is *registered*, with no port.
+         *
+         * The live [redirectUri] carries whichever ephemeral port the OS handed out this run, so
+         * there is no fixed string to register. RFC 8252 §7.3 anticipates exactly this and tells
+         * authorization servers to match loopback redirects on host and path while ignoring the
+         * port, which is what makes a portless registration the correct thing to send.
+         */
+        const val URI_TEMPLATE = "http://$LOOPBACK_IP$PATH"
+
         /** Bind loopback on an OS-chosen port. Returns null when no port can be bound. */
         fun open(): LoopbackRedirect? = runCatching {
             LoopbackRedirect(ServerSocket(0, 1, InetAddress.getByName(LOOPBACK_IP)))

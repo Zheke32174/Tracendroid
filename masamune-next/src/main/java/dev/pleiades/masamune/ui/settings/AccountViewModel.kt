@@ -34,6 +34,14 @@ data class AccountUiState(
     val registrations: Map<String, OAuthClientRegistration> = emptyMap(),
     /** Non-null = token sealing is impossible here; every sign-in row renders disabled. */
     val vaultReason: String? = null,
+    /**
+     * Profile ids whose issuer advertises an RFC 7591 `registration_endpoint`.
+     *
+     * These need no client ID from the user at all — the app asks the issuer for one on first
+     * sign-in. The screen uses this to decide whether to show a credentials form or just a button,
+     * which is the whole difference between a login portal and a configuration screen.
+     */
+    val selfRegisterable: Set<String> = emptySet(),
     val networkGranted: Boolean = false,
     /** Which row is mid-flow. Exactly one at a time; the others stay interactive. */
     val busyProfileId: String? = null,
@@ -44,6 +52,7 @@ data class AccountUiState(
     val messageOk: Boolean = false,
 ) {
     fun sessionFor(profileId: String): AccountSession? = sessions[profileId]
+    fun canSelfRegister(profileId: String): Boolean = profileId in selfRegisterable
     fun registrationFor(profileId: String): OAuthClientRegistration? = registrations[profileId]
     fun isBusy(profileId: String): Boolean = busyProfileId == profileId
 }
@@ -89,8 +98,20 @@ class AccountViewModel(private val appContext: Context) : ViewModel() {
     fun refreshGrants() {
         _state.value = _state.value.copy(
             networkGranted = gate.isGranted(Caller.User, Capability.NETWORK),
+            selfRegisterable = selfRegisterableIds(),
         )
     }
+
+    /**
+     * Which providers will hand out a client on request, read from their resolved endpoints.
+     *
+     * Recomputed rather than cached because the custom row's endpoints only exist after discovery
+     * runs — a row that becomes self-registering mid-session has to stop showing a form.
+     */
+    private fun selfRegisterableIds(): Set<String> = OAuthCatalog.all
+        .filter { accounts.endpointsFor(it).getOrNull()?.registrationEndpoint != null }
+        .map { it.id }
+        .toSet()
 
     fun grantNetwork() {
         gate.grant(Caller.User, Capability.NETWORK)
@@ -144,7 +165,10 @@ class AccountViewModel(private val appContext: Context) : ViewModel() {
         launchFlow(OAuthCatalog.CUSTOM) {
             accounts.discoverCustom(issuer).fold(
                 onSuccess = {
-                    _state.value = _state.value.copy(discovered = it)
+                    _state.value = _state.value.copy(
+                        discovered = it,
+                        selfRegisterable = selfRegisterableIds(),
+                    )
                     report(
                         "Discovered ${it.issuer}: grant ${it.grant.name}, token endpoint " +
                             "${it.tokenEndpoint}.",

@@ -109,6 +109,7 @@ class TokenVault private constructor(context: Context) {
                 clientId = json.getString("client_id"),
                 clientSecret = json.optString("client_secret").takeIf { it.isNotBlank() },
                 issuer = json.optString("issuer"),
+                selfRegistered = json.optBoolean("self_registered", false),
             )
         }.getOrNull()
     }
@@ -120,6 +121,7 @@ class TokenVault private constructor(context: Context) {
                 put("client_id", registration.clientId)
                 put("client_secret", registration.clientSecret ?: "")
                 put("issuer", registration.issuer)
+                put("self_registered", registration.selfRegistered)
             },
         )
     }

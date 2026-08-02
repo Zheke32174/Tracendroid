@@ -212,6 +212,8 @@ fun AccountScreen() {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     Text(
                         when (state.phase) {
+                            SignInPhase.REGISTERING_CLIENT ->
+                                stringResource(R.string.account_step_registering)
                             SignInPhase.REQUESTING_CODE ->
                                 stringResource(R.string.account_device_step_requesting)
                             SignInPhase.AWAITING_APPROVAL ->
@@ -352,53 +354,83 @@ private fun ProviderRow(
                 }
             }
 
-            Text(
-                stringResource(R.string.account_cat_client),
-                style = MaterialTheme.typography.labelLarge,
-            )
-            Text(
-                stringResource(R.string.account_cat_client_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = MasamuneTheme.semantic.dim,
-            )
-            OutlinedTextField(
-                value = clientId,
-                onValueChange = { clientId = it },
-                label = { Text(stringResource(R.string.account_field_client_id)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = clientSecret,
-                onValueChange = { clientSecret = it },
-                label = { Text(stringResource(R.string.account_field_client_secret)) },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                profile.clientHint,
-                style = MaterialTheme.typography.bodySmall,
-                color = MasamuneTheme.semantic.dim,
-            )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { onSaveClient(clientId, clientSecret, issuer) }) {
-                    Text(stringResource(R.string.account_action_save_client))
-                }
-                if (registration != null) {
-                    OutlinedButton(onClick = onForgetClient) {
-                        Text(stringResource(R.string.account_action_forget_client))
-                    }
-                }
-            }
-
+            // SIGN IN COMES FIRST. This screen used to lead with a Client ID box, which made
+            // signing in a configuration task and broke the project's own rule — if it has to ask
+            // you for the thing it replaces, it has not replaced it. The button is the primary
+            // control now; credentials appear only for a provider that genuinely cannot issue a
+            // client on request, and then as the explanation for why the button is disabled.
+            val selfRegisters = state.canSelfRegister(profile.id)
             val block = signInBlockReason(profile, state)
             Button(
                 enabled = block == null && !state.isBusy(profile.id),
                 onClick = onSignIn,
+                modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.account_action_sign_in)) }
             // Rule: a disabled control always says why, in the same breath.
             DisabledReason(block)
+
+            if (selfRegisters && registration == null) {
+                Text(
+                    stringResource(R.string.account_self_register_ready),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MasamuneTheme.semantic.dim,
+                )
+            }
+            if (registration?.selfRegistered == true) {
+                Text(
+                    stringResource(R.string.account_self_register_done),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MasamuneTheme.semantic.dim,
+                )
+                OutlinedButton(onClick = onForgetClient) {
+                    Text(stringResource(R.string.account_action_forget_client))
+                }
+            }
+
+            // The credentials form. Present only when this provider will not issue a client on
+            // request — where it will, showing these boxes would invite the user to do work the
+            // app already does, and an empty box next to a working button reads as broken.
+            if (!selfRegisters && registration?.selfRegistered != true) {
+                Text(
+                    stringResource(R.string.account_cat_client),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Text(
+                    stringResource(R.string.account_cat_client_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MasamuneTheme.semantic.dim,
+                )
+                OutlinedTextField(
+                    value = clientId,
+                    onValueChange = { clientId = it },
+                    label = { Text(stringResource(R.string.account_field_client_id)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = clientSecret,
+                    onValueChange = { clientSecret = it },
+                    label = { Text(stringResource(R.string.account_field_client_secret)) },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    profile.clientHint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MasamuneTheme.semantic.dim,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { onSaveClient(clientId, clientSecret, issuer) }) {
+                        Text(stringResource(R.string.account_action_save_client))
+                    }
+                    if (registration != null) {
+                        OutlinedButton(onClick = onForgetClient) {
+                            Text(stringResource(R.string.account_action_forget_client))
+                        }
+                    }
+                }
+            }
         } else {
             SessionFacts(session)
             if (session.isExpired() && !session.canRefresh) {
@@ -539,8 +571,11 @@ private fun signInBlockReason(profile: OAuthProfile, state: AccountUiState): Str
     !state.networkGranted ->
         "Grant NETWORK to \"user\" above first — a sign-in is a sequence of outbound requests " +
             "and the gate denies them by default."
-    state.registrationFor(profile.id)?.isComplete != true ->
-        "Enter a client ID above and tap Save. ${profile.clientHint}"
+    // A provider that issues clients on request is NOT blocked by not having one yet — the
+    // sign-in itself registers. Only a provider that cannot do that needs the form filled first.
+    state.registrationFor(profile.id)?.isComplete != true && !state.canSelfRegister(profile.id) ->
+        "This provider does not hand out OAuth clients on request, so one has to be created with " +
+            "it first, then pasted below. ${profile.clientHint}"
     profile.isCustom && state.registrationFor(profile.id)?.issuer.isNullOrBlank() ->
         "Enter the issuer URL and tap \"Discover endpoints\" — the endpoints are read from the " +
             "issuer's own metadata document, never guessed."

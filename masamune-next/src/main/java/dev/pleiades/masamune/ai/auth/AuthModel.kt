@@ -211,13 +211,28 @@ data class AccountSession(
     val canRefresh: Boolean get() = !refreshToken.isNullOrBlank()
 }
 
-/** The OAuth client registration the user supplies. `secret` is treated as a credential. */
+/**
+ * An OAuth client registration. `secret` is treated as a credential and never rendered.
+ *
+ * It arrives one of two ways, and which one matters to the surface:
+ *  - the user pasted it, because the provider only issues clients out-of-band; or
+ *  - the app asked the issuer for it under RFC 7591 ([selfRegistered]), which is the path that
+ *    lets sign-in be a single button with no form at all.
+ */
 data class OAuthClientRegistration(
     val profileId: String,
     val clientId: String,
     val clientSecret: String?,
     /** Only meaningful for [OAuthCatalog.custom]. */
     val issuer: String = "",
+    /**
+     * True when this client was obtained by dynamic client registration rather than typed in.
+     *
+     * Kept so the screen can say *"registered automatically"* instead of showing a filled-in box
+     * the user does not remember filling, and so "Forget" reads as revoking a client the app
+     * created rather than deleting something the user owns elsewhere.
+     */
+    val selfRegistered: Boolean = false,
 ) {
     val isComplete: Boolean get() = clientId.isNotBlank()
 }

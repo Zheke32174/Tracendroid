@@ -108,7 +108,8 @@ class AccountStore private constructor(appContext: Context) {
         onPhase: (SignInPhase) -> Unit,
         onCode: (DeviceAuthorization) -> Unit,
     ): Result<AccountSession> {
-        val (endpoints, registration) = preflight(profile).getOrElse { return Result.failure(it) }
+        val (endpoints, registration) = preflightOrRegister(profile, onPhase)
+            .getOrElse { return Result.failure(it) }
 
         onPhase(SignInPhase.REQUESTING_CODE)
         val authorization = client.startDeviceAuthorization(endpoints, registration)
@@ -156,7 +157,8 @@ class AccountStore private constructor(appContext: Context) {
         onPhase: (SignInPhase) -> Unit,
         onOpenBrowser: (String) -> Unit,
     ): Result<AccountSession> {
-        val (endpoints, registration) = preflight(profile).getOrElse { return Result.failure(it) }
+        val (endpoints, registration) = preflightOrRegister(profile, onPhase)
+            .getOrElse { return Result.failure(it) }
         val server = LoopbackRedirect.open()
             ?: return Result.failure(
                 AuthException(
@@ -343,6 +345,61 @@ class AccountStore private constructor(appContext: Context) {
         return Result.success(endpoints to registration)
     }
 
+    /**
+     * [preflight], but it will *get* a client rather than demanding the user already has one.
+     *
+     * This is what makes the Account screen a login portal instead of a credentials form. OAuth
+     * cannot start without a `client_id` — that is the protocol, not a design choice — but RFC 7591
+     * lets an issuer hand one out on request. Where the issuer advertises a `registration_endpoint`,
+     * the app registers itself on first sign-in and the user only ever taps "Sign in".
+     *
+     * Order matters and is deliberate:
+     *  1. A saved registration always wins. A user who created a client with the provider keeps
+     *     using it; re-registering behind their back would silently strand it.
+     *  2. Endpoints resolve next. For the custom row that may mean discovery has not run, which
+     *     fails with *that* reason rather than being papered over by a registration attempt.
+     *  3. Only then, if the issuer advertises registration, do we register — and persist the result,
+     *     so this happens once per provider rather than on every sign-in.
+     *
+     * When the issuer advertises nothing, this fails with the client hint naming what to create and
+     * where. That is the honest end of the road for a provider like Google, which publishes no
+     * registration endpoint: the screen says so instead of offering a button that cannot work.
+     */
+    suspend fun preflightOrRegister(
+        profile: OAuthProfile,
+        onPhase: (SignInPhase) -> Unit = {},
+    ): Result<Pair<ResolvedEndpoints, OAuthClientRegistration>> {
+        vaultUnavailableReason?.let { return Result.failure(AuthException(it)) }
+
+        val endpoints = endpointsFor(profile).getOrElse { return Result.failure(it) }
+
+        _registrations.value[profile.id]?.takeIf { it.isComplete }?.let {
+            return Result.success(endpoints to it)
+        }
+
+        if (endpoints.registrationEndpoint == null) {
+            return Result.failure(
+                AuthException(
+                    "${profile.label} does not issue OAuth clients on request — its metadata " +
+                        "advertises no registration_endpoint — so Masamune cannot register itself " +
+                        "here. ${profile.clientHint}"
+                )
+            )
+        }
+
+        onPhase(SignInPhase.REGISTERING_CLIENT)
+        val registration = client.registerClient(
+            endpoints = endpoints,
+            profileId = profile.id,
+            // Every redirect this app can actually receive. Registering a URI we do not listen on
+            // would produce a client that authorizes and then dead-ends at the callback.
+            redirectUris = listOf(LoopbackRedirect.URI_TEMPLATE, OAuthRedirect.URI),
+        ).getOrElse { return Result.failure(it) }
+
+        saveRegistration(registration)
+        return Result.success(endpoints to registration)
+    }
+
     private suspend fun persist(
         profileId: String,
         endpoints: ResolvedEndpoints,
@@ -393,6 +450,7 @@ private fun ResolvedEndpoints.toJson(): JSONObject = JSONObject().apply {
     put("revocation_endpoint", revocationEndpoint ?: "")
     put("userinfo_endpoint", userInfoEndpoint ?: "")
     put("scope", scope)
+    put("registration_endpoint", registrationEndpoint ?: "")
 }
 
 private fun JSONObject.toEndpoints(): ResolvedEndpoints = ResolvedEndpoints(
@@ -405,4 +463,5 @@ private fun JSONObject.toEndpoints(): ResolvedEndpoints = ResolvedEndpoints(
     revocationEndpoint = optString("revocation_endpoint").takeIf { it.isNotBlank() },
     userInfoEndpoint = optString("userinfo_endpoint").takeIf { it.isNotBlank() },
     scope = optString("scope").ifBlank { OAuthCatalog.custom.scope },
+    registrationEndpoint = optString("registration_endpoint").takeIf { it.isNotBlank() },
 )

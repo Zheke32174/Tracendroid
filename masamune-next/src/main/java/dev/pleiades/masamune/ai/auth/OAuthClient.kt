@@ -18,7 +18,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
 
 /** Endpoints actually in play for one sign-in, whether hardcoded or discovered. */
@@ -31,6 +34,15 @@ data class ResolvedEndpoints(
     val revocationEndpoint: String?,
     val userInfoEndpoint: String?,
     val scope: String,
+    /**
+     * RFC 7591 dynamic client registration endpoint, when the issuer advertises one.
+     *
+     * This is the field that decides whether a user must ever see a "Client ID" box. An issuer
+     * that publishes this can be asked for a client on the spot, so sign-in is one tap; one that
+     * does not requires a client created out-of-band, and the screen has to say so rather than
+     * offering a button that cannot work.
+     */
+    val registrationEndpoint: String? = null,
 )
 
 /** RFC 8628 §3.2 device authorization response. */
@@ -55,6 +67,8 @@ data class TokenResponse(
 
 /** Steps the sign-in dialog reports, so a slow flow never looks like a hang. */
 enum class SignInPhase {
+    /** Asking the issuer for a client of our own (RFC 7591), so the user never types one. */
+    REGISTERING_CLIENT,
     REQUESTING_CODE,
     AWAITING_APPROVAL,
     EXCHANGING,
@@ -111,6 +125,7 @@ class OAuthClient(private val context: Context) {
                 revocationEndpoint = body.optString("revocation_endpoint").takeIf { it.isNotBlank() },
                 userInfoEndpoint = body.optString("userinfo_endpoint").takeIf { it.isNotBlank() },
                 scope = OAuthCatalog.custom.scope,
+                registrationEndpoint = body.optString("registration_endpoint").takeIf { it.isNotBlank() },
             )
         }
     }
@@ -363,7 +378,96 @@ class OAuthClient(private val context: Context) {
         fromUserInfo ?: token.idToken?.let { decodeIdTokenPayload(it)?.toIdentity() }
     }
 
+    // ---- dynamic client registration (RFC 7591) ------------------------------------------------
+
+    /**
+     * Ask the issuer for a client of our own, so the user never types a client ID.
+     *
+     * This is the piece that turns the Account screen from a credentials form into a login portal.
+     * OAuth cannot start without a `client_id` — that is the protocol, not a design choice — but
+     * RFC 7591 says an issuer may hand one out on request. Where it does, the app registers itself
+     * on first sign-in and the user only ever sees "Sign in".
+     *
+     * The request is deliberately minimal and public-client shaped:
+     *  - `token_endpoint_auth_method: none` — this is an installed app; it cannot keep a secret, and
+     *    claiming otherwise would have us storing one that any APK teardown reveals.
+     *  - `application_type: native` and loopback `redirect_uris` — matches how the sign-in actually
+     *    runs (see [LoopbackRedirect]); registering a URI we do not listen on would produce a client
+     *    that authorizes and then fails at the redirect.
+     *  - `grant_types` covers both flows plus `refresh_token`, so the same registration serves the
+     *    device grant and the code grant and can renew without a second sign-in.
+     *
+     * A returned `client_secret` is kept if the issuer insists on issuing one — some do even for
+     * public clients — because the token endpoint will then require it. It is stored in the same
+     * sealed vault as every other credential and is never rendered.
+     *
+     * Failure is returned, not thrown, and carries the issuer's own error text: a registration that
+     * is refused must read as "this provider will not hand out clients", not as a broken button.
+     */
+    suspend fun registerClient(
+        endpoints: ResolvedEndpoints,
+        profileId: String,
+        redirectUris: List<String>,
+        clientName: String = DEFAULT_CLIENT_NAME,
+    ): Result<OAuthClientRegistration> = withContext(Dispatchers.IO) {
+        val endpoint = endpoints.registrationEndpoint
+            ?: return@withContext Result.failure(
+                AuthException(
+                    "${endpoints.issuer} advertises no registration_endpoint, so it will not issue " +
+                        "a client on request. A client ID has to be created with the provider first."
+                )
+            )
+        gateDenial("dynamic client registration at $endpoint")
+            ?.let { return@withContext Result.failure(AuthException(it)) }
+
+        runCatching {
+            val body = JSONObject().apply {
+                put("client_name", clientName)
+                put("application_type", "native")
+                put("token_endpoint_auth_method", "none")
+                put("redirect_uris", JSONArray(redirectUris))
+                put("grant_types", JSONArray(listOf("authorization_code", "refresh_token", DEVICE_GRANT)))
+                put("response_types", JSONArray(listOf("code")))
+                put("scope", endpoints.scope)
+            }
+            val json = postJson(endpoint, body)
+            val clientId = json.optString("client_id")
+            if (clientId.isBlank()) {
+                throw AuthException(
+                    "$endpoint answered without a client_id. RFC 7591 requires one in a successful " +
+                        "registration response, so there is nothing here to sign in with."
+                )
+            }
+            OAuthClientRegistration(
+                profileId = profileId,
+                clientId = clientId,
+                clientSecret = json.optString("client_secret").takeIf { it.isNotBlank() },
+                issuer = endpoints.issuer,
+                selfRegistered = true,
+            )
+        }
+    }
+
     // ---- plumbing -----------------------------------------------------------------------------
+
+    private fun postJson(url: String, body: JSONObject): JSONObject {
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Accept", "application/json")
+            .post(body.toString().toRequestBody(JSON_MEDIA_TYPE))
+            .build()
+        try {
+            sharedClient.newCall(request).execute().use { response ->
+                val text = response.body?.string().orEmpty()
+                if (!response.isSuccessful) throw AuthException(describeFailure(url, response.code, text))
+                return runCatching { JSONObject(text) }.getOrElse {
+                    throw AuthException("$url answered HTTP ${response.code} with a non-JSON body: ${text.take(200)}")
+                }
+            }
+        } catch (e: IOException) {
+            throw AuthException("Network error talking to $url: ${e.message}", e)
+        }
+    }
 
     private fun gateDenial(what: String): String? {
         val decision = CapabilityGate.get(context).check(Caller.User, Capability.NETWORK, what)
@@ -405,6 +509,16 @@ class OAuthClient(private val context: Context) {
         } catch (e: IOException) {
             throw AuthException("Network error talking to $url: ${e.message}", e)
         }
+    }
+
+    private companion object {
+        /** The name the issuer records for this client. Shown to the user on the consent screen. */
+        const val DEFAULT_CLIENT_NAME = "Masamune"
+
+        /** RFC 8628's grant type URN, so one registration serves the device flow as well. */
+        const val DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
+
+        val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
     }
 
     /** Surfaces the provider's own OAuth error verbatim; guessing would be worse than quoting. */

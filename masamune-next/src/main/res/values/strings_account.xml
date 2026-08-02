@@ -73,6 +73,16 @@
     <!-- Device flow dialog -->
     <string name="account_device_title">Approve this device</string>
     <string name="account_device_hint">This usually completes in a few seconds. Keep your internet connection active.</string>
+    <!--
+      Dynamic client registration (RFC 7591). These three strings exist because the screen used to
+      lead with a Client ID box: signing in read as a configuration task, which is exactly the
+      failure the project rule names. Where an issuer will issue a client on request, the app asks
+      for one itself and the user sees only a button.
+    -->
+    <string name="account_step_registering">Registering Masamune with the provider…</string>
+    <string name="account_self_register_ready">This provider issues OAuth clients on request, so there is nothing to enter — signing in registers Masamune automatically.</string>
+    <string name="account_self_register_done">Masamune registered its own OAuth client with this provider. Forgetting it makes the next sign-in register a new one.</string>
+
     <string name="account_device_step_requesting">Requesting a device code…</string>
     <string name="account_device_step_waiting">Waiting for you to approve in the browser…</string>
     <string name="account_device_step_exchanging">Exchanging the code for tokens…</string>
