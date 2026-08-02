@@ -89,6 +89,29 @@
             android:name=".shell.TermuxResultService"
             android:exported="false" />
 
+        <!--
+          The AI operator's accessibility service — its eyes and hands (docs/AI-OPERATOR.md).
+
+          Bound by the system, never by another app: the BIND_ACCESSIBILITY_SERVICE permission is
+          held by the system alone, so exporting it (required because it carries an intent-filter)
+          exposes nothing. It runs only while the user has enabled it in Settings → Accessibility
+          AND the operator is driving it; with it disabled the operator surface reports it missing
+          and refuses to act. The config in @xml/masamune_a11y_service declares content retrieval
+          and gesture dispatch and nothing more.
+        -->
+        <service
+            android:name=".operator.a11y.MasamuneA11yService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/masamune_a11y_service" />
+        </service>
+
     </application>
 
 </manifest>

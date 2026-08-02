@@ -30,6 +30,7 @@ import dev.pleiades.masamune.ui.about.AboutScreen
 import dev.pleiades.masamune.ui.about.NavigationMapScreen
 import dev.pleiades.masamune.ui.about.RyznixRoadmapScreen
 import dev.pleiades.masamune.flow.ui.FlowPlaneScreen
+import dev.pleiades.masamune.operator.ui.OperatorScreen
 import dev.pleiades.masamune.ui.chat.ChatScreen
 import dev.pleiades.masamune.ui.files.FilesScreen
 import dev.pleiades.masamune.ui.settings.AccountScreen
@@ -147,6 +148,7 @@ private fun NavGraphBuilder.registerRoutes(navigate: (String) -> Unit) {
                     onOpenAccount = { navigate(RouteCatalog.SETTINGS_ACCOUNT) },
                 )
                 RouteCatalog.FLOWS -> FlowPlaneScreen()
+                RouteCatalog.OPERATOR -> OperatorScreen()
                 RouteCatalog.ABOUT -> AboutScreen(onNavigate = navigate)
                 RouteCatalog.SETTINGS_PROVIDER -> ProviderSettingsScreen(
                     onOpenAccount = { navigate(RouteCatalog.SETTINGS_ACCOUNT) },

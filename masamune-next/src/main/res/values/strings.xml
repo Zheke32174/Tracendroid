@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Masamune</string>
+    <string name="operator_a11y_description">Lets the Masamune AI operator observe the screen and perform taps, swipes and text input on your behalf. Every action runs as a visible block in the flow runtime, gated by the capability system and stoppable with Halt. Only active while you run the operator.</string>
 </resources>

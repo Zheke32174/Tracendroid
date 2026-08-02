@@ -5,6 +5,7 @@ import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -41,6 +42,7 @@ object RouteCatalog {
     const val SHELL = "shell"
     const val CHAT = "chat"
     const val FLOWS = "flows"
+    const val OPERATOR = "operator"
     const val ABOUT = "about"
 
     const val SETTINGS_PROVIDER = "settings/provider"
@@ -58,7 +60,8 @@ object RouteCatalog {
         MasamuneRoute(SHELL, "Shell", Icons.Filled.Terminal, Surface.BOTTOM_NAV, 1, "bottom nav → Shell"),
         MasamuneRoute(CHAT, "Chat", Icons.Filled.Chat, Surface.BOTTOM_NAV, 2, "bottom nav → Chat"),
         MasamuneRoute(FLOWS, "Flows", Icons.Filled.AccountTree, Surface.BOTTOM_NAV, 3, "bottom nav → Flows"),
-        MasamuneRoute(ABOUT, "About", Icons.Filled.Info, Surface.BOTTOM_NAV, 4, "bottom nav → About"),
+        MasamuneRoute(OPERATOR, "Operator", Icons.Filled.SmartToy, Surface.BOTTOM_NAV, 4, "bottom nav → Operator"),
+        MasamuneRoute(ABOUT, "About", Icons.Filled.Info, Surface.BOTTOM_NAV, 5, "bottom nav → About"),
         MasamuneRoute(
             SETTINGS_PROVIDER, "AI provider", null, Surface.DETAIL, 10,
             "bottom nav → About → AI provider (also the gear on Chat)",
