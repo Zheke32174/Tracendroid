@@ -233,8 +233,20 @@ data class OAuthClientRegistration(
      * created rather than deleting something the user owns elsewhere.
      */
     val selfRegistered: Boolean = false,
+    /**
+     * True when this client came compiled into the build ([ShippedClients]) rather than from the
+     * user or from a registration call.
+     *
+     * A shipped client is never written to the vault: it is already in the APK, storing a copy
+     * would only create a stale duplicate that survives an update that changes it. The flag also
+     * keeps "Forget" from offering to delete something that would simply reappear.
+     */
+    val shipped: Boolean = false,
 ) {
     val isComplete: Boolean get() = clientId.isNotBlank()
+
+    /** True when the user never had to supply this — the two cases that make sign-in one tap. */
+    val isAutomatic: Boolean get() = shipped || selfRegistered
 }
 
 /** Thrown by everything in this package. Message is always safe to render verbatim. */

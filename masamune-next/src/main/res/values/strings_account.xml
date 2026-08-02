@@ -79,6 +79,9 @@
       failure the project rule names. Where an issuer will issue a client on request, the app asks
       for one itself and the user sees only a button.
     -->
+    <string name="account_shipped_client">Masamune signs in with its own OAuth client, the way a desktop app does. There is nothing to enter.</string>
+    <string name="account_action_open_console">Create a client ID with this provider</string>
+
     <string name="account_step_registering">Registering Masamune with the provider…</string>
     <string name="account_self_register_ready">This provider issues OAuth clients on request, so there is nothing to enter — signing in registers Masamune automatically.</string>
     <string name="account_self_register_done">Masamune registered its own OAuth client with this provider. Forgetting it makes the next sign-in register a new one.</string>

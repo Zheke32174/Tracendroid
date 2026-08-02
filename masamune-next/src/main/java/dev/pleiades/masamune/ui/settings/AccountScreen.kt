@@ -172,6 +172,7 @@ fun AccountScreen() {
                     },
                     onForgetClient = { vm.forgetRegistration(profile) },
                     onDiscover = { vm.discover(it) },
+                onOpenConsole = { vm.openConsole(profile.id) },
                     onSignIn = { vm.signIn(profile) },
                     onSignOut = { vm.signOut(profile) },
                     onRefresh = { vm.refreshNow(profile) },
@@ -283,6 +284,7 @@ private fun ProviderRow(
     onSaveClient: (String, String, String) -> Unit,
     onForgetClient: () -> Unit,
     onDiscover: (String) -> Unit,
+    onOpenConsole: () -> Unit,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
     onRefresh: () -> Unit,
@@ -359,7 +361,8 @@ private fun ProviderRow(
             // you for the thing it replaces, it has not replaced it. The button is the primary
             // control now; credentials appear only for a provider that genuinely cannot issue a
             // client on request, and then as the explanation for why the button is disabled.
-            val selfRegisters = state.canSelfRegister(profile.id)
+            val oneTap = state.isOneTap(profile.id)
+            val shipped = profile.id in state.shippedClients
             val block = signInBlockReason(profile, state)
             Button(
                 enabled = block == null && !state.isBusy(profile.id),
@@ -369,7 +372,13 @@ private fun ProviderRow(
             // Rule: a disabled control always says why, in the same breath.
             DisabledReason(block)
 
-            if (selfRegisters && registration == null) {
+            if (shipped) {
+                Text(
+                    stringResource(R.string.account_shipped_client),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MasamuneTheme.semantic.dim,
+                )
+            } else if (oneTap && registration == null) {
                 Text(
                     stringResource(R.string.account_self_register_ready),
                     style = MaterialTheme.typography.bodySmall,
@@ -390,7 +399,15 @@ private fun ProviderRow(
             // The credentials form. Present only when this provider will not issue a client on
             // request — where it will, showing these boxes would invite the user to do work the
             // app already does, and an empty box next to a working button reads as broken.
-            if (!selfRegisters && registration?.selfRegistered != true) {
+            if (!oneTap && registration?.isAutomatic != true) {
+                // The shortest honest path for a provider that will not issue clients on request:
+                // link straight at the page that creates one, instead of describing where it is.
+                state.consoleUrls[profile.id]?.let {
+                    OutlinedButton(
+                        onClick = { onOpenConsole() },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.account_action_open_console)) }
+                }
                 Text(
                     stringResource(R.string.account_cat_client),
                     style = MaterialTheme.typography.labelLarge,
@@ -573,7 +590,7 @@ private fun signInBlockReason(profile: OAuthProfile, state: AccountUiState): Str
             "and the gate denies them by default."
     // A provider that issues clients on request is NOT blocked by not having one yet — the
     // sign-in itself registers. Only a provider that cannot do that needs the form filled first.
-    state.registrationFor(profile.id)?.isComplete != true && !state.canSelfRegister(profile.id) ->
+    state.registrationFor(profile.id)?.isComplete != true && !state.isOneTap(profile.id) ->
         "This provider does not hand out OAuth clients on request, so one has to be created with " +
             "it first, then pasted below. ${profile.clientHint}"
     profile.isCustom && state.registrationFor(profile.id)?.issuer.isNullOrBlank() ->

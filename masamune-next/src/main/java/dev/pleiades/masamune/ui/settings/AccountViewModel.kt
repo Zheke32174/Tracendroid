@@ -17,6 +17,7 @@ import dev.pleiades.masamune.ai.auth.OAuthClientRegistration
 import dev.pleiades.masamune.ai.auth.OAuthGrant
 import dev.pleiades.masamune.ai.auth.OAuthProfile
 import dev.pleiades.masamune.ai.auth.ResolvedEndpoints
+import dev.pleiades.masamune.ai.auth.ShippedClients
 import dev.pleiades.masamune.ai.auth.SignInPhase
 import dev.pleiades.masamune.core.capability.Capability
 import dev.pleiades.masamune.core.capability.Caller
@@ -42,6 +43,13 @@ data class AccountUiState(
      * which is the whole difference between a login portal and a configuration screen.
      */
     val selfRegisterable: Set<String> = emptySet(),
+    /**
+     * Profile ids this build carries a compiled-in OAuth client for. These rows are a single
+     * button with no form at any point — the desktop-app shape.
+     */
+    val shippedClients: Set<String> = emptySet(),
+    /** Provider id → the console page that creates a client, for the rows that still need one. */
+    val consoleUrls: Map<String, String> = emptyMap(),
     val networkGranted: Boolean = false,
     /** Which row is mid-flow. Exactly one at a time; the others stay interactive. */
     val busyProfileId: String? = null,
@@ -53,6 +61,10 @@ data class AccountUiState(
 ) {
     fun sessionFor(profileId: String): AccountSession? = sessions[profileId]
     fun canSelfRegister(profileId: String): Boolean = profileId in selfRegisterable
+
+    /** True when nothing is ever asked of the user for this provider: shipped, or self-registering. */
+    fun isOneTap(profileId: String): Boolean =
+        profileId in shippedClients || profileId in selfRegisterable
     fun registrationFor(profileId: String): OAuthClientRegistration? = registrations[profileId]
     fun isBusy(profileId: String): Boolean = busyProfileId == profileId
 }
@@ -99,6 +111,11 @@ class AccountViewModel(private val appContext: Context) : ViewModel() {
         _state.value = _state.value.copy(
             networkGranted = gate.isGranted(Caller.User, Capability.NETWORK),
             selfRegisterable = selfRegisterableIds(),
+            shippedClients = OAuthCatalog.all
+                .filter { ShippedClients.has(appContext, it.id) }.map { it.id }.toSet(),
+            consoleUrls = OAuthCatalog.all
+                .mapNotNull { p -> ShippedClients.consoleUrlFor(appContext, p.id)?.let { p.id to it } }
+                .toMap(),
         )
     }
 
@@ -116,6 +133,20 @@ class AccountViewModel(private val appContext: Context) : ViewModel() {
     fun grantNetwork() {
         gate.grant(Caller.User, Capability.NETWORK)
         refreshGrants()
+    }
+
+    /**
+     * Opens the provider's own credentials console. Exists so "create a client" is a tap rather
+     * than an instruction to go and find a page — the shortest honest path for a provider that
+     * will not issue clients on request.
+     */
+    fun openConsole(profileId: String) {
+        val url = _state.value.consoleUrls[profileId] ?: return
+        runCatching {
+            appContext.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }.onFailure { report("No browser on this device could open $url.", ok = false) }
     }
 
     fun dismissMessage() {

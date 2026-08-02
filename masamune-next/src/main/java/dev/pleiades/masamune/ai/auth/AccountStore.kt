@@ -24,7 +24,7 @@ import org.json.JSONObject
  * [dev.pleiades.masamune.core.capability.CapabilityGate], so the chat surface and the Account
  * screen always see the same session rather than two copies drifting apart.
  */
-class AccountStore private constructor(appContext: Context) {
+class AccountStore private constructor(private val appContext: Context) {
 
     private val vault = TokenVault.get(appContext)
     private val client = OAuthClient(appContext)
@@ -335,7 +335,10 @@ class AccountStore private constructor(appContext: Context) {
      */
     fun preflight(profile: OAuthProfile): Result<Pair<ResolvedEndpoints, OAuthClientRegistration>> {
         vaultUnavailableReason?.let { return Result.failure(AuthException(it)) }
+        // Refresh and revoke must use the SAME client the token was issued to, so the shipped
+        // client is consulted here too — otherwise a session signed in with it could never renew.
         val registration = _registrations.value[profile.id]?.takeIf { it.isComplete }
+            ?: ShippedClients.registrationFor(appContext, profile)
             ?: return Result.failure(
                 AuthException(
                     "No OAuth client ID is saved for ${profile.label}. ${profile.clientHint}"
@@ -373,10 +376,19 @@ class AccountStore private constructor(appContext: Context) {
 
         val endpoints = endpointsFor(profile).getOrElse { return Result.failure(it) }
 
+        // 1. A client the user supplied. Theirs wins: re-registering behind their back, or
+        //    silently preferring ours, would strand a client they deliberately created.
         _registrations.value[profile.id]?.takeIf { it.isComplete }?.let {
             return Result.success(endpoints to it)
         }
 
+        // 2. The client this build carries. This is the desktop-app path — the app already has a
+        //    client, so there is nothing to ask for and nothing to register.
+        ShippedClients.registrationFor(appContext, profile)?.let {
+            return Result.success(endpoints to it)
+        }
+
+        // 3. Ask the issuer for one (RFC 7591), where it will issue on request.
         if (endpoints.registrationEndpoint == null) {
             return Result.failure(
                 AuthException(
