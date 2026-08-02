@@ -65,26 +65,26 @@ object JsScripts {
                     }
                 }
                 
-                // Look for token in common storage keys
-                let token = getFromStorage('token') || 
-                            getFromStorage('auth_token') || 
+                // Look for the token of the account the user just signed into,
+                // in this WebView's own storage only. There is NO fallback: if the
+                // signed-in session did not put a token here, we capture nothing and
+                // tell the app so. A baked-in credential in a security path is exactly
+                // the pattern this app forbids.
+                let token = getFromStorage('token') ||
+                            getFromStorage('auth_token') ||
                             getFromStorage('accessToken') ||
                             getFromStorage('id_token') ||
                             getFromStorage('access_token');
-                
-                // If no token found in storage, use hardcoded token
+
                 if (!token) {
-                    token = "trP/KIrtNAMNnQxN1P1YMivruoy0STI5onzNhCdzo8iOM7CObxaGhjg+w+JPm/jC";
-                    console.log('Using hardcoded token');
-                    // Save for future use
-                    try {
-                        localStorage.setItem('auth_token', token);
-                    } catch (e) {
-                        console.error('Failed to store token:', e);
+                    console.log('No session token present; user is not signed in yet');
+                    if (window.AndroidInterface && window.AndroidInterface.onError) {
+                        window.AndroidInterface.onError('Not signed in: no session token found. Sign in on the page above, then retry.');
                     }
+                    return;
                 }
-                
-                console.log('Token found (length: ' + token.length + ')');
+
+                console.log('Session token found (length: ' + token.length + ')');
                 
                 fetch('${DeepseekApiConstants.DEEPSEEK_GET_API_KEYS_URL}', {
                     method: 'GET',
@@ -178,18 +178,22 @@ object JsScripts {
                     } catch (e) { return null; }
                 }
                 
-                let token = getFromStorage('token') || 
-                            getFromStorage('auth_token') || 
+                let token = getFromStorage('token') ||
+                            getFromStorage('auth_token') ||
                             getFromStorage('accessToken') ||
                             getFromStorage('id_token') ||
                             getFromStorage('access_token');
-                
-                // If no token found in storage, use hardcoded token
+
+                // No fallback credential. Without a real signed-in session token
+                // there is nothing to authorize this destructive call with, so stop.
                 if (!token) {
-                    token = "trP/KIrtNAMNnQxN1P1YMivruoy0STI5onzNhCdzo8iOM7CObxaGhjg+w+JPm/jC";
-                    console.log('Using hardcoded token');
+                    console.log('No session token present; refusing to delete without a signed-in session');
+                    if (window.AndroidInterface && window.AndroidInterface.onError) {
+                        window.AndroidInterface.onError('Not signed in: cannot delete a key without your session.');
+                    }
+                    return;
                 }
-                
+
                 fetch('${DeepseekApiConstants.DEEPSEEK_DELETE_API_KEY_URL}', {
                     method: 'POST',
                     headers: {
