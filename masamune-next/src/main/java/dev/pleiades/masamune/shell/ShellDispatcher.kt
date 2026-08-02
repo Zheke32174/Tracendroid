@@ -37,6 +37,13 @@ class ShellDispatcher(context: Context) {
      */
     private val capsule = CapsuleShellBackend(appContext)
 
+    /**
+     * Where a typed `su` goes. Not the device's `su` — the container's own root. See [SuRewrite] for
+     * why the word is re-routed rather than left to fail, and [CapsuleRoot] for what that root is
+     * and, just as importantly, what it is not.
+     */
+    private val containerRoot = CapsuleRoot(appContext)
+
     private val gate = CapabilityGate.get(appContext)
 
     /** True when commands run on the bundled userland instead of being handed to another app. */
@@ -55,6 +62,19 @@ class ShellDispatcher(context: Context) {
     /** Outcome of a gated dispatch. [Ran] carries the backend's own honest outcome shape. */
     sealed class Dispatch {
         data class Ran(val outcome: TermuxShellBackend.Outcome) : Dispatch()
+
+        /**
+         * The line asked for root and was answered by the **container's** root, not the device's.
+         *
+         * A separate case on purpose. Callers that only care about output can treat it like [Ran];
+         * callers that care *which* root they got — a surface printing a banner, an operator step
+         * deciding whether a privileged action is really possible — cannot miss the distinction,
+         * because the type makes them handle it. [note] is the wording to show.
+         */
+        data class RanAsContainerRoot(
+            val outcome: TermuxShellBackend.Outcome,
+            val note: String,
+        ) : Dispatch()
 
         /** The SHELL capability is not held by the caller. Message is the gate's own wording. */
         data class Gated(val message: String) : Dispatch()
@@ -78,6 +98,14 @@ class ShellDispatcher(context: Context) {
     ): Dispatch {
         val decision = gate.check(caller, Capability.SHELL, "run \"$commandLine\"")
         if (decision is GateDecision.Denied) return Dispatch.Gated(decision.message)
+
+        // `su` is re-routed inward. On an unrooted device the device's su does not exist, so the
+        // line would die as "su: not found" — an answer that says nothing about the root Masamune
+        // genuinely has. It goes to the container instead, and the outcome type says so.
+        val rootRequest = SuRewrite.parse(commandLine)
+        if (rootRequest != null) {
+            return dispatchAsContainerRoot(rootRequest, timeoutMillis)
+        }
 
         // Masamune's own userland first. The capability gate above still applies — running on our
         // own busybox is not a way around it — but no other app, and no Termux permission, is
@@ -115,5 +143,41 @@ class ShellDispatcher(context: Context) {
         }
 
         return Dispatch.Ran(backend.run(commandLine, workdir, timeoutMillis, failsafe))
+    }
+
+    /**
+     * Answer a root request with the container's root.
+     *
+     * Bare `su` asks for an interactive root *session*; this dispatcher runs one command per call
+     * and has no session to hand over, so it says exactly that and names the form that does work,
+     * rather than running something that merely looks like a root shell opened.
+     */
+    private suspend fun dispatchAsContainerRoot(
+        request: SuRewrite.Request,
+        timeoutMillis: Long,
+    ): Dispatch = when (request) {
+        is SuRewrite.Request.Interactive -> Dispatch.RanAsContainerRoot(
+            outcome = TermuxShellBackend.Outcome.DispatchFailed(
+                "`su` on its own asks for an interactive root shell, and this Terminal runs one " +
+                    "command per entry — there is no session to hand over. Run a command as root " +
+                    "with: su -c '<command>'",
+            ),
+            note = CONTAINER_ROOT_NOTE,
+        )
+        is SuRewrite.Request.Command -> Dispatch.RanAsContainerRoot(
+            outcome = containerRoot.runAsRoot(request.commandLine, timeoutMillis = timeoutMillis),
+            note = CONTAINER_ROOT_NOTE,
+        )
+    }
+
+    private companion object {
+        /**
+         * Shown wherever a container-root result is rendered. It states the boundary in the terms
+         * that matter to someone who typed `su`: what they can now do, and what they still cannot.
+         */
+        const val CONTAINER_ROOT_NOTE =
+            "Root inside Masamune's container — uid 0 over the container's own filesystem. " +
+                "The kernel still sees Masamune's app uid, so this does not reach system_server, " +
+                "other apps' data, or anything outside the sandbox."
     }
 }

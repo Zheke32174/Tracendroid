@@ -181,31 +181,12 @@ class ShellViewModel(appContext: Context) : ViewModel() {
     private fun applyDispatch(sessionId: Long, jobId: Long, dispatch: ShellDispatcher.Dispatch) {
         val finishedAt = System.currentTimeMillis()
         when (dispatch) {
-            is ShellDispatcher.Dispatch.Ran -> when (val o = dispatch.outcome) {
-                is TermuxShellBackend.Outcome.Completed -> {
-                    updateEntry(sessionId, jobId) {
-                        it.copy(running = false, stdout = o.stdout, stderr = o.stderr, exitCode = o.exitCode)
-                    }
-                    updateJob(jobId) {
-                        it.copy(state = ShellJobState.COMPLETED, exitCode = o.exitCode, stdout = o.stdout, stderr = o.stderr, finishedAt = finishedAt)
-                    }
-                }
-                is TermuxShellBackend.Outcome.RefusedByTermux -> {
-                    val msg = "Termux refused the call (err=${o.err}): ${o.errmsg}"
-                    updateEntry(sessionId, jobId) { it.copy(running = false, failure = msg) }
-                    updateJob(jobId) { it.copy(state = ShellJobState.REFUSED, failure = msg, finishedAt = finishedAt) }
-                }
-                is TermuxShellBackend.Outcome.DispatchFailed -> {
-                    updateEntry(sessionId, jobId) { it.copy(running = false, failure = o.message) }
-                    updateJob(jobId) { it.copy(state = ShellJobState.DISPATCH_FAILED, failure = o.message, finishedAt = finishedAt) }
-                }
-                is TermuxShellBackend.Outcome.TimedOut -> {
-                    val msg = "No result came back within ${o.afterMillis / 1000}s. " +
-                        "The command may still be running inside Termux."
-                    updateEntry(sessionId, jobId) { it.copy(running = false, failure = msg) }
-                    updateJob(jobId) { it.copy(state = ShellJobState.TIMED_OUT, failure = msg, finishedAt = finishedAt) }
-                }
-            }
+            is ShellDispatcher.Dispatch.Ran ->
+                applyOutcome(sessionId, jobId, dispatch.outcome, null, finishedAt)
+            // Same rendering, plus the banner naming WHICH root answered. Carried into the
+            // transcript rather than shown once and lost, so scrolling back still says it.
+            is ShellDispatcher.Dispatch.RanAsContainerRoot ->
+                applyOutcome(sessionId, jobId, dispatch.outcome, dispatch.note, finishedAt)
             is ShellDispatcher.Dispatch.Gated -> {
                 _state.value = _state.value.copy(gateMessage = dispatch.message)
                 updateEntry(sessionId, jobId) { it.copy(running = false, failure = dispatch.message) }
@@ -216,6 +197,52 @@ class ShellViewModel(appContext: Context) : ViewModel() {
                 val msg = "No shell backend to drive (${dispatch.availability::class.simpleName})."
                 updateEntry(sessionId, jobId) { it.copy(running = false, failure = msg) }
                 updateJob(jobId) { it.copy(state = ShellJobState.DISPATCH_FAILED, failure = msg, finishedAt = finishedAt) }
+            }
+        }
+    }
+
+    /**
+     * Folds one backend outcome in. [note], when present, is prepended to whatever the command
+     * itself said — on stderr for a completed run, ahead of the message for a failed one — so the
+     * qualification travels with the result instead of being a separate thing a reader can miss.
+     */
+    private fun applyOutcome(
+        sessionId: Long,
+        jobId: Long,
+        outcome: TermuxShellBackend.Outcome,
+        note: String?,
+        finishedAt: Long,
+    ) {
+        fun annotate(text: String): String =
+            if (note == null) text else listOf(note, text).filter { it.isNotBlank() }.joinToString("\n\n")
+
+        when (outcome) {
+            is TermuxShellBackend.Outcome.Completed -> {
+                val stderr = annotate(outcome.stderr)
+                updateEntry(sessionId, jobId) {
+                    it.copy(running = false, stdout = outcome.stdout, stderr = stderr, exitCode = outcome.exitCode)
+                }
+                updateJob(jobId) {
+                    it.copy(state = ShellJobState.COMPLETED, exitCode = outcome.exitCode, stdout = outcome.stdout, stderr = stderr, finishedAt = finishedAt)
+                }
+            }
+            is TermuxShellBackend.Outcome.RefusedByTermux -> {
+                val msg = annotate("Termux refused the call (err=${outcome.err}): ${outcome.errmsg}")
+                updateEntry(sessionId, jobId) { it.copy(running = false, failure = msg) }
+                updateJob(jobId) { it.copy(state = ShellJobState.REFUSED, failure = msg, finishedAt = finishedAt) }
+            }
+            is TermuxShellBackend.Outcome.DispatchFailed -> {
+                val msg = annotate(outcome.message)
+                updateEntry(sessionId, jobId) { it.copy(running = false, failure = msg) }
+                updateJob(jobId) { it.copy(state = ShellJobState.DISPATCH_FAILED, failure = msg, finishedAt = finishedAt) }
+            }
+            is TermuxShellBackend.Outcome.TimedOut -> {
+                val msg = annotate(
+                    "No result came back within ${outcome.afterMillis / 1000}s. " +
+                        "The command may still be running."
+                )
+                updateEntry(sessionId, jobId) { it.copy(running = false, failure = msg) }
+                updateJob(jobId) { it.copy(state = ShellJobState.TIMED_OUT, failure = msg, finishedAt = finishedAt) }
             }
         }
     }
@@ -411,13 +438,13 @@ class ShellViewModel(appContext: Context) : ViewModel() {
 
     private suspend fun probe(command: String): Probe =
         when (val d = dispatcher.dispatch(Caller.User, command)) {
-            is ShellDispatcher.Dispatch.Ran -> when (val o = d.outcome) {
-                is TermuxShellBackend.Outcome.Completed -> Probe.Ok(o.stdout, o.stderr, o.exitCode)
-                is TermuxShellBackend.Outcome.RefusedByTermux ->
-                    Probe.Err("Termux refused the call (err=${o.err}): ${o.errmsg}")
-                is TermuxShellBackend.Outcome.DispatchFailed -> Probe.Err(o.message)
-                is TermuxShellBackend.Outcome.TimedOut ->
-                    Probe.Err("No result within ${o.afterMillis / 1000}s.")
+            is ShellDispatcher.Dispatch.Ran -> probeOutcome(d.outcome)
+            // The Environments panel's probes are `command -v`-style lines, so this branch is
+            // reached only if a probe ever asks for root. It reports the container's answer as the
+            // container's — the panel must not read a container-root success as a device fact.
+            is ShellDispatcher.Dispatch.RanAsContainerRoot -> when (val p = probeOutcome(d.outcome)) {
+                is Probe.Ok -> Probe.Ok(p.stdout, listOf(d.note, p.stderr).filter { it.isNotBlank() }.joinToString("\n\n"), p.exitCode)
+                is Probe.Err -> Probe.Err("${d.note}\n\n${p.message}")
             }
             is ShellDispatcher.Dispatch.Gated -> Probe.Err(d.message)
             is ShellDispatcher.Dispatch.Unavailable -> {
@@ -425,6 +452,15 @@ class ShellViewModel(appContext: Context) : ViewModel() {
                 Probe.Err("No shell backend to drive.")
             }
         }
+
+    private fun probeOutcome(o: TermuxShellBackend.Outcome): Probe = when (o) {
+        is TermuxShellBackend.Outcome.Completed -> Probe.Ok(o.stdout, o.stderr, o.exitCode)
+        is TermuxShellBackend.Outcome.RefusedByTermux ->
+            Probe.Err("Termux refused the call (err=${o.err}): ${o.errmsg}")
+        is TermuxShellBackend.Outcome.DispatchFailed -> Probe.Err(o.message)
+        is TermuxShellBackend.Outcome.TimedOut ->
+            Probe.Err("No result within ${o.afterMillis / 1000}s.")
+    }
 
     // ---------------------------------------------------------------------------------------------
     // Immutable-state helpers

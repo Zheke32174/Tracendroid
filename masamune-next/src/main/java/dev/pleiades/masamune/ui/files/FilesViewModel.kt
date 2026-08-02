@@ -539,16 +539,13 @@ class FilesViewModel(private val appContext: Context) : ViewModel() {
         )
         viewModelScope.launch {
             val run = when (val d = shell.dispatch(Caller.User, command, workdir)) {
-                is ShellDispatcher.Dispatch.Ran -> when (val o = d.outcome) {
-                    is TermuxShellBackend.Outcome.Completed ->
-                        ShellRunState(command, workdir, false, o.stdout, o.stderr, o.exitCode, null)
-                    is TermuxShellBackend.Outcome.RefusedByTermux ->
-                        ShellRunState(command, workdir, false, failure = "Termux refused the call (err=${o.err}): ${o.errmsg}")
-                    is TermuxShellBackend.Outcome.DispatchFailed ->
-                        ShellRunState(command, workdir, false, failure = o.message)
-                    is TermuxShellBackend.Outcome.TimedOut ->
-                        ShellRunState(command, workdir, false, failure = "No result within ${o.afterMillis / 1000}s. The command may still be running inside Termux.")
-                }
+                is ShellDispatcher.Dispatch.Ran -> runState(command, workdir, d.outcome, null)
+                // A `su …` typed into Run here is answered by the container's root. The note rides
+                // along so the Files surface cannot imply the file it just chown'd was outside the
+                // sandbox — the paths it browses mostly ARE outside it, which makes the difference
+                // matter more here than anywhere else.
+                is ShellDispatcher.Dispatch.RanAsContainerRoot ->
+                    runState(command, workdir, d.outcome, d.note)
                 is ShellDispatcher.Dispatch.Gated ->
                     ShellRunState(command, workdir, false, failure = d.message)
                 is ShellDispatcher.Dispatch.Unavailable -> {
@@ -557,6 +554,27 @@ class FilesViewModel(private val appContext: Context) : ViewModel() {
                 }
             }
             _state.value = _state.value.copy(shellRun = run)
+        }
+    }
+
+    /** One outcome as a [ShellRunState], with [note] — when the run was qualified — carried into it. */
+    private fun runState(
+        command: String,
+        workdir: String,
+        outcome: TermuxShellBackend.Outcome,
+        note: String?,
+    ): ShellRunState {
+        fun annotate(text: String) =
+            if (note == null) text else listOf(note, text).filter { it.isNotBlank() }.joinToString("\n\n")
+        return when (outcome) {
+            is TermuxShellBackend.Outcome.Completed ->
+                ShellRunState(command, workdir, false, outcome.stdout, annotate(outcome.stderr), outcome.exitCode, null)
+            is TermuxShellBackend.Outcome.RefusedByTermux ->
+                ShellRunState(command, workdir, false, failure = annotate("Termux refused the call (err=${outcome.err}): ${outcome.errmsg}"))
+            is TermuxShellBackend.Outcome.DispatchFailed ->
+                ShellRunState(command, workdir, false, failure = annotate(outcome.message))
+            is TermuxShellBackend.Outcome.TimedOut ->
+                ShellRunState(command, workdir, false, failure = annotate("No result within ${outcome.afterMillis / 1000}s. The command may still be running."))
         }
     }
 

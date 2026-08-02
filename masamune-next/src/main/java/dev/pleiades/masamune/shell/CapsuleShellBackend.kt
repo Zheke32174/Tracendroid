@@ -137,6 +137,26 @@ class CapsuleShellBackend(context: Context) {
         }
     }
 
+    /**
+     * Run an explicit argv inside the capsule's environment.
+     *
+     * [run] builds `busybox sh -c <line>` for the common case; this is for callers that must control
+     * the whole vector themselves — [CapsuleRoot] in particular, whose first argument is `proot` and
+     * whose remaining arguments are flags that a shell would mangle if they went through `-c`. The
+     * environment (`HOME`, `TMPDIR`, `PREFIX`, `PATH`) and the pipe-draining are identical, so a
+     * caller gets the same outcome shape and the same "cannot deadlock on a full pipe" guarantee.
+     */
+    internal suspend fun runArgv(
+        argv: List<String>,
+        cwd: File,
+        timeoutMillis: Long = 120_000L,
+    ): TermuxShellBackend.Outcome = withContext(Dispatchers.IO) {
+        withTimeoutOrNull(timeoutMillis) {
+            runCatching { runRaw(argv, cwd, timeoutMillis) }
+                .getOrElse { TermuxShellBackend.Outcome.DispatchFailed(it.message ?: "exec failed") }
+        } ?: TermuxShellBackend.Outcome.TimedOut(timeoutMillis)
+    }
+
     /** One process, output drained, exit code reported. Never throws for a non-zero exit. */
     private fun runRaw(
         argv: List<String>,
