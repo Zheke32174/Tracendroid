@@ -78,15 +78,34 @@ jobs:
           java -version
           ./gradlew --version
 
-      # compileDebugKotlin proves the codebase parses + types — that's the
-      # minimum we need to know the threat-model changes didn't break the
-      # build. Full assembleDebug runs lint + dexing which roughly doubles
-      # the runtime; switch to it when the team is OK paying that cost.
-      - name: Compile (debug Kotlin)
-        run: ./gradlew :app:compileDebugKotlin --no-daemon --stacktrace
+      # CI GATES ON WHAT WE SHIP, WHICH IS :masamune-next.
+      #
+      # This job used to gate on `:app:compileDebugKotlin`. :app is the legacy
+      # Operit-derived module, kept deliberately as scrap reference — it is no
+      # longer the product, and it does not compile: it references FFmpegKit and
+      # a `defaultTool.debugger` package that are not resolvable in this tree.
+      # Those are pre-existing gaps in a module being replaced, so gating the
+      # branch on them means CI can never go green no matter what we ship, and a
+      # permanently-red check is a check nobody reads.
+      #
+      # assembleDebug rather than compileDebugKotlin: it also dexes, packages and
+      # signs, so it catches R8/manifest/resource breakage that a type-check
+      # cannot. That is worth the extra minutes for the module we actually hand
+      # to a user.
+      - name: Assemble the shipping module (debug)
+        run: ./gradlew :masamune-next:assembleDebug --no-daemon --stacktrace
+
+      - name: Unit tests (shipping module)
+        run: ./gradlew :masamune-next:testDebugUnitTest --no-daemon --stacktrace
+
+      # :app is reference, so its state is REPORTED but never blocking. When it
+      # is retired, or its missing dependencies are restored, delete or promote
+      # this step deliberately rather than letting it rot as a permanent `|| true`.
+      - name: Compile the legacy :app module (reference only, non-blocking)
+        run: ./gradlew :app:compileDebugKotlin --no-daemon --stacktrace || true
 
       - name: Lint (debug)
-        run: ./gradlew :app:lintDebug --no-daemon --stacktrace || true
+        run: ./gradlew :masamune-next:lintDebug --no-daemon --stacktrace || true
         # Lint findings don't fail the job in v1 — the project has decades
         # of pre-existing warnings the threat-model work didn't introduce.
         # Switch this to a real failure once the warnings are triaged.
