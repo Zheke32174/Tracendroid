@@ -10,6 +10,7 @@ import dev.pleiades.masamune.flow.model.FlowNode
 import dev.pleiades.masamune.flow.model.Port
 import dev.pleiades.masamune.flow.model.Requirement
 import dev.pleiades.masamune.apps.AppInspector
+import dev.pleiades.masamune.apps.LocationReader
 import dev.pleiades.masamune.apps.PowerState
 import dev.pleiades.masamune.apps.SensorReader
 import dev.pleiades.masamune.apps.SystemSettings
@@ -17,6 +18,7 @@ import dev.pleiades.masamune.flow.runtime.ArgResolver
 import dev.pleiades.masamune.flow.runtime.BlockRegistry
 import dev.pleiades.masamune.flow.runtime.ExprEvalAdapter
 import dev.pleiades.masamune.flow.runtime.impl.appsLookup
+import dev.pleiades.masamune.flow.runtime.impl.locationLookup
 import dev.pleiades.masamune.flow.runtime.impl.powerLookup
 import dev.pleiades.masamune.flow.runtime.impl.sensorLookup
 import dev.pleiades.masamune.flow.runtime.impl.settingsLookup
@@ -79,12 +81,20 @@ import java.util.UUID
  * there is no seam, and each Sensor block fails by name with `SENSOR_ABSENT` rather than pretending to
  * read a hardware sensor. A factory holding a `Context` passes `{ AndroidSensorReader(context) }` to
  * make them live; nothing in the runtime changes.
+ *
+ * @param locationReader supplies the location-subsystem-backed [LocationReader] the Location blocks
+ * (`geocoding_reverse`, `geocoding`, `location_at`, `location_get`, `location_provider_enabled`) run
+ * against. It defaults to `{ null }` on the same honest terms as the seams above: with no `Context`
+ * there is no seam, and each Location block fails by name with `LOCATION_ABSENT` rather than pretending
+ * to read a place. A factory holding a `Context` passes `{ AndroidLocationReader(context) }` to make
+ * them live; nothing in the runtime changes.
  */
 class FlowPlaneViewModel(
     private val appInspector: () -> AppInspector? = { null },
     private val systemSettings: () -> SystemSettings? = { null },
     private val powerState: () -> PowerState? = { null },
     private val sensorReader: () -> SensorReader? = { null },
+    private val locationReader: () -> LocationReader? = { null },
 ) : ViewModel() {
 
     private val _graph = MutableStateFlow(FlowGraph(id = UUID.randomUUID().toString(), name = "Untitled flow"))
@@ -193,10 +203,16 @@ class FlowPlaneViewModel(
             // found here first, else Power, else Settings, else Apps, else the base registry. A null
             // seam fails each by name (SENSOR_ABSENT) — honest, not silent — exactly as the layers below.
             val sensors = sensorLookup(sensorReader)
+            // Compose the Location one-shot reads the same way, layered ahead of Sensor: found here
+            // first, else Sensor, else Power, else Settings, else Apps, else the base registry. A null
+            // seam fails each by name (LOCATION_ABSENT) — honest, not silent — exactly as the layers below.
+            val location = locationLookup(locationReader)
             val scheduler = Scheduler(
                 graph = snapshot,
                 specs = { BlockCatalog[it] },
-                impls = { id -> sensors[id] ?: power[id] ?: settings[id] ?: apps[id] ?: registry.lookup(id) },
+                impls = { id ->
+                    location[id] ?: sensors[id] ?: power[id] ?: settings[id] ?: apps[id] ?: registry.lookup(id)
+                },
                 resolver = ArgResolver(ExprEvalAdapter()),
                 store = InMemoryFiberStore(),
                 scope = viewModelScope,
