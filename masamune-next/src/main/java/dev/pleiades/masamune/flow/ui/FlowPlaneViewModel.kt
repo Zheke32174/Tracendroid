@@ -13,6 +13,7 @@ import dev.pleiades.masamune.apps.AppInspector
 import dev.pleiades.masamune.apps.AudioController
 import dev.pleiades.masamune.apps.ConnectivityReader
 import dev.pleiades.masamune.apps.ContentReader
+import dev.pleiades.masamune.apps.DeviceOutput
 import dev.pleiades.masamune.apps.DeviceUi
 import dev.pleiades.masamune.apps.LocationReader
 import dev.pleiades.masamune.apps.PowerState
@@ -26,6 +27,7 @@ import dev.pleiades.masamune.flow.runtime.impl.appsLookup
 import dev.pleiades.masamune.flow.runtime.impl.audioLookup
 import dev.pleiades.masamune.flow.runtime.impl.connectivityLookup
 import dev.pleiades.masamune.flow.runtime.impl.contentLookup
+import dev.pleiades.masamune.flow.runtime.impl.deviceOutputLookup
 import dev.pleiades.masamune.flow.runtime.impl.deviceUiLookup
 import dev.pleiades.masamune.flow.runtime.impl.locationLookup
 import dev.pleiades.masamune.flow.runtime.impl.powerLookup
@@ -147,6 +149,15 @@ import java.util.UUID
  * subset only — every a11y interaction/inspection block (operator-owned), notification-listener,
  * device-admin, SHELL, dialog, picker, custom-interface, state-setter and await/callback Interface block
  * stays gated by omission.
+ *
+ * @param deviceOutput supplies the device-output-stack-backed [DeviceOutput] the CameraAndSound output
+ * blocks (`vibrate_start`, `vibrate_stop`, `speak_play`, `speak_stop`) run against. It defaults to
+ * `{ null }` on the same honest terms as the seams above: with no `Context` there is no seam, and each
+ * device-output block fails by name with `DEVICE_OUTPUT_ABSENT` rather than claiming an effect it never
+ * applied. A factory holding a `Context` passes `{ AndroidDeviceOutput(context) }` to make them live;
+ * nothing in the runtime changes. The pure vibration + text-to-speech output-effect subset only — every
+ * capture, recording, media/sound/tone playback, image, file-writing speech, barcode/QR/OCR and audio
+ * state-read/volume-effect CameraAndSound block stays gated by omission.
  */
 class FlowPlaneViewModel(
     private val appInspector: () -> AppInspector? = { null },
@@ -159,6 +170,7 @@ class FlowPlaneViewModel(
     private val audioController: () -> AudioController? = { null },
     private val contentReader: () -> ContentReader? = { null },
     private val deviceUi: () -> DeviceUi? = { null },
+    private val deviceOutput: () -> DeviceOutput? = { null },
 ) : ViewModel() {
 
     private val _graph = MutableStateFlow(FlowGraph(id = UUID.randomUUID().toString(), name = "Untitled flow"))
@@ -293,13 +305,18 @@ class FlowPlaneViewModel(
             // CameraAndSound audio, …, else the base registry. A null seam fails each by name
             // (DEVICE_UI_ABSENT) — honest, not silent — exactly as the layers below.
             val device = deviceUiLookup(deviceUi)
+            // Compose the CameraAndSound device-output (vibration + text-to-speech) effect blocks the same
+            // way, layered ahead of the Interface device-UI blocks as the new top layer: found here first,
+            // else device-UI, else Content, …, else the base registry. A null seam fails each by name
+            // (DEVICE_OUTPUT_ABSENT) — honest, not silent — exactly as the layers below.
+            val deviceOut = deviceOutputLookup(deviceOutput)
             val scheduler = Scheduler(
                 graph = snapshot,
                 specs = { BlockCatalog[it] },
                 impls = { id ->
-                    device[id] ?: content[id] ?: audio[id] ?: telephony[id] ?: connectivity[id]
-                        ?: location[id] ?: sensors[id] ?: power[id] ?: settings[id] ?: apps[id]
-                        ?: registry.lookup(id)
+                    deviceOut[id] ?: device[id] ?: content[id] ?: audio[id] ?: telephony[id]
+                        ?: connectivity[id] ?: location[id] ?: sensors[id] ?: power[id] ?: settings[id]
+                        ?: apps[id] ?: registry.lookup(id)
                 },
                 resolver = ArgResolver(ExprEvalAdapter()),
                 store = InMemoryFiberStore(),
