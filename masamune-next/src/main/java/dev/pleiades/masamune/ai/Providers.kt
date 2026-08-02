@@ -1,5 +1,9 @@
 package dev.pleiades.masamune.ai
 
+import android.content.Context
+import dev.pleiades.masamune.ai.auth.AccountStore
+import dev.pleiades.masamune.ai.auth.AuthMode
+import dev.pleiades.masamune.ai.auth.OAuthCatalog
 import dev.pleiades.masamune.core.halt.HaltController
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -31,6 +35,26 @@ internal val sharedClient: OkHttpClient by lazy {
 private fun String.asBase(): String = trimEnd('/')
 
 /**
+ * OpenAI-compatible endpoints take both credential kinds in the same header: an API key IS a
+ * bearer token there, and an account access token is one too.
+ */
+private fun Request.Builder.authorize(credential: Credential): Request.Builder = when (credential) {
+    is Credential.ApiKey -> addHeader("Authorization", "Bearer ${credential.value}")
+    is Credential.Bearer -> addHeader("Authorization", "Bearer ${credential.accessToken}")
+}
+
+/**
+ * Anthropic's own documented header for a key is `x-api-key`, not `Authorization`. An OAuth
+ * access token is not an API key and does not belong in that header, so the two kinds go to
+ * different headers rather than being coerced into one.
+ */
+private fun Request.Builder.authorizeAnthropic(credential: Credential): Request.Builder =
+    when (credential) {
+        is Credential.ApiKey -> addHeader("x-api-key", credential.value)
+        is Credential.Bearer -> addHeader("Authorization", "Bearer ${credential.accessToken}")
+    }
+
+/**
  * OpenAI-compatible `/chat/completions` provider.
  *
  * Works against api.openai.com and anything that speaks the same shape (a local llama.cpp
@@ -38,11 +62,17 @@ private fun String.asBase(): String = trimEnd('/')
  * BYOK. Payloads are built and parsed with org.json, so there is no reflective serialization
  * for R8 to break.
  */
-class OpenAiCompatProvider(private val config: ProviderConfig) : AiService {
+class OpenAiCompatProvider(
+    private val config: ProviderConfig,
+    private val credentials: CredentialSource,
+) : AiService {
 
     override val providerModel: String = "openai:${config.model}"
 
     override fun stream(turns: List<PromptTurn>): Flow<String> = flow {
+        // Resolved here, not at construction: a subscription token can be refreshed between
+        // the moment the service was built and the moment the request goes out.
+        val credential = credentials.credential()
         val body = JSONObject().apply {
             put("model", config.model)
             put("stream", true)
@@ -50,7 +80,7 @@ class OpenAiCompatProvider(private val config: ProviderConfig) : AiService {
         }
         val request = Request.Builder()
             .url("${config.baseUrl.asBase()}/chat/completions")
-            .addHeader("Authorization", "Bearer ${config.apiKey}")
+            .authorize(credential)
             .addHeader("Accept", "text/event-stream")
             .post(body.toString().toRequestBody(JSON))
             .build()
@@ -105,7 +135,7 @@ class OpenAiCompatProvider(private val config: ProviderConfig) : AiService {
         runCatching {
             val request = Request.Builder()
                 .url("${config.baseUrl.asBase()}/chat/completions")
-                .addHeader("Authorization", "Bearer ${config.apiKey}")
+                .authorize(credentials.credential())
                 .post(body.toString().toRequestBody(JSON))
                 .build()
             sharedClient.newCall(request).execute().use { response ->
@@ -136,11 +166,15 @@ class OpenAiCompatProvider(private val config: ProviderConfig) : AiService {
  * Anthropic's SSE has typed events; only `content_block_delta` with `text_delta` carries
  * visible text, and `error` events carry a message we surface verbatim.
  */
-class AnthropicProvider(private val config: ProviderConfig) : AiService {
+class AnthropicProvider(
+    private val config: ProviderConfig,
+    private val credentials: CredentialSource,
+) : AiService {
 
     override val providerModel: String = "anthropic:${config.model}"
 
     override fun stream(turns: List<PromptTurn>): Flow<String> = flow {
+        val credential = credentials.credential()
         val body = JSONObject().apply {
             put("model", config.model)
             put("max_tokens", 4096)
@@ -150,7 +184,7 @@ class AnthropicProvider(private val config: ProviderConfig) : AiService {
         }
         val request = Request.Builder()
             .url("${config.baseUrl.asBase()}/v1/messages")
-            .addHeader("x-api-key", config.apiKey)
+            .authorizeAnthropic(credential)
             .addHeader("anthropic-version", ANTHROPIC_VERSION)
             .addHeader("Accept", "text/event-stream")
             .post(body.toString().toRequestBody(JSON))
@@ -204,7 +238,7 @@ class AnthropicProvider(private val config: ProviderConfig) : AiService {
         runCatching {
             val request = Request.Builder()
                 .url("${config.baseUrl.asBase()}/v1/messages")
-                .addHeader("x-api-key", config.apiKey)
+                .authorizeAnthropic(credentials.credential())
                 .addHeader("anthropic-version", ANTHROPIC_VERSION)
                 .post(body.toString().toRequestBody(JSON))
                 .build()
@@ -246,8 +280,51 @@ class AnthropicProvider(private val config: ProviderConfig) : AiService {
 
 /** The only place a [ProviderConfig] becomes a live client. */
 object AiServiceFactory {
-    fun create(config: ProviderConfig): AiService = when (config.kind) {
-        ProviderKind.OPENAI_COMPATIBLE -> OpenAiCompatProvider(config)
-        ProviderKind.ANTHROPIC -> AnthropicProvider(config)
-    }
+
+    fun create(config: ProviderConfig, credentials: CredentialSource): AiService =
+        when (config.kind) {
+            ProviderKind.OPENAI_COMPATIBLE -> OpenAiCompatProvider(config, credentials)
+            ProviderKind.ANTHROPIC -> AnthropicProvider(config, credentials)
+        }
+
+    /**
+     * The call every surface should use: picks the credential source from the config's own
+     * [AuthMode], so no caller has to remember which mode is active.
+     */
+    fun create(context: Context, config: ProviderConfig): AiService =
+        create(config, credentialSource(context, config))
+
+    fun credentialSource(context: Context, config: ProviderConfig): CredentialSource =
+        when (config.authMode) {
+            AuthMode.API_KEY -> CredentialSource {
+                if (config.apiKey.isBlank()) {
+                    throw AiException(
+                        "API key mode is selected but no key is set. Set one at About -> AI " +
+                            "provider, or switch to subscription sign-in at About -> Account."
+                    )
+                }
+                Credential.ApiKey(config.apiKey)
+            }
+
+            AuthMode.SUBSCRIPTION -> {
+                val store = AccountStore.get(context)
+                val profileId = config.oauthProfileId
+                CredentialSource {
+                    val label = OAuthCatalog.byId(profileId)?.label ?: profileId
+                    if (profileId.isBlank()) {
+                        throw AiException(
+                            "Subscription mode is selected but no account provider is chosen. " +
+                                "Pick one at About -> Account."
+                        )
+                    }
+                    Credential.Bearer(
+                        store.accessToken(profileId).getOrElse {
+                            // The account layer's message already names the specific problem
+                            // (not signed in / expired / refresh refused); do not flatten it.
+                            throw AiException("$label sign-in problem: ${it.message}", it)
+                        }
+                    )
+                }
+            }
+        }
 }

@@ -51,6 +51,36 @@
         </activity>
 
         <!--
+          OAuth redirect target for the authorization-code + PKCE sign-in.
+
+          Exported because a browser has to be able to reach it — that is the entire point of a
+          redirect URI. It has no UI and no logic beyond handing the callback query to
+          PendingAuthorization, which drops any callback whose `state` it did not itself issue.
+          A custom scheme is claimable by any app on the device, so that state check plus PKCE
+          is what makes an intercepted authorization code useless to the interceptor.
+
+          The device-code flow (RFC 8628 — the preferred path, and the only one Google's
+          endpoint needs) uses no redirect at all and never touches this activity.
+        -->
+        <activity
+            android:name=".ai.auth.OAuthRedirectActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="oauth"
+                    android:path="/callback"
+                    android:scheme="masamune" />
+            </intent-filter>
+        </activity>
+
+        <!--
           Termux delivers RUN_COMMAND results by firing a PendingIntent that we create and
           hand it. The PendingIntent targets this service, so it stays un-exported: Termux
           sends with our identity, no other app can reach it.

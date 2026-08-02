@@ -1,5 +1,6 @@
 package dev.pleiades.masamune.ai
 
+import dev.pleiades.masamune.ai.auth.AuthMode
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -43,12 +44,51 @@ enum class ProviderKind(val label: String, val defaultBaseUrl: String, val defau
     ),
 }
 
+/**
+ * What actually goes on the wire as authentication.
+ *
+ * Split out because "the credential" used to be a single field on [ProviderConfig], which
+ * hardcoded the assumption that it is a pasted API key. It is not: in [AuthMode.SUBSCRIPTION]
+ * it is a short-lived access token that a refresh may replace between one request and the
+ * next, so it has to be fetched per call rather than captured at construction time.
+ */
+sealed interface Credential {
+    data class ApiKey(val value: String) : Credential
+    data class Bearer(val accessToken: String) : Credential
+}
+
+/**
+ * Supplies the credential for one request. Suspending on purpose: the subscription
+ * implementation may have to refresh a token, which is network I/O.
+ *
+ * Implementations throw [AiException] with a sentence naming what is missing rather than
+ * returning a blank string — a request sent with an empty Authorization header produces a 401
+ * that says nothing useful about the actual cause.
+ */
+fun interface CredentialSource {
+    suspend fun credential(): Credential
+}
+
 data class ProviderConfig(
     val kind: ProviderKind,
     val baseUrl: String,
     val apiKey: String,
     val model: String,
     val systemPrompt: String,
+    /** Which of the two auth models is in force. Defaults to the original one. */
+    val authMode: AuthMode = AuthMode.API_KEY,
+    /** An `OAuthCatalog` id, meaningful only when [authMode] is [AuthMode.SUBSCRIPTION]. */
+    val oauthProfileId: String = "",
 ) {
-    val isUsable: Boolean get() = apiKey.isNotBlank() && baseUrl.isNotBlank() && model.isNotBlank()
+    /**
+     * "Configured enough to try a request." In subscription mode this deliberately does NOT
+     * assert that a session exists — that is a live fact owned by `AccountStore`, and the chat
+     * surface reads it from there so its header can say "signed out" rather than the much
+     * vaguer "no provider configured".
+     */
+    val isUsable: Boolean
+        get() = baseUrl.isNotBlank() && model.isNotBlank() && when (authMode) {
+            AuthMode.API_KEY -> apiKey.isNotBlank()
+            AuthMode.SUBSCRIPTION -> oauthProfileId.isNotBlank()
+        }
 }

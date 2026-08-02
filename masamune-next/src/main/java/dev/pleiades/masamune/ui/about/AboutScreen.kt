@@ -55,7 +55,8 @@ fun AboutScreen(onNavigate: (String) -> Unit) {
         }
 
         SectionCard(title = "Settings and logs") {
-            NavRow("AI provider", "BYOK endpoint, key and model") { onNavigate(RouteCatalog.SETTINGS_PROVIDER) }
+            NavRow("AI provider", "Endpoint, model and the fallback API key") { onNavigate(RouteCatalog.SETTINGS_PROVIDER) }
+            NavRow("Account", "Sign in to a provider account instead of pasting a key") { onNavigate(RouteCatalog.SETTINGS_ACCOUNT) }
             NavRow("Capabilities", "The default-deny grant matrix") { onNavigate(RouteCatalog.SETTINGS_CAPABILITIES) }
             NavRow("Refusal log", "Every no this app said, classified") { onNavigate(RouteCatalog.SETTINGS_DECLINES) }
             NavRow("Navigation map", "Every route and how to reach it") { onNavigate(RouteCatalog.NAV_MAP) }

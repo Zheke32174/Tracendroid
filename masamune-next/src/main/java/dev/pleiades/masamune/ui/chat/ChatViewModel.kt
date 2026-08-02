@@ -8,6 +8,9 @@ import dev.pleiades.masamune.ai.AiServiceFactory
 import dev.pleiades.masamune.ai.PromptTurn
 import dev.pleiades.masamune.ai.PromptTurnKind
 import dev.pleiades.masamune.ai.ProviderStore
+import dev.pleiades.masamune.ai.auth.AccountStore
+import dev.pleiades.masamune.ai.auth.AuthMode
+import dev.pleiades.masamune.ai.auth.OAuthCatalog
 import dev.pleiades.masamune.core.capability.Capability
 import dev.pleiades.masamune.core.capability.Caller
 import dev.pleiades.masamune.core.capability.CapabilityGate
@@ -23,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 data class ChatUiState(
@@ -36,6 +40,12 @@ data class ChatUiState(
     val providerConfigured: Boolean = false,
     val networkGranted: Boolean = false,
     val halted: Boolean = false,
+    /** Which credential model is in force. Rendered in the chat header, never inferred. */
+    val authMode: AuthMode = AuthMode.API_KEY,
+    /** Human label for the auth state: "API key", "Signed in as x", "signed out". */
+    val authLabel: String = "",
+    /** False in subscription mode with no stored session — send refuses and says so. */
+    val accountReady: Boolean = true,
 )
 
 /**
@@ -53,6 +63,7 @@ class ChatViewModel(private val appContext: Context) : ViewModel() {
 
     private val db = ChatDatabase.get(appContext)
     private val providerStore = ProviderStore.get(appContext)
+    private val accounts = AccountStore.get(appContext)
     private val gate = CapabilityGate.get(appContext)
 
     private val _state = MutableStateFlow(ChatUiState())
@@ -65,13 +76,26 @@ class ChatViewModel(private val appContext: Context) : ViewModel() {
 
     init {
         viewModelScope.launch {
-            providerStore.config.collect { cfg ->
-                _state.value = _state.value.copy(
+            // Both flows feed the same header line, so both have to re-emit it: signing out
+            // must change the header even though the provider config did not move.
+            combine(providerStore.config, accounts.sessions) { cfg, sessions ->
+                val session = sessions[cfg.oauthProfileId]
+                val profileLabel = OAuthCatalog.byId(cfg.oauthProfileId)?.label ?: "no provider"
+                val authLabel = when (cfg.authMode) {
+                    AuthMode.API_KEY -> "API key"
+                    AuthMode.SUBSCRIPTION -> session?.identity?.display
+                        ?.let { "signed in as $it" }
+                        ?: "$profileLabel · signed out"
+                }
+                _state.value.copy(
                     providerConfigured = cfg.isUsable,
                     providerModel = "${cfg.kind.label} · ${cfg.model}",
                     networkGranted = gate.isGranted(Caller.User, Capability.NETWORK),
+                    authMode = cfg.authMode,
+                    authLabel = authLabel,
+                    accountReady = cfg.authMode == AuthMode.API_KEY || session != null,
                 )
-            }
+            }.collect { _state.value = it }
         }
         viewModelScope.launch {
             HaltController.state.collect { s ->
@@ -141,8 +165,31 @@ class ChatViewModel(private val appContext: Context) : ViewModel() {
 
         val config = providerStore.config.value
         if (!config.isUsable) {
-            val msg = "No provider is configured. Set a base URL, API key and model at " +
-                "About → AI provider before sending."
+            val msg = when (config.authMode) {
+                AuthMode.API_KEY ->
+                    "No provider is configured. Set a base URL, model and API key at About → " +
+                        "AI provider, or sign in to an account at About → Account instead."
+                AuthMode.SUBSCRIPTION ->
+                    "Subscription mode is selected but no account provider is chosen, or the " +
+                        "base URL / model is empty. Finish setup at About → Account."
+            }
+            DeclineRegistry.record(
+                Decline(
+                    callerTag = Caller.User.tag,
+                    capability = Capability.NETWORK,
+                    reason = Decline.Reason.PROVIDER_NOT_CONFIGURED,
+                    detail = msg,
+                    operation = "chat send",
+                )
+            )
+            _state.value = _state.value.copy(error = msg)
+            return
+        }
+
+        if (config.authMode == AuthMode.SUBSCRIPTION && accounts.sessionFor(config.oauthProfileId) == null) {
+            val label = OAuthCatalog.byId(config.oauthProfileId)?.label ?: "the selected provider"
+            val msg = "Subscription mode is selected but there is no stored session for " +
+                "$label. Open About → Account and sign in, or switch to API key mode."
             DeclineRegistry.record(
                 Decline(
                     callerTag = Caller.User.tag,
@@ -208,7 +255,7 @@ class ChatViewModel(private val appContext: Context) : ViewModel() {
                 )
             )
 
-            val service = AiServiceFactory.create(config)
+            val service = AiServiceFactory.create(appContext, config)
             val builder = StringBuilder()
             var failure: String? = null
 
@@ -258,6 +305,6 @@ class ChatViewModel(private val appContext: Context) : ViewModel() {
         if (!config.isUsable) {
             return Result.failure(IllegalStateException("Provider is not fully configured."))
         }
-        return AiServiceFactory.create(config).testConnection()
+        return AiServiceFactory.create(appContext, config).testConnection()
     }
 }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
@@ -38,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.pleiades.masamune.ai.PromptTurnKind
+import dev.pleiades.masamune.ai.auth.AuthMode
 import dev.pleiades.masamune.data.MessageEntity
 import dev.pleiades.masamune.ui.components.Notice
 import dev.pleiades.masamune.ui.components.NoticeTone
@@ -55,6 +57,7 @@ import dev.pleiades.masamune.ui.theme.MasamuneTheme
 fun ChatScreen(
     onOpenProviderSettings: () -> Unit,
     onOpenCapabilities: () -> Unit,
+    onOpenAccount: () -> Unit,
 ) {
     val vm = masamuneViewModel { ctx -> ChatViewModel(ctx) }
     val state by vm.state.collectAsState()
@@ -78,13 +81,19 @@ fun ChatScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Column(modifier = Modifier.weight(1f)) {
+                    // States the reach of this surface: which endpoint AND which credential
+                    // model is in force, so "who is this request billed to" is never a guess.
                     Text(
-                        if (state.providerConfigured) state.providerModel else "No provider configured",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (state.providerConfigured) {
-                            MaterialTheme.colorScheme.primary
+                        if (state.providerConfigured) {
+                            "${state.providerModel} · ${state.authLabel}"
                         } else {
-                            MaterialTheme.colorScheme.error
+                            "No provider configured"
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                        color = when {
+                            !state.providerConfigured -> MaterialTheme.colorScheme.error
+                            !state.accountReady -> MasamuneTheme.semantic.warning
+                            else -> MaterialTheme.colorScheme.primary
                         },
                     )
                     Text(
@@ -92,6 +101,9 @@ fun ChatScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MasamuneTheme.semantic.dim,
                     )
+                }
+                IconButton(onClick = onOpenAccount) {
+                    Icon(Icons.Filled.AccountCircle, contentDescription = "Account and sign-in")
                 }
                 IconButton(onClick = { historyOpen = true }) {
                     Icon(Icons.Filled.History, contentDescription = "Chat history")
@@ -111,12 +123,25 @@ fun ChatScreen(
         ) {
             if (!state.providerConfigured) {
                 Notice(
-                    title = "Bring your own key",
-                    body = "This build ships no keys and no default endpoint credentials. Set a " +
-                        "base URL, API key and model to send anything.",
+                    title = "No credential yet",
+                    body = "This build ships no keys and no default endpoint credentials. " +
+                        "Either sign in to a provider account, or set a base URL, model and " +
+                        "API key. Account sign-in is the primary path; the key is a fallback.",
                     tone = NoticeTone.WARNING,
-                    actionLabel = "Open AI provider settings",
-                    onAction = onOpenProviderSettings,
+                    actionLabel = "Sign in to an account",
+                    onAction = onOpenAccount,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                TextButton(onClick = onOpenProviderSettings) { Text("Use an API key instead") }
+            } else if (state.authMode == AuthMode.SUBSCRIPTION && !state.accountReady) {
+                Notice(
+                    title = "Subscription mode — signed out",
+                    body = "This provider is set to authenticate as an account, and there is no " +
+                        "stored session for it. Nothing is sent until you sign in; the API key " +
+                        "on the provider screen is not used while this mode is selected.",
+                    tone = NoticeTone.BLOCKED,
+                    actionLabel = "Open Account",
+                    onAction = onOpenAccount,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
