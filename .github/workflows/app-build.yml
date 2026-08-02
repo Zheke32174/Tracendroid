@@ -49,11 +49,18 @@ jobs:
         with:
           allow-checksums: ee3739525a995bcb5601621a6e2daec1f183bbefc375743acc235cec33547e04
 
-      - name: Set up JDK 17
+      # JDK 21, not 17: a transitive dependency (com.kyant:backdrop:1.0.6) ships
+      # class files at bytecode version 65 (Java 21), which a JDK-17 javac can't
+      # read ("class file has wrong version 65.0, should be 61.0") — it fails
+      # kaptDebugKotlin. The app still targets Java 17 output (sourceCompatibility
+      # / jvmTarget = 17 in app/build.gradle.kts); a JDK-21 toolchain reads the
+      # newer dependency and still emits Java-17 bytecode. AGP + Gradle 8.13 both
+      # support running on JDK 21.
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
