@@ -10,6 +10,7 @@ import dev.pleiades.masamune.flow.model.FlowNode
 import dev.pleiades.masamune.flow.model.Port
 import dev.pleiades.masamune.flow.model.Requirement
 import dev.pleiades.masamune.apps.AppInspector
+import dev.pleiades.masamune.apps.AudioController
 import dev.pleiades.masamune.apps.ConnectivityReader
 import dev.pleiades.masamune.apps.LocationReader
 import dev.pleiades.masamune.apps.PowerState
@@ -20,6 +21,7 @@ import dev.pleiades.masamune.flow.runtime.ArgResolver
 import dev.pleiades.masamune.flow.runtime.BlockRegistry
 import dev.pleiades.masamune.flow.runtime.ExprEvalAdapter
 import dev.pleiades.masamune.flow.runtime.impl.appsLookup
+import dev.pleiades.masamune.flow.runtime.impl.audioLookup
 import dev.pleiades.masamune.flow.runtime.impl.connectivityLookup
 import dev.pleiades.masamune.flow.runtime.impl.locationLookup
 import dev.pleiades.masamune.flow.runtime.impl.powerLookup
@@ -110,6 +112,16 @@ import java.util.UUID
  * `{ AndroidTelephonyReader(context) }` to make them live; nothing in the runtime changes. The unprivileged
  * read subset only — every call, SMS, USSD, dial, DTMF, set-state, await and SHELL-gated Telephony block
  * stays gated by omission.
+ *
+ * @param audioController supplies the audio-stack-backed [AudioController] the CameraAndSound audio blocks
+ * (`audio_stream_muted`, `audio_volume`, `audio_volume_set`, `audio_stream_set_mute`, `microphone_muted`,
+ * `microphone_set_mute`, `speakerphone_on`, `speakerphone_set_state`) run against. It defaults to `{ null }`
+ * on the same honest terms as the seams above: with no `Context` there is no seam, and each audio block fails
+ * by name with `AUDIO_ABSENT` rather than pretending to read an audio state or apply an effect. A factory
+ * holding a `Context` passes `{ AndroidAudioController(context) }` to make them live; nothing in the runtime
+ * changes. The unprivileged audio state-read + simple volume/mode-effect subset only — every capture,
+ * recording, screenshot, media/tone/sound playback, TTS, vibration, image, media-session, Bluetooth-routing
+ * and picker block stays gated by omission.
  */
 class FlowPlaneViewModel(
     private val appInspector: () -> AppInspector? = { null },
@@ -119,6 +131,7 @@ class FlowPlaneViewModel(
     private val locationReader: () -> LocationReader? = { null },
     private val connectivityReader: () -> ConnectivityReader? = { null },
     private val telephonyReader: () -> TelephonyReader? = { null },
+    private val audioController: () -> AudioController? = { null },
 ) : ViewModel() {
 
     private val _graph = MutableStateFlow(FlowGraph(id = UUID.randomUUID().toString(), name = "Untitled flow"))
@@ -239,12 +252,17 @@ class FlowPlaneViewModel(
             // first, else Connectivity, else Location, …, else the base registry. A null seam fails each by
             // name (TELEPHONY_ABSENT) — honest, not silent — exactly as the layers below.
             val telephony = telephonyLookup(telephonyReader)
+            // Compose the CameraAndSound audio state-read + volume/mode-effect blocks the same way, layered
+            // ahead of Telephony: found here first, else Telephony, else Connectivity, …, else the base
+            // registry. A null seam fails each by name (AUDIO_ABSENT) — honest, not silent — exactly as the
+            // layers below.
+            val audio = audioLookup(audioController)
             val scheduler = Scheduler(
                 graph = snapshot,
                 specs = { BlockCatalog[it] },
                 impls = { id ->
-                    telephony[id] ?: connectivity[id] ?: location[id] ?: sensors[id] ?: power[id]
-                        ?: settings[id] ?: apps[id] ?: registry.lookup(id)
+                    audio[id] ?: telephony[id] ?: connectivity[id] ?: location[id] ?: sensors[id]
+                        ?: power[id] ?: settings[id] ?: apps[id] ?: registry.lookup(id)
                 },
                 resolver = ArgResolver(ExprEvalAdapter()),
                 store = InMemoryFiberStore(),
