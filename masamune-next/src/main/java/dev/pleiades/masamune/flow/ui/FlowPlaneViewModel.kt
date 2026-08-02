@@ -9,9 +9,11 @@ import dev.pleiades.masamune.flow.model.FlowGraph
 import dev.pleiades.masamune.flow.model.FlowNode
 import dev.pleiades.masamune.flow.model.Port
 import dev.pleiades.masamune.flow.model.Requirement
+import dev.pleiades.masamune.apps.AppInspector
 import dev.pleiades.masamune.flow.runtime.ArgResolver
 import dev.pleiades.masamune.flow.runtime.BlockRegistry
 import dev.pleiades.masamune.flow.runtime.ExprEvalAdapter
+import dev.pleiades.masamune.flow.runtime.impl.appsLookup
 import dev.pleiades.masamune.flow.runtime.Fiber
 import dev.pleiades.masamune.flow.runtime.InMemoryFiberStore
 import dev.pleiades.masamune.flow.runtime.Scheduler
@@ -41,7 +43,17 @@ import java.util.UUID
  * the fibers actually executing this graph, current block and variable frame and all. The monitor
  * renders exactly what the runtime hands it; there is no invented state.
  */
-class FlowPlaneViewModel : ViewModel() {
+/**
+ * @param appInspector supplies the package-manager-backed [AppInspector] the Apps blocks
+ * (`app_installed`, `app_list`, `resolve_activity`, `activity_start`, `activity_start_result`) run
+ * against. It defaults to `{ null }` so this ViewModel constructs with no Android `Context` — and a
+ * null inspector is honest: those blocks then fail by name with `APPS_ABSENT` rather than pretending
+ * to read the package manager. A factory holding a `Context` passes
+ * `{ PackageManagerAppInspector(context) }` to make them live; nothing in the runtime changes.
+ */
+class FlowPlaneViewModel(
+    private val appInspector: () -> AppInspector? = { null },
+) : ViewModel() {
 
     private val _graph = MutableStateFlow(FlowGraph(id = UUID.randomUUID().toString(), name = "Untitled flow"))
     val graph: StateFlow<FlowGraph> = _graph.asStateFlow()
@@ -133,10 +145,14 @@ class FlowPlaneViewModel : ViewModel() {
         _running.value = true
         runJob = viewModelScope.launch {
             val registry = BlockRegistry(snapshot, viewModelScope)
+            // Compose the Apps inspect-and-launch blocks over the base registry, the same way
+            // OperatorLoop composes its Interface actions: found here first, else the base registry.
+            // With a null inspector each Apps block fails by name (APPS_ABSENT) — honest, not silent.
+            val apps = appsLookup(appInspector)
             val scheduler = Scheduler(
                 graph = snapshot,
                 specs = { BlockCatalog[it] },
-                impls = registry.lookup,
+                impls = { id -> apps[id] ?: registry.lookup(id) },
                 resolver = ArgResolver(ExprEvalAdapter()),
                 store = InMemoryFiberStore(),
                 scope = viewModelScope,
