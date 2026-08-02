@@ -1,6 +1,7 @@
 package dev.pleiades.masamune.nav
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
@@ -39,9 +40,11 @@ object RouteCatalog {
     const val FILES = "files"
     const val SHELL = "shell"
     const val CHAT = "chat"
+    const val FLOWS = "flows"
     const val ABOUT = "about"
 
     const val SETTINGS_PROVIDER = "settings/provider"
+    const val SETTINGS_ACCOUNT = "settings/account"
     const val SETTINGS_CAPABILITIES = "settings/capabilities"
     const val SETTINGS_DECLINES = "settings/declines"
     const val RYZNIX = "about/ryznix"
@@ -54,10 +57,15 @@ object RouteCatalog {
         MasamuneRoute(FILES, "Files", Icons.Filled.Folder, Surface.BOTTOM_NAV, 0, "app launch (start destination)"),
         MasamuneRoute(SHELL, "Shell", Icons.Filled.Terminal, Surface.BOTTOM_NAV, 1, "bottom nav → Shell"),
         MasamuneRoute(CHAT, "Chat", Icons.Filled.Chat, Surface.BOTTOM_NAV, 2, "bottom nav → Chat"),
-        MasamuneRoute(ABOUT, "About", Icons.Filled.Info, Surface.BOTTOM_NAV, 3, "bottom nav → About"),
+        MasamuneRoute(FLOWS, "Flows", Icons.Filled.AccountTree, Surface.BOTTOM_NAV, 3, "bottom nav → Flows"),
+        MasamuneRoute(ABOUT, "About", Icons.Filled.Info, Surface.BOTTOM_NAV, 4, "bottom nav → About"),
         MasamuneRoute(
             SETTINGS_PROVIDER, "AI provider", null, Surface.DETAIL, 10,
             "bottom nav → About → AI provider (also the gear on Chat)",
+        ),
+        MasamuneRoute(
+            SETTINGS_ACCOUNT, "Account", null, Surface.DETAIL, 10,
+            "bottom nav \u2192 About \u2192 Account (also the account icon on Chat)",
         ),
         MasamuneRoute(
             SETTINGS_CAPABILITIES, "Capabilities", null, Surface.DETAIL, 11,

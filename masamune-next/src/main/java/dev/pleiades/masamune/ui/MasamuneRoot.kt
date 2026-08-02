@@ -29,8 +29,10 @@ import dev.pleiades.masamune.nav.Surface
 import dev.pleiades.masamune.ui.about.AboutScreen
 import dev.pleiades.masamune.ui.about.NavigationMapScreen
 import dev.pleiades.masamune.ui.about.RyznixRoadmapScreen
+import dev.pleiades.masamune.flow.ui.FlowPlaneScreen
 import dev.pleiades.masamune.ui.chat.ChatScreen
 import dev.pleiades.masamune.ui.files.FilesScreen
+import dev.pleiades.masamune.ui.settings.AccountScreen
 import dev.pleiades.masamune.ui.settings.CapabilitiesScreen
 import dev.pleiades.masamune.ui.settings.DeclineLogScreen
 import dev.pleiades.masamune.ui.settings.ProviderSettingsScreen
@@ -142,9 +144,14 @@ private fun NavGraphBuilder.registerRoutes(navigate: (String) -> Unit) {
                 RouteCatalog.CHAT -> ChatScreen(
                     onOpenProviderSettings = { navigate(RouteCatalog.SETTINGS_PROVIDER) },
                     onOpenCapabilities = { navigate(RouteCatalog.SETTINGS_CAPABILITIES) },
+                    onOpenAccount = { navigate(RouteCatalog.SETTINGS_ACCOUNT) },
                 )
+                RouteCatalog.FLOWS -> FlowPlaneScreen()
                 RouteCatalog.ABOUT -> AboutScreen(onNavigate = navigate)
-                RouteCatalog.SETTINGS_PROVIDER -> ProviderSettingsScreen()
+                RouteCatalog.SETTINGS_PROVIDER -> ProviderSettingsScreen(
+                    onOpenAccount = { navigate(RouteCatalog.SETTINGS_ACCOUNT) },
+                )
+                RouteCatalog.SETTINGS_ACCOUNT -> AccountScreen()
                 RouteCatalog.SETTINGS_CAPABILITIES -> CapabilitiesScreen()
                 RouteCatalog.SETTINGS_DECLINES -> DeclineLogScreen()
                 RouteCatalog.RYZNIX -> RyznixRoadmapScreen()
