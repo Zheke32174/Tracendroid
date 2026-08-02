@@ -44,7 +44,47 @@ class Scheduler(
      * scheduler property, not a flag each block remembers to check.
      */
     private val isHalted: () -> Boolean = { false },
-) {
+    fiberLifecycleHolder: FiberLifecycleHolder? = null,
+) : FiberLifecycle {
+
+    init {
+        // Serve `Fiber stopped`: the block reaches this scheduler through the holder its registry
+        // handed it. Set once, at construction, before any fiber runs.
+        fiberLifecycleHolder?.delegate = this
+    }
+
+    /** Callbacks waiting on a fiber id to terminate, guarded by [mutex]. Fired once, then dropped. */
+    private val stopWaiters = HashMap<String, MutableList<() -> Unit>>()
+
+    override fun awaitStopped(fiberId: String, onStopped: () -> Unit) {
+        scope.launch {
+            val fireNow = mutex.withLock {
+                val f = fibers[fiberId]
+                if (f == null || f.status.isTerminal) {
+                    true                                   // unknown or already terminal ⇒ stopped
+                } else {
+                    stopWaiters.getOrPut(fiberId) { mutableListOf() }.add(onStopped)
+                    false
+                }
+            }
+            if (fireNow) onStopped()
+        }
+    }
+
+    override fun cancelAwait(fiberId: String, onStopped: () -> Unit) {
+        scope.launch {
+            mutex.withLock {
+                stopWaiters[fiberId]?.let { list ->
+                    list.remove(onStopped)
+                    if (list.isEmpty()) stopWaiters.remove(fiberId)
+                }
+            }
+        }
+    }
+
+    /** Take (under [mutex]) the waiters registered for [fiberId], to fire outside the lock. */
+    private fun drainStopWaiters(fiberId: String): List<() -> Unit> =
+        stopWaiters.remove(fiberId).orEmpty()
     private val mutex = Mutex()
     private val fibers = LinkedHashMap<String, Fiber>()
     private val wakers = HashMap<String, Waker>()
@@ -242,7 +282,8 @@ class Scheduler(
 
     /** Stop every non-terminal fiber of this flow (`Flow stop`). Each ends as a normal stop; parked wakers are torn down. */
     private suspend fun stopAllFibers() {
-        mutex.withLock {
+        val fired = mutex.withLock {
+            val out = ArrayList<() -> Unit>()
             for (fid in fibers.keys.toList()) {
                 val f = fibers[fid] ?: continue
                 if (f.status.isTerminal) continue
@@ -250,21 +291,26 @@ class Scheduler(
                 val stopped = f.stopped()
                 fibers[fid] = stopped
                 store.save(stopped)
+                out += drainStopWaiters(fid)
             }
+            out
         }
+        fired.forEach { it() }
         ready.trySend("")   // nudge the loop to re-check all-terminal
     }
 
     /** Stop one fiber by id if it is present and still running (`Fiber stop`). Unknown or already-terminal ids are a no-op. */
     private suspend fun stopNamedFiber(fiberId: String) {
-        mutex.withLock {
-            val f = fibers[fiberId] ?: return@withLock
-            if (f.status.isTerminal) return@withLock
+        val fired = mutex.withLock {
+            val f = fibers[fiberId] ?: return@withLock emptyList<() -> Unit>()
+            if (f.status.isTerminal) return@withLock emptyList<() -> Unit>()
             wakers.remove(fiberId)?.cancel()
             val stopped = f.stopped()
             fibers[fiberId] = stopped
             store.save(stopped)
+            drainStopWaiters(fiberId)
         }
+        fired.forEach { it() }
         ready.trySend(fiberId)
     }
 
@@ -296,11 +342,13 @@ class Scheduler(
     }
 
     private suspend fun terminate(id: String, fiber: Fiber) {
-        mutex.withLock {
+        val fired = mutex.withLock {
             wakers.remove(id)?.cancel()
             fibers[id] = fiber
             store.save(fiber)
+            drainStopWaiters(id)
         }
+        fired.forEach { it() }        // wake any `Fiber stopped` awaiting this id
         // Nudge the loop so it can re-check the all-terminal condition.
         ready.trySend(id)
     }

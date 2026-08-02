@@ -10,7 +10,9 @@ import dev.pleiades.masamune.flow.runtime.CATCH_PENDING
 import dev.pleiades.masamune.flow.runtime.CATCH_STACK
 import dev.pleiades.masamune.flow.runtime.CatchFrame
 import dev.pleiades.masamune.flow.runtime.Fiber
+import dev.pleiades.masamune.flow.runtime.FiberLifecycle
 import dev.pleiades.masamune.flow.runtime.Outcome
+import dev.pleiades.masamune.flow.runtime.Waker
 import dev.pleiades.masamune.flow.runtime.RETURN_STOP
 import dev.pleiades.masamune.flow.runtime.callStack
 import dev.pleiades.masamune.flow.runtime.catchFrames
@@ -238,5 +240,49 @@ internal class FlowStartBlock(private val starterProvider: () -> FlowStarter?) :
         val writes = LinkedHashMap<String, Value>()
         node.outputs["varChildFiberURI"]?.takeIf { it.isNotBlank() }?.let { writes[it] = Value.Text(childUri) }
         return Outcome.Proceed(Port.OK, writes)
+    }
+}
+
+/**
+ * `Fiber stopped` — await a child fiber's termination, then take YES.
+ *
+ * The catalog marks it AWAIT: it waits for the fiber named by `fiberUri` to stop, "either manually
+ * or by an error". Only the scheduler knows a fiber's lifecycle, so the block reaches it through the
+ * injected [FiberLifecycle]; with none wired it fails by name rather than parking on a lifecycle
+ * nothing will report. A blank `fiberUri` is a visible failure. An id that is already stopped — or
+ * never named a live fiber — resolves at once (it is not running), so the block never hangs on a
+ * fiber that cannot stop.
+ */
+internal class FiberStoppedBlock(private val lifecycleProvider: () -> FiberLifecycle?) : BlockImpl {
+    override val specId = "fiber_stopped"
+    override suspend fun run(fiber: Fiber, node: FlowNode, args: Map<String, Value>): Outcome {
+        val lifecycle = lifecycleProvider()
+            ?: return Outcome.Fail("Fiber stopped cannot observe fibers: no scheduler lifecycle is wired.")
+        val uri = args["fiberUri"].asTextOrNull()?.takeIf { it.isNotBlank() }
+            ?: return Outcome.Fail("Fiber stopped needs a fiberUri.")
+        return Outcome.Await("Awaiting fiber '$uri' to stop", FiberStoppedWaker(lifecycle, uri))
+    }
+}
+
+/**
+ * The [Waker] behind `Fiber stopped`. On [start] it registers with the [FiberLifecycle]; the
+ * registration fires — now if the target is already stopped, later when it terminates — and resumes
+ * the awaiting fiber by YES. It holds only the registration, not a live continuation, and [cancel]
+ * withdraws it if the awaiting fiber is itself stopped first.
+ */
+private class FiberStoppedWaker(
+    private val lifecycle: FiberLifecycle,
+    private val fiberUri: String,
+) : Waker {
+    private var callback: (() -> Unit)? = null
+
+    override fun start(resume: (Port, Map<String, Value>) -> Unit) {
+        val c = { resume(Port.YES, emptyMap<String, Value>()) }
+        callback = c
+        lifecycle.awaitStopped(fiberUri, c)
+    }
+
+    override fun cancel() {
+        callback?.let { lifecycle.cancelAwait(fiberUri, it) }
     }
 }

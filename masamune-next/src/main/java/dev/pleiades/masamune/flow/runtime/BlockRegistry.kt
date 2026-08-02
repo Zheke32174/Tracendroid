@@ -26,6 +26,7 @@ import dev.pleiades.masamune.flow.runtime.impl.DictionaryRemoveBlock
 import dev.pleiades.masamune.flow.runtime.impl.ExpressionTrueBlock
 import dev.pleiades.masamune.flow.runtime.impl.FailureCatchBlock
 import dev.pleiades.masamune.flow.runtime.impl.FiberStopBlock
+import dev.pleiades.masamune.flow.runtime.impl.FiberStoppedBlock
 import dev.pleiades.masamune.flow.runtime.impl.FlowBeginningBlock
 import dev.pleiades.masamune.flow.runtime.impl.FlowStopBlock
 import dev.pleiades.masamune.flow.runtime.impl.ForEachBlock
@@ -85,6 +86,13 @@ class BlockRegistry(
     /** This flow's message log — the sink `Log append` writes to. In-memory by default. */
     private val flowLog: FlowLog = InMemoryFlowLog()
 
+    /**
+     * The seam `Fiber stopped` awaits on. Empty until the [Scheduler] built for this flow sets
+     * itself as the delegate (pass this holder to the scheduler); until then `Fiber stopped` fails
+     * by name rather than parking on a lifecycle nothing reports.
+     */
+    val fiberLifecycle: FiberLifecycleHolder = FiberLifecycleHolder()
+
     private val byId: Map<String, BlockImpl> = buildMap {
         fun register(impl: BlockImpl) {
             val clash = put(impl.specId, impl)
@@ -102,6 +110,7 @@ class BlockRegistry(
         register(FiberStopBlock())
         register(LogAppendBlock(flowLog))
         register(FlowStartBlock(flowStarter))
+        register(FiberStoppedBlock { fiberLifecycle.delegate })
 
         // General — conditional, mutations, loop.
         register(ExpressionTrueBlock())

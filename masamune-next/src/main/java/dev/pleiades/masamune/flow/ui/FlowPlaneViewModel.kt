@@ -322,6 +322,7 @@ class FlowPlaneViewModel(
                 store = InMemoryFiberStore(),
                 scope = viewModelScope,
                 isHalted = { HaltController.isHalted },
+                fiberLifecycleHolder = registry.fiberLifecycle,
             )
             val mirror = launch {
                 while (isActive) {
