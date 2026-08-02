@@ -240,8 +240,16 @@ entry** (`ensureComponentState` re-enables the IDE alias by that same derived na
 **7. The JS↔Java bridge resolves classes from script-supplied strings.**
 `core/tools/javascript/JsJavaBridgeDelegates.kt:902,905,907` calls
 `Class.forName(normalized)` on names that come from plugin scripts. Consequences:
-- `examples/` contains **212** `Java.type("com.ai.assistance.operit…")` /
-  `Java.com.ai.assistance.operit.…` references across 34 files.
+- `examples/` contains **53** script-side references across **34 files**: 18 of
+  the `Java.type("com.ai.assistance.operit…")` form plus 35 of the
+  `Java.com.ai.assistance.operit.…` form. Reproduce with:
+  ```
+  grep -rhoE 'Java\.type\("com\.ai\.assistance\.operit[^"]*"' examples/ | wc -l   # 18
+  grep -rhoE 'Java\.com\.ai\.assistance\.operit[A-Za-z0-9_.]*' examples/ | wc -l  # 35
+  grep -rlE  'com\.ai\.assistance\.operit' examples/ | wc -l                      # 34 files
+  ```
+  For an upper bound: *every* occurrence of the package string anywhere in
+  `examples/`, in any syntax, is 89.
 - `tools/sandboxpackage_dev_install_or_update.js:120`
   `Java.type("com.ai.assistance.operit.util.AssetCopyUtils")`.
 - `docs/SCRIPT_DEV_GUIDE.md:623` documents the FQN form as the public plugin API.
@@ -332,7 +340,7 @@ so run these locally / on-device.
 | A.4.4 | **Namespace only.** IDE package refactor for `:app` sources + tests + androidTest JS fixture dirs; `namespace =` in `app/build.gradle.kts`; `rootProject.name`. Leave `applicationId` alone. | `:app:compileDebugKotlin`, then `:app:assembleDebug` |
 | A.4.5 | JNI: rename the 5 `app/src/main/cpp/streamnative/*` symbols; fix the `StreamOperators.cpp:14` comment. | `:app:externalNativeBuildDebug`, then exercise markdown streaming **on-device** (`UnsatisfiedLinkError` is runtime-only) |
 | A.4.6 | `:quickjs`: move the 4 Kotlin sources, make the module `namespace` consistent, rename the 6 `QuickJsNativeBridge` JNI symbols. | `:quickjs:assembleDebug :app:assembleDebug`; run a JS toolpkg on-device |
-| A.4.7 | Non-source mirrors: `proguard-rules.pro:42` (+ delete the 3 dead `shower` rules), the 5 `res/xml/*` files (incl. the pre-existing `accessibility_service_config.xml:9` bug), `tools/*.sh|bat|py`, `sync_example_packages.py`, `tools/compose_dsl/*`, `docs/*.md`, `examples/**` (212 refs), `assets/packages/operit_editor.js`. | `:app:assembleRelease` with `isMinifyEnabled = true` **temporarily**, to actually exercise the keep rules |
+| A.4.7 | Non-source mirrors: `proguard-rules.pro:42` (+ delete the 3 dead `shower` rules), the 5 `res/xml/*` files (incl. the pre-existing `accessibility_service_config.xml:9` bug), `tools/*.sh|bat|py`, `sync_example_packages.py`, `tools/compose_dsl/*`, `docs/*.md`, `examples/**` (53 refs), `assets/packages/operit_editor.js`. | `:app:assembleRelease` with `isMinifyEnabled = true` **temporarily**, to actually exercise the keep rules |
 | A.4.8 | Sibling modules `:mnn :llama :mmd :fbx` namespaces + 105 JNI symbols — **or** a written deferral. | `./gradlew assembleDebug`; on-device smoke of each backend |
 | A.4.9 | `tools/desktop` (separate build) — or delete it if unused. | `cd tools/desktop && ./gradlew assembleDebug` |
 | A.4.10 | **`applicationId` decision.** Separate commit, separate release note. If yes: bump `versionCode`, update the OAuth App redirect URI first, add manifest aliases for the old intent actions, write the "this is a new install" note. | fresh-install **and** upgrade-from-old-build test on a real device |
@@ -800,7 +808,7 @@ only one needing a two-release cadence. Stage D is last, or never.
 | 5 | **C.5** | Cosmetic branding: `app_name` in the 4 remaining locales, `plugin_app_name`, about/agreement strings, the `MessageImageGenerator` "Operit AI" header, `User-Agent`s, web-chat title, `package.json`, READMEs; delete `chinese_strings_detailed.txt` | low. **Exception:** `ConfigurationStateHolder.ts` `TOKEN_KEY` logs web-chat users out — migrate the key or accept it | yes |
 | 6 | **A.0** | Decide the namespace **and** whether sibling modules are in scope. Write it down. | none, but skipping it costs a second full rename | n/a |
 | 7 | **A.4.1–A.4.3** | Bridge compat mapping; hardcoded-self-id → `${applicationId}`/`context.packageName`; freeze-list comments | low. The `${applicationId}` change to provider authorities is a no-op **only while** applicationId is unchanged — re-verify at A.4.10 | yes |
-| 8 | **A.4.4–A.4.7** | Namespace rename: `:app`, JNI, `:quickjs`, then non-source mirrors | **medium.** Failure modes are runtime-only (`UnsatisfiedLinkError`, missing components, dead `Class.forName`), not compile-time. Budget on-device smoke testing per step, not just a green compile. Residual risk: the 212 `examples/` FQNs and any already-published third-party toolpkg — the A.4.1 compat mapping is what covers them | yes (git), but each step needs its own device test |
+| 8 | **A.4.4–A.4.7** | Namespace rename: `:app`, JNI, `:quickjs`, then non-source mirrors | **medium.** Failure modes are runtime-only (`UnsatisfiedLinkError`, missing components, dead `Class.forName`), not compile-time. Budget on-device smoke testing per step, not just a green compile. Residual risk: the 53 `examples/` FQNs and any already-published third-party toolpkg — the A.4.1 compat mapping is what covers them | yes (git), but each step needs its own device test |
 | 9 | **A.4.8–A.4.9** | Sibling modules + `tools/desktop`, or written deferral | medium — 105 more JNI symbols, all runtime-only failures | yes |
 | 10 | **B.1–B.4** | ObjectBox → Room: entity port, converters, schema, then the 2814-line `MemoryRepository` rewrite | **high effort, medium risk.** `ToMany`→`@Relation` is not mechanical; expect the repository rewrite to dominate the whole de-fork's schedule. Freeze the repository's public API so the 8 consumers don't move | yes, until B.5 ships |
 | 11 | **B.5** | Ship the ObjectBox→Room importer. **Wait for adoption.** | **high — user data.** Per-profile stores; a bug here loses the memory graph. Test upgrade-from-old-build and old-snapshot-restore on a real device before release | **no**, once users have upgraded |
